@@ -462,7 +462,7 @@ async function analyze() {
   try {
     const [data, history] = await Promise.all([
       api(`/api/v1/analyze/${encodeURIComponent(ticker)}`),
-      api(`/api/v1/history/${encodeURIComponent(ticker)}?period=${encodeURIComponent(getRuntimeSettings().chartPeriod)}`).catch(() => null),
+      fetchHistory(ticker),
     ]);
     renderAnalysis(data, history);
   } catch (error) {
@@ -470,6 +470,24 @@ async function analyze() {
   } finally {
     $("btn-analyze").disabled = false;
   }
+}
+
+// Price history for the analysis chart. Guards the chart-period against an
+// invalid stored value (which the server rejects with 400) and retries once
+// after a brief backoff, since free price providers occasionally throttle a
+// request that races the parallel analyze call — the cause of intermittent
+// "Price history unavailable".
+async function fetchHistory(ticker) {
+  const valid = ["1y", "3y", "5y", "10y", "max"];
+  let period = getRuntimeSettings().chartPeriod;
+  if (!valid.includes(period)) period = "5y";
+  const url = `/api/v1/history/${encodeURIComponent(ticker)}?period=${encodeURIComponent(period)}`;
+  let h = await api(url).catch(() => null);
+  if (!h || !(h.points && h.points.length)) {
+    await new Promise((r) => setTimeout(r, 700));
+    h = await api(url).catch(() => null);
+  }
+  return h;
 }
 
 function screenerQuery() {

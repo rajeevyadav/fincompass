@@ -1,5 +1,5 @@
 # FinCompass 4.0 — free evidence + validation-gated forecasting + adaptive research API
-FROM python:3.12-slim
+FROM python:3.14-slim
 
 WORKDIR /app
 

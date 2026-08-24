@@ -56,10 +56,25 @@ app = FastAPI(
         "Quality · Financial durability · Safety · Valuation · Cycle. Educational only."
     ),
     version=APP_VERSION,
-    docs_url="/docs",
-    redoc_url="/redoc",
+    # Default docs pull Swagger UI from a CDN, which the strict CSP blocks and
+    # which fails offline. We self-host the assets and serve a custom /docs so
+    # the API explorer works fully within the user's system (see /docs route).
+    docs_url=None,
+    redoc_url=None,
 )
 app.add_middleware(GuardrailMiddleware)
+
+
+@app.get("/docs", include_in_schema=False)
+def custom_swagger_ui():
+    from fastapi.openapi.docs import get_swagger_ui_html
+    return get_swagger_ui_html(
+        openapi_url=app.openapi_url,
+        title="FinCompass API — docs",
+        swagger_js_url="/static/vendor/swagger-ui-bundle.js",
+        swagger_css_url="/static/vendor/swagger-ui.css",
+        swagger_favicon_url="/favicon.ico",
+    )
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 

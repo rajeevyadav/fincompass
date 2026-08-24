@@ -81,7 +81,7 @@ def analyze_ticker(ticker: str, force_refresh: bool = False) -> Optional[Dict[st
     return _score_fundamentals(ticker, fund)
 
 
-def get_price_history_cached(ticker: str, period: str = "5y"):
+def get_price_history_cached(ticker: str, period: str = "10y"):
     ticker = ticker.upper()
     cached = cache.get_price_history(ticker, period)
     if cached is not None:
@@ -92,7 +92,13 @@ def get_price_history_cached(ticker: str, period: str = "5y"):
             cache.set_price_history(ticker, period, df)
         except Exception as exc:
             logger.warning("Could not cache price history for %s: %s", ticker, exc)
-    return df
+        return df
+    # The fresh fetch failed or came back empty — free price providers throttle
+    # intermittently. Rather than report "unavailable", fall back to any data we
+    # previously stored locally (ignoring the freshness TTL) so the UI degrades
+    # gracefully. It updates to the latest bars on the next successful fetch.
+    stale = cache.get_price_history(ticker, period, max_age_hours=10 ** 9)
+    return stale if stale is not None else df
 
 
 def _refresh_screener_worker() -> None:

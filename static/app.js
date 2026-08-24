@@ -432,6 +432,7 @@ function renderAnalysis(d, history) {
         </div>
         <div class="score-actions">
           <button class="icon-button ${isWatched ? "active" : ""}" data-watch-toggle="${esc(d.ticker)}" aria-pressed="${isWatched ? "true" : "false"}">${isWatched ? "★ Saved" : "☆ Watch"}</button>
+          <button class="icon-button" data-print="1" title="Print or save this analysis as PDF">🖨 Print / PDF</button>
         </div>
       </div>
       ${plainRead(d)}
@@ -480,7 +481,7 @@ async function analyze() {
 async function fetchHistory(ticker) {
   const valid = ["1y", "3y", "5y", "10y", "max"];
   let period = getRuntimeSettings().chartPeriod;
-  if (!valid.includes(period)) period = "5y";
+  if (!valid.includes(period)) period = "10y";
   const url = `/api/v1/history/${encodeURIComponent(ticker)}?period=${encodeURIComponent(period)}`;
   let h = await api(url).catch(() => null);
   if (!h || !(h.points && h.points.length)) {
@@ -793,7 +794,7 @@ function drawBars(id, rows) {
 
 
 function getRuntimeSettings() {
-  const defaults = {chartPeriod:"5y", minCoverage:"0", probabilityFormat:"percent", modelId:"", liveRefreshSeconds:"0"};
+  const defaults = {chartPeriod:"10y", minCoverage:"0", probabilityFormat:"percent", modelId:"", liveRefreshSeconds:"0"};
   try { return {...defaults, ...JSON.parse(storageGet(SETTINGS_KEY, "{}") || "{}")}; } catch (_) { return defaults; }
 }
 
@@ -911,7 +912,7 @@ async function runForecast(){
 }
 
 function applyRuntimeSettings(settings){
-  if($("setting-chart-period"))$("setting-chart-period").value=settings.chartPeriod||"5y";
+  if($("setting-chart-period"))$("setting-chart-period").value=settings.chartPeriod||"10y";
   if($("setting-min-coverage"))$("setting-min-coverage").value=settings.minCoverage||"0";
   if($("setting-prob-format"))$("setting-prob-format").value=settings.probabilityFormat||"percent";
   if($("coverage-filter"))$("coverage-filter").value=settings.minCoverage||"0";
@@ -1025,7 +1026,8 @@ function initEvents() {
   });
   document.addEventListener("click", (event) => {
     const watch=event.target.closest("[data-watch-toggle]"); if(watch){toggleWatch(watch.dataset.watchToggle);return;}
-    const analyzeButton=event.target.closest("[data-analyze-ticker]"); if(analyzeButton){$("ticker").value=analyzeButton.dataset.analyzeTicker;showPage("analyze");analyze();}
+    const analyzeButton=event.target.closest("[data-analyze-ticker]"); if(analyzeButton){$("ticker").value=analyzeButton.dataset.analyzeTicker;showPage("analyze");analyze();return;}
+    const printBtn=event.target.closest("[data-print]"); if(printBtn){window.print();}
   });
   let resizeTimer=null;
   window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(redrawCharts,120);});

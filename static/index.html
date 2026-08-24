@@ -151,7 +151,7 @@
           </div>
           <div class="button-row"><button class="primary" id="btn-forecast">Run forecast</button><button class="secondary" id="btn-forecast-status">Refresh model status</button></div>
           <div class="refresh-panel">
-            <p class="meta">No usable model yet? Build one from free public data — no command line needed. Training takes several minutes and real models are often gate-rejected (that is the tool being honest).</p>
+            <p class="meta"><strong>Heads up:</strong> on free public data a forecast model <strong>almost never passes</strong> the validation gates — the price signal simply isn't strong enough, and the tool refuses to activate a model that hasn't earned it. Building here is a genuine validation exercise, not a shortcut to a working forecast; expect a "rejected" result. The Evidence score, Screener, Investor Posture and price context all work without any forecast model. Training runs locally and takes several minutes.</p>
             <div class="button-row"><button class="secondary" id="btn-build-model">Build forecast model</button><select id="build-profile" aria-label="Build validation profile"><option value="strict">Strict profile</option><option value="standard">Standard profile</option><option value="exploratory">Exploratory profile</option></select></div>
           </div>
         </div>
@@ -185,7 +185,7 @@
           <p class="meta">Runtime preferences stay in this browser. Forecast-training settings are exported/validated as a reproducible configuration; they never silently mutate a trained model.</p>
           <h2>Runtime preferences</h2>
           <div class="control-grid">
-            <label>Default chart period<select id="setting-chart-period"><option value="1y">1 year</option><option value="3y">3 years</option><option value="5y">5 years</option><option value="10y">10 years</option><option value="max">Maximum</option></select></label>
+            <label>Default chart period<select id="setting-chart-period"><option value="1y">1 year</option><option value="3y">3 years</option><option value="5y">5 years</option><option value="10y" selected>10 years</option><option value="max">Maximum</option></select></label>
             <label>Default screener evidence<select id="setting-min-coverage"><option value="0">Any</option><option value="0.4">40%+</option><option value="0.6">60%+</option><option value="0.8">80%+</option></select></label>
             <label>Probability display<select id="setting-prob-format"><option value="percent">Percent</option><option value="decimal">Decimal</option></select></label>
             <label>Default forecast model<select id="setting-model"><option value="">Automatic best validated model</option></select></label>
@@ -221,6 +221,8 @@
       <strong>FinCompass is educational research support, not financial advice.</strong><br>
       Free data sources · No analytics · Local watchlist · Versioned evidence engine · Validation-gated forecasting · Governed adaptive updates<br>
       <a href="/help" target="_blank" rel="noopener">Help</a>
+      <span aria-hidden="true">·</span>
+      <a href="/user-manual.pdf" target="_blank" rel="noopener">User Manual</a>
       <span aria-hidden="true">·</span>
       <a href="/legal/disclaimer" target="_blank" rel="noopener">Disclaimer</a>
       <span aria-hidden="true">·</span>

@@ -273,10 +273,13 @@ def audit_log(
 def _csp_for(path: str) -> str:
     # FastAPI's generated docs currently use jsDelivr assets. The application
     # itself is fully local and gets the stricter self-only policy.
-    if path in {"/docs", "/redoc"}:
+    if path == "/docs":
+        # Swagger UI is now self-hosted from /static/vendor (no CDN). It still
+        # bootstraps via a small inline <script>/<style>, so this one route
+        # allows 'unsafe-inline'; the rest of the app keeps the strict policy.
         return (
-            "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; "
-            "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; img-src 'self' data:; "
+            "default-src 'self'; script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
             "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
         )
     return (

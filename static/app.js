@@ -526,11 +526,24 @@ function renderScreener() {
   registerChart("screener-scatter", () => drawScatter("screener-scatter", rows));
 }
 
+const _knownSectors = new Set();
+function populateSectorFilter(rows) {
+  const sel = $("sector-filter");
+  if (!sel) return;
+  (rows || []).forEach((r) => { if (r && r.sector) _knownSectors.add(String(r.sector)); });
+  const current = sel.value;
+  const opts = ['<option value="">All sectors</option>']
+    .concat([..._knownSectors].sort((a, b) => a.localeCompare(b)).map((s) => `<option value="${esc(s)}">${esc(s)}</option>`));
+  sel.innerHTML = opts.join("");
+  sel.value = current; // preserve selection (empty if it was cleared)
+}
+
 async function loadScreener() {
   $("btn-screener").disabled = true;
   $("screener-out").innerHTML = '<div class="loading">Loading cached research universe…</div>';
   try {
     state.screenerRows = await api(`/api/v1/screener?${screenerQuery().toString()}`);
+    populateSectorFilter(state.screenerRows);
     renderScreener();
   } catch (error) {
     $("screener-out").innerHTML = `<div class="error">${esc(error.message)}</div>`;

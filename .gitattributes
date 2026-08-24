@@ -1,0 +1,17 @@
+# Shell scripts must stay LF — CRLF breaks them on the Linux CI runner and in
+# Git Bash (pre-commit hooks).
+*.sh text eol=lf
+.github/hooks/* text eol=lf
+.githooks/* text eol=lf
+
+# Hash-pinned release artifacts: preserve exact bytes (no EOL conversion) so the
+# sha256 manifests/sidecars validate identically on every platform (CI Linux runner
+# vs Windows author machine).
+datasets/** -text
+models/** -text
+adaptive_models/** -text
+*.joblib binary
+*.bat text eol=crlf
+
+# User manual and other PDFs: preserve exact bytes.
+*.pdf binary

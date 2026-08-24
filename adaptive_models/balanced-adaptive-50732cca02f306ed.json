@@ -1,0 +1,123 @@
+{
+  "adaptive_id": "50732cca02f306ed",
+  "base_model_id": "efd41fec7d9d24fd",
+  "contract_sha256": "50732cca02f306edfe35b3b6c9d40c44b375ee495de34f9c746874425e8f090a",
+  "created_at": "2026-08-24T02:04:35.609386+00:00",
+  "features": [
+    "market_return_1d",
+    "benchmark_relative_return_1d",
+    "return_z_20",
+    "relative_return_z_20",
+    "volume_z_20",
+    "intraday_range_pct",
+    "sec_filing_freshness",
+    "sec_is_8k_6k",
+    "sec_is_10q",
+    "sec_is_10k_family",
+    "yield_curve_change",
+    "hy_spread_change",
+    "macro_freshness"
+  ],
+  "name": "balanced-adaptive",
+  "realtime_engine_version": "1.0.0-adaptive1",
+  "settings": {
+    "adaptive_max_logit_shift": 0.75,
+    "adaptive_prior_sigma": 0.75,
+    "drift_allowance": 0.001,
+    "drift_alpha": 0.08,
+    "drift_control_multiplier": 2.75,
+    "drift_min_samples": 60,
+    "enable_adaptive_application": true,
+    "enable_online_learning": true,
+    "event_half_life_hours": 36.0,
+    "forgetting_factor": 0.997,
+    "macro_refresh_seconds": 900,
+    "market_refresh_seconds": 60,
+    "max_brier_regret": 0.0,
+    "max_ece": 0.08,
+    "max_log_loss_regret": 0.0,
+    "max_macro_staleness_seconds": 86400,
+    "max_market_staleness_seconds": 900,
+    "max_sec_staleness_seconds": 86400,
+    "min_matured_observations": 120,
+    "min_observation_span_days": 180,
+    "min_unique_observation_dates": 60,
+    "online_eval_window": 250,
+    "pending_label_limit": 20000,
+    "probability_clip": 0.01,
+    "process_noise": 0.0005,
+    "retention_days": 120,
+    "sec_refresh_seconds": 600,
+    "snapshot_min_spacing_seconds": 300
+  },
+  "settings_fingerprint": "f54949dee65f84d6",
+  "state_file": "balanced-adaptive-50732cca02f306ed.state.json",
+  "state_sha256": "200704ed3add4c16728d923795feeaca670441f83eb347a169cb691b9c3f7ee3",
+  "validation": {
+    "claims_boundary": "Software/statistical regression only; not market validation.",
+    "final_gate": {
+      "active": true,
+      "checks": {
+        "brier_noninferiority": true,
+        "log_loss_noninferiority": true,
+        "max_ece": true,
+        "min_matured_observations": true,
+        "min_observation_span_days": true,
+        "min_unique_observation_dates": true,
+        "no_drift": true
+      },
+      "metrics": {
+        "adaptive_brier": 0.20280331428410023,
+        "adaptive_log_loss": 0.595260590411538,
+        "anchor_brier": 0.24062462315684474,
+        "anchor_log_loss": 0.6742797375868219,
+        "brier_improvement": 0.037821308872744513,
+        "ece": 0.0619243769245342,
+        "log_loss_improvement": 0.07901914717528391,
+        "observations": 250,
+        "span_days": 498,
+        "unique_dates": 250
+      },
+      "status": "active"
+    },
+    "locked_metrics": {
+      "adaptive_brier": 0.2040692725296805,
+      "adaptive_log_loss": 0.5969881978595826,
+      "anchor_brier": 0.23565758397487638,
+      "anchor_log_loss": 0.6641061086317793,
+      "brier_improvement": 0.03158831144519589,
+      "log_loss_improvement": 0.06711791077219675,
+      "observations": 600
+    },
+    "passed": true,
+    "profile": "balanced",
+    "protocol": "predict-before-update warmup followed by locked prequential stream",
+    "synthetic": true,
+    "warmup_gate": {
+      "active": true,
+      "checks": {
+        "brier_noninferiority": true,
+        "log_loss_noninferiority": true,
+        "max_ece": true,
+        "min_matured_observations": true,
+        "min_observation_span_days": true,
+        "min_unique_observation_dates": true,
+        "no_drift": true
+      },
+      "metrics": {
+        "adaptive_brier": 0.21989294174051022,
+        "adaptive_log_loss": 0.6308937272403411,
+        "anchor_brier": 0.23923354620541307,
+        "anchor_log_loss": 0.6714297830316771,
+        "brier_improvement": 0.01934060446490285,
+        "ece": 0.038013259511112556,
+        "log_loss_improvement": 0.04053605579133601,
+        "observations": 250,
+        "span_days": 498,
+        "unique_dates": 250
+      },
+      "status": "active"
+    }
+  },
+  "validation_tier": "fixture_only"
+}

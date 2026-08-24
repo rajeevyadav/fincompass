@@ -1,0 +1,743 @@
+{
+  "model": {
+    "created_at": "2026-08-24T01:50:55.396905+00:00",
+    "data_quality": {
+      "corporate_action_adjusted": false,
+      "delistings_included": false,
+      "note": "Synthetic fixtures are never evidence of market forecasting performance.",
+      "point_in_time_features": true,
+      "survivorship_control": false
+    },
+    "dataset_files": {
+      "test": {
+        "file": "test.csv",
+        "rows": 2304,
+        "sha256": "724ac1bd255662081a66f01d7d448c3807f6ac12ab731ddaeef74b1e301943a4"
+      },
+      "train": {
+        "file": "train.csv",
+        "rows": 6528,
+        "sha256": "0cff0e735453e10761edf5db2092f39848500d694ccdeda47049878dcb5c9964"
+      },
+      "validation": {
+        "file": "validation.csv",
+        "rows": 1920,
+        "sha256": "fb71a8d63e4d2a09024dbef8e4f0f198db3c3f3fb499df4a8773f7a823568dda"
+      }
+    },
+    "dataset_manifest_content_sha256": "c795260f07ef30e4d6f7ab30de95098bbbb0db8867be97ed0ee01dc91aad3f1c",
+    "dataset_provenance": {
+      "generator": "tools/generate_validation_fixtures.py",
+      "purpose": "software/statistical regression testing only",
+      "seed": 37001
+    },
+    "dataset_schema_version": "1.0.0-forecast-dataset1",
+    "dataset_split": {
+      "embargo_trading_days": 252,
+      "method": "purged_chronological",
+      "purge_rule": "Rows whose target_end_date crosses the next partition boundary are removed; an explicit business-day embargo is also applied before each downstream partition.",
+      "test": {
+        "end": "2022-08-09",
+        "rows": 2304,
+        "start": "2017-02-28"
+      },
+      "test_start": "2017-02-28",
+      "train": {
+        "end": "2010-08-24",
+        "rows": 6528,
+        "start": "1995-01-31"
+      },
+      "val_start": "2011-08-23",
+      "validation": {
+        "end": "2016-03-01",
+        "rows": 1920,
+        "start": "2011-08-23"
+      }
+    },
+    "features": [
+      "ret_21",
+      "ret_63",
+      "ret_126",
+      "ret_252",
+      "rel_ret_21",
+      "rel_ret_63",
+      "rel_ret_126",
+      "rel_ret_252",
+      "vol_21",
+      "vol_63",
+      "vol_126",
+      "benchmark_ret_21",
+      "benchmark_ret_63",
+      "benchmark_ret_126",
+      "benchmark_ret_252",
+      "benchmark_vol_63",
+      "drawdown_126",
+      "drawdown_252",
+      "distance_52w_high",
+      "sma_50_200",
+      "volume_z_63",
+      "sec_revenue_growth_yoy",
+      "sec_net_margin",
+      "sec_operating_margin",
+      "sec_gross_margin",
+      "sec_current_ratio",
+      "sec_debt_to_equity",
+      "sec_fcf_margin",
+      "sec_roa"
+    ],
+    "forecast_engine_version": "1.0.0-prob1",
+    "model_file": "fixture-reference-efd41fec7d9d24fd.joblib",
+    "model_id": "efd41fec7d9d24fd",
+    "model_sha256": "efd41fec7d9d24fd9074597a208f4258cc9da0407ffd9306a6c1d387e3203dd4",
+    "profile_name": "fixture-reference",
+    "settings": {
+      "abstain_if_interval_crosses_half": false,
+      "abstain_probability_band": 0.03,
+      "bayesian_prior_sigma": 1.5,
+      "benchmark": "SPY",
+      "bootstrap_block_dates": 0,
+      "bootstrap_draws": 300,
+      "calibration_method": "sigmoid",
+      "embargo_trading_days": 252,
+      "excess_return_threshold": 0.0,
+      "horizon_trading_days": 252,
+      "max_bootstrap_ece_high": 0.1,
+      "max_calibration_slope": 1.5,
+      "max_ece": 0.08,
+      "min_auc": 0.52,
+      "min_bootstrap_auc_low": 0.5,
+      "min_bootstrap_brier_skill_low": 0.0,
+      "min_bootstrap_log_loss_skill_low": 0.0,
+      "min_brier_skill": 0.0,
+      "min_calibration_slope": 0.5,
+      "min_class_count": 100,
+      "min_log_loss_skill": 0.0,
+      "min_positive_walk_forward_fraction": 0.5,
+      "min_test_dates": 24,
+      "min_test_samples": 500,
+      "min_test_span_days": 540,
+      "posterior_draws": 1200,
+      "prediction_credible_level": 0.9,
+      "random_seed": 37001,
+      "sample_step_trading_days": 21,
+      "test_fraction": 0.2,
+      "train_fraction": 0.6,
+      "use_hist_gradient_boosting": true,
+      "use_random_forest": true,
+      "validation_fraction": 0.2,
+      "walk_forward_splits": 4
+    },
+    "target": {
+      "benchmark": "SPY",
+      "event": "stock return represented by the dataset price series over horizon exceeds benchmark return represented by its price series plus threshold",
+      "excess_return_threshold": 0.0,
+      "horizon_trading_days": 252,
+      "return_basis": "Price-series return; corporate-action treatment is declared in data_quality/provenance."
+    },
+    "validation": {
+      "bayesian_coefficients_standardized": {
+        "benchmark_ret_126": -0.02503853841271869,
+        "benchmark_ret_21": 0.019151622660057446,
+        "benchmark_ret_252": 0.03560321273246886,
+        "benchmark_ret_63": -0.03388259229016261,
+        "benchmark_vol_63": 0.06950718204582258,
+        "distance_52w_high": 0.032508390845332295,
+        "drawdown_126": 0.011630466568640826,
+        "drawdown_252": 0.05930792722798014,
+        "intercept": -0.1161459470003119,
+        "rel_ret_126": 0.2724200738266927,
+        "rel_ret_21": 0.05028256254172849,
+        "rel_ret_252": 0.17149554038288042,
+        "rel_ret_63": 0.18958822001874204,
+        "ret_126": 0.09248923451352273,
+        "ret_21": 0.039582970596185,
+        "ret_252": 0.11016833352096064,
+        "ret_63": 0.1788493643490096,
+        "sec_current_ratio": 0.04425159317502373,
+        "sec_debt_to_equity": -0.0461431761365533,
+        "sec_fcf_margin": 0.03665204223261566,
+        "sec_gross_margin": 0.05276451471416072,
+        "sec_net_margin": 0.03494966883109559,
+        "sec_operating_margin": 0.027628742862672164,
+        "sec_revenue_growth_yoy": 0.056540411355980626,
+        "sec_roa": 0.011510848174031542,
+        "sma_50_200": 0.0649866679815882,
+        "vol_126": -0.19396843619403195,
+        "vol_21": 0.2782705380882669,
+        "vol_63": -0.11471381387880371,
+        "volume_z_63": -0.052864218484760306
+      },
+      "ensemble_weights": {
+        "bayesian_logistic": 0.5023878347333354,
+        "hist_gradient_boosting": 0.16353569247101465,
+        "random_forest": 0.33407647279564995
+      },
+      "features": [
+        "ret_21",
+        "ret_63",
+        "ret_126",
+        "ret_252",
+        "rel_ret_21",
+        "rel_ret_63",
+        "rel_ret_126",
+        "rel_ret_252",
+        "vol_21",
+        "vol_63",
+        "vol_126",
+        "benchmark_ret_21",
+        "benchmark_ret_63",
+        "benchmark_ret_126",
+        "benchmark_ret_252",
+        "benchmark_vol_63",
+        "drawdown_126",
+        "drawdown_252",
+        "distance_52w_high",
+        "sma_50_200",
+        "volume_z_63",
+        "sec_revenue_growth_yoy",
+        "sec_net_margin",
+        "sec_operating_margin",
+        "sec_gross_margin",
+        "sec_current_ratio",
+        "sec_debt_to_equity",
+        "sec_fcf_margin",
+        "sec_roa"
+      ],
+      "gate": {
+        "bootstrap": {
+          "_meta": {
+            "block_dates": 12,
+            "distinct_dates": 72,
+            "draws": 300,
+            "level": 0.9,
+            "method": "moving_date_block_cross_sectional_cluster"
+          },
+          "brier_skill": {
+            "high": 0.14504555850061332,
+            "low": 0.10852048431491146,
+            "median": 0.12920075165717704
+          },
+          "calibration_slope": {
+            "high": 0.8660066224917201,
+            "low": 0.7710558234193426,
+            "median": 0.8250947394949752
+          },
+          "ece_10": {
+            "high": 0.04605263476853267,
+            "low": 0.032129981675134846,
+            "median": 0.038480044183934095
+          },
+          "log_loss_skill": {
+            "high": 0.11456443177330745,
+            "low": 0.08348357795160177,
+            "median": 0.1011573635863815
+          },
+          "roc_auc": {
+            "high": 0.7176366328253427,
+            "low": 0.6940310365442377,
+            "median": 0.707519311570173
+          }
+        },
+        "checks": {
+          "bootstrap_auc_low": true,
+          "bootstrap_brier_skill_low": true,
+          "bootstrap_ece_high": true,
+          "bootstrap_log_loss_skill_low": true,
+          "brier_skill": true,
+          "calibration_slope": true,
+          "ece": true,
+          "log_loss_skill": true,
+          "minimum_each_class": true,
+          "minimum_test_dates": true,
+          "minimum_test_samples": true,
+          "minimum_test_span_days": true,
+          "roc_auc": true,
+          "walk_forward_stability": true
+        },
+        "class_counts": {
+          "0": 1304,
+          "1": 1000
+        },
+        "passed": true,
+        "test_temporal_coverage": {
+          "distinct_dates": 72,
+          "span_days": 1988
+        },
+        "thresholds": {
+          "calibration_slope": [
+            0.5,
+            1.5
+          ],
+          "max_bootstrap_ece_high": 0.1,
+          "max_ece": 0.08,
+          "min_auc": 0.52,
+          "min_bootstrap_auc_low": 0.5,
+          "min_bootstrap_brier_skill_low": 0.0,
+          "min_bootstrap_log_loss_skill_low": 0.0,
+          "min_brier_skill": 0.0,
+          "min_class_count": 100,
+          "min_log_loss_skill": 0.0,
+          "min_positive_walk_forward_fraction": 0.5,
+          "min_test_dates": 24,
+          "min_test_samples": 500,
+          "min_test_span_days": 540
+        }
+      },
+      "interpretation": "A validated_* tier means the configured probability model passed the locked-test gates for this dataset. validated_research still carries dataset limitations such as current-universe survivorship risk. validated_market additionally requires point-in-time features, survivorship controls, delistings, and corporate-action-adjusted prices.",
+      "locked_test_metrics": {
+        "average_precision": 0.6231912318279329,
+        "baseline_brier": 0.24680448169550612,
+        "baseline_log_loss": 0.6867488140578482,
+        "brier": 0.21773842616173317,
+        "brier_skill": 0.11776956129035399,
+        "calibration_intercept": -0.08575168178945287,
+        "calibration_slope": 0.7960654592459313,
+        "ece_10": 0.038349189945329355,
+        "event_rate": 0.4340277777777778,
+        "log_loss": 0.6240406728491306,
+        "log_loss_skill": 0.09131161193885273,
+        "roc_auc": 0.7001909509202455,
+        "samples": 2304
+      },
+      "test_event_rate": 0.4340277777777778,
+      "train_event_rate": 0.47472426470588236,
+      "validation_event_rate": 0.4453125,
+      "validation_protocol": {
+        "locked_test_used_for_fitting": false,
+        "method": "purged_embargoed_three_stage_validation_then_locked_test",
+        "stages": {
+          "component_calibration": {
+            "distinct_dates": 8,
+            "end": "2012-03-06",
+            "event_rate": 0.453125,
+            "rows": 256,
+            "start": "2011-08-23",
+            "target_end_max": "2013-02-21"
+          },
+          "embargo_trading_days": 252,
+          "ensemble_stacking": {
+            "distinct_dates": 8,
+            "end": "2013-09-17",
+            "event_rate": 0.46484375,
+            "rows": 256,
+            "start": "2013-03-05",
+            "target_end_max": "2014-09-04"
+          },
+          "final_calibration": {
+            "distinct_dates": 20,
+            "end": "2016-03-01",
+            "event_rate": 0.4328125,
+            "rows": 640,
+            "start": "2014-09-16",
+            "target_end_max": "2017-02-16"
+          },
+          "stage2_start": "2013-03-05",
+          "stage3_start": "2014-09-16"
+        }
+      },
+      "validation_reference_event_rate": 0.4680397727272727,
+      "validation_tier": "fixture_only",
+      "walk_forward": {
+        "folds": [
+          {
+            "average_precision": 0.6822961620671004,
+            "baseline_brier": 0.24982047579325115,
+            "baseline_log_loss": 0.6927891793530069,
+            "brier": 0.22077362517000235,
+            "brier_skill": 0.11627089625466758,
+            "calibration_intercept": 0.04415764919312075,
+            "calibration_slope": 0.8445088123954723,
+            "ece_10": 0.030397097919167004,
+            "embargo_cutoff": "2000-11-10",
+            "event_rate": 0.48082386363636365,
+            "fold": 1,
+            "log_loss": 0.6319903695196508,
+            "log_loss_skill": 0.08775946802479773,
+            "roc_auc": 0.696736830832089,
+            "samples": 1408,
+            "test_end": "2005-02-15",
+            "test_rows": 1408,
+            "test_start": "2001-10-30",
+            "train_date_max": "2000-10-31",
+            "train_rows": 2432,
+            "train_target_end_max": "2001-10-18"
+          },
+          {
+            "average_precision": 0.6954028013372152,
+            "baseline_brier": 0.2500977240668403,
+            "baseline_log_loss": 0.6933447455011652,
+            "brier": 0.21544874164756928,
+            "brier_skill": 0.13854177421466995,
+            "calibration_intercept": 0.11605533003447156,
+            "calibration_slope": 0.9635795169890676,
+            "ece_10": 0.026280072846887267,
+            "embargo_cutoff": "2004-03-26",
+            "event_rate": 0.484375,
+            "fold": 2,
+            "log_loss": 0.6192153070648821,
+            "log_loss_skill": 0.10691569946592816,
+            "roc_auc": 0.7141974261409079,
+            "samples": 1408,
+            "test_end": "2008-07-01",
+            "test_rows": 1408,
+            "test_start": "2005-03-15",
+            "train_date_max": "2004-03-16",
+            "train_rows": 3840,
+            "train_target_end_max": "2005-03-03"
+          },
+          {
+            "average_precision": 0.6603360682433799,
+            "baseline_brier": 0.24898752475866637,
+            "baseline_log_loss": 0.6911209014044498,
+            "brier": 0.21861075559991103,
+            "brier_skill": 0.12200116928829396,
+            "calibration_intercept": 0.028762432716908364,
+            "calibration_slope": 0.9212088541831095,
+            "ece_10": 0.03387404413633384,
+            "embargo_cutoff": "2007-08-10",
+            "event_rate": 0.4680397727272727,
+            "fold": 3,
+            "log_loss": 0.6274386019199575,
+            "log_loss_skill": 0.09214350102142965,
+            "roc_auc": 0.7019860572822438,
+            "samples": 1408,
+            "test_end": "2012-10-16",
+            "test_rows": 1408,
+            "test_start": "2008-07-29",
+            "train_date_max": "2007-07-31",
+            "train_rows": 5248,
+            "train_target_end_max": "2008-07-17"
+          },
+          {
+            "average_precision": 0.6840682166765628,
+            "baseline_brier": 0.24801982122444857,
+            "baseline_log_loss": 0.6891839960471452,
+            "brier": 0.2084748192895428,
+            "brier_skill": 0.15944290960164442,
+            "calibration_intercept": -0.07610081361902925,
+            "calibration_slope": 1.0666217606824044,
+            "ece_10": 0.02446094337836993,
+            "embargo_cutoff": "2011-11-25",
+            "event_rate": 0.4481534090909091,
+            "fold": 4,
+            "log_loss": 0.6042146198538071,
+            "log_loss_skill": 0.12328982779734421,
+            "roc_auc": 0.7297276901080387,
+            "samples": 1408,
+            "test_end": "2016-03-01",
+            "test_rows": 1408,
+            "test_start": "2012-11-13",
+            "train_date_max": "2011-11-15",
+            "train_rows": 6656,
+            "train_target_end_max": "2012-11-01"
+          }
+        ],
+        "median_brier_skill": 0.13027147175148196,
+        "positive_brier_skill_fraction": 1.0
+      }
+    },
+    "validation_tier": "fixture_only"
+  },
+  "report": {
+    "bayesian_coefficients_standardized": {
+      "benchmark_ret_126": -0.02503853841271869,
+      "benchmark_ret_21": 0.019151622660057446,
+      "benchmark_ret_252": 0.03560321273246886,
+      "benchmark_ret_63": -0.03388259229016261,
+      "benchmark_vol_63": 0.06950718204582258,
+      "distance_52w_high": 0.032508390845332295,
+      "drawdown_126": 0.011630466568640826,
+      "drawdown_252": 0.05930792722798014,
+      "intercept": -0.1161459470003119,
+      "rel_ret_126": 0.2724200738266927,
+      "rel_ret_21": 0.05028256254172849,
+      "rel_ret_252": 0.17149554038288042,
+      "rel_ret_63": 0.18958822001874204,
+      "ret_126": 0.09248923451352273,
+      "ret_21": 0.039582970596185,
+      "ret_252": 0.11016833352096064,
+      "ret_63": 0.1788493643490096,
+      "sec_current_ratio": 0.04425159317502373,
+      "sec_debt_to_equity": -0.0461431761365533,
+      "sec_fcf_margin": 0.03665204223261566,
+      "sec_gross_margin": 0.05276451471416072,
+      "sec_net_margin": 0.03494966883109559,
+      "sec_operating_margin": 0.027628742862672164,
+      "sec_revenue_growth_yoy": 0.056540411355980626,
+      "sec_roa": 0.011510848174031542,
+      "sma_50_200": 0.0649866679815882,
+      "vol_126": -0.19396843619403195,
+      "vol_21": 0.2782705380882669,
+      "vol_63": -0.11471381387880371,
+      "volume_z_63": -0.052864218484760306
+    },
+    "ensemble_weights": {
+      "bayesian_logistic": 0.5023878347333354,
+      "hist_gradient_boosting": 0.16353569247101465,
+      "random_forest": 0.33407647279564995
+    },
+    "features": [
+      "ret_21",
+      "ret_63",
+      "ret_126",
+      "ret_252",
+      "rel_ret_21",
+      "rel_ret_63",
+      "rel_ret_126",
+      "rel_ret_252",
+      "vol_21",
+      "vol_63",
+      "vol_126",
+      "benchmark_ret_21",
+      "benchmark_ret_63",
+      "benchmark_ret_126",
+      "benchmark_ret_252",
+      "benchmark_vol_63",
+      "drawdown_126",
+      "drawdown_252",
+      "distance_52w_high",
+      "sma_50_200",
+      "volume_z_63",
+      "sec_revenue_growth_yoy",
+      "sec_net_margin",
+      "sec_operating_margin",
+      "sec_gross_margin",
+      "sec_current_ratio",
+      "sec_debt_to_equity",
+      "sec_fcf_margin",
+      "sec_roa"
+    ],
+    "gate": {
+      "bootstrap": {
+        "_meta": {
+          "block_dates": 12,
+          "distinct_dates": 72,
+          "draws": 300,
+          "level": 0.9,
+          "method": "moving_date_block_cross_sectional_cluster"
+        },
+        "brier_skill": {
+          "high": 0.14504555850061332,
+          "low": 0.10852048431491146,
+          "median": 0.12920075165717704
+        },
+        "calibration_slope": {
+          "high": 0.8660066224917201,
+          "low": 0.7710558234193426,
+          "median": 0.8250947394949752
+        },
+        "ece_10": {
+          "high": 0.04605263476853267,
+          "low": 0.032129981675134846,
+          "median": 0.038480044183934095
+        },
+        "log_loss_skill": {
+          "high": 0.11456443177330745,
+          "low": 0.08348357795160177,
+          "median": 0.1011573635863815
+        },
+        "roc_auc": {
+          "high": 0.7176366328253427,
+          "low": 0.6940310365442377,
+          "median": 0.707519311570173
+        }
+      },
+      "checks": {
+        "bootstrap_auc_low": true,
+        "bootstrap_brier_skill_low": true,
+        "bootstrap_ece_high": true,
+        "bootstrap_log_loss_skill_low": true,
+        "brier_skill": true,
+        "calibration_slope": true,
+        "ece": true,
+        "log_loss_skill": true,
+        "minimum_each_class": true,
+        "minimum_test_dates": true,
+        "minimum_test_samples": true,
+        "minimum_test_span_days": true,
+        "roc_auc": true,
+        "walk_forward_stability": true
+      },
+      "class_counts": {
+        "0": 1304,
+        "1": 1000
+      },
+      "passed": true,
+      "test_temporal_coverage": {
+        "distinct_dates": 72,
+        "span_days": 1988
+      },
+      "thresholds": {
+        "calibration_slope": [
+          0.5,
+          1.5
+        ],
+        "max_bootstrap_ece_high": 0.1,
+        "max_ece": 0.08,
+        "min_auc": 0.52,
+        "min_bootstrap_auc_low": 0.5,
+        "min_bootstrap_brier_skill_low": 0.0,
+        "min_bootstrap_log_loss_skill_low": 0.0,
+        "min_brier_skill": 0.0,
+        "min_class_count": 100,
+        "min_log_loss_skill": 0.0,
+        "min_positive_walk_forward_fraction": 0.5,
+        "min_test_dates": 24,
+        "min_test_samples": 500,
+        "min_test_span_days": 540
+      }
+    },
+    "interpretation": "A validated_* tier means the configured probability model passed the locked-test gates for this dataset. validated_research still carries dataset limitations such as current-universe survivorship risk. validated_market additionally requires point-in-time features, survivorship controls, delistings, and corporate-action-adjusted prices.",
+    "locked_test_metrics": {
+      "average_precision": 0.6231912318279329,
+      "baseline_brier": 0.24680448169550612,
+      "baseline_log_loss": 0.6867488140578482,
+      "brier": 0.21773842616173317,
+      "brier_skill": 0.11776956129035399,
+      "calibration_intercept": -0.08575168178945287,
+      "calibration_slope": 0.7960654592459313,
+      "ece_10": 0.038349189945329355,
+      "event_rate": 0.4340277777777778,
+      "log_loss": 0.6240406728491306,
+      "log_loss_skill": 0.09131161193885273,
+      "roc_auc": 0.7001909509202455,
+      "samples": 2304
+    },
+    "test_event_rate": 0.4340277777777778,
+    "train_event_rate": 0.47472426470588236,
+    "validation_event_rate": 0.4453125,
+    "validation_protocol": {
+      "locked_test_used_for_fitting": false,
+      "method": "purged_embargoed_three_stage_validation_then_locked_test",
+      "stages": {
+        "component_calibration": {
+          "distinct_dates": 8,
+          "end": "2012-03-06",
+          "event_rate": 0.453125,
+          "rows": 256,
+          "start": "2011-08-23",
+          "target_end_max": "2013-02-21"
+        },
+        "embargo_trading_days": 252,
+        "ensemble_stacking": {
+          "distinct_dates": 8,
+          "end": "2013-09-17",
+          "event_rate": 0.46484375,
+          "rows": 256,
+          "start": "2013-03-05",
+          "target_end_max": "2014-09-04"
+        },
+        "final_calibration": {
+          "distinct_dates": 20,
+          "end": "2016-03-01",
+          "event_rate": 0.4328125,
+          "rows": 640,
+          "start": "2014-09-16",
+          "target_end_max": "2017-02-16"
+        },
+        "stage2_start": "2013-03-05",
+        "stage3_start": "2014-09-16"
+      }
+    },
+    "validation_reference_event_rate": 0.4680397727272727,
+    "validation_tier": "fixture_only",
+    "walk_forward": {
+      "folds": [
+        {
+          "average_precision": 0.6822961620671004,
+          "baseline_brier": 0.24982047579325115,
+          "baseline_log_loss": 0.6927891793530069,
+          "brier": 0.22077362517000235,
+          "brier_skill": 0.11627089625466758,
+          "calibration_intercept": 0.04415764919312075,
+          "calibration_slope": 0.8445088123954723,
+          "ece_10": 0.030397097919167004,
+          "embargo_cutoff": "2000-11-10",
+          "event_rate": 0.48082386363636365,
+          "fold": 1,
+          "log_loss": 0.6319903695196508,
+          "log_loss_skill": 0.08775946802479773,
+          "roc_auc": 0.696736830832089,
+          "samples": 1408,
+          "test_end": "2005-02-15",
+          "test_rows": 1408,
+          "test_start": "2001-10-30",
+          "train_date_max": "2000-10-31",
+          "train_rows": 2432,
+          "train_target_end_max": "2001-10-18"
+        },
+        {
+          "average_precision": 0.6954028013372152,
+          "baseline_brier": 0.2500977240668403,
+          "baseline_log_loss": 0.6933447455011652,
+          "brier": 0.21544874164756928,
+          "brier_skill": 0.13854177421466995,
+          "calibration_intercept": 0.11605533003447156,
+          "calibration_slope": 0.9635795169890676,
+          "ece_10": 0.026280072846887267,
+          "embargo_cutoff": "2004-03-26",
+          "event_rate": 0.484375,
+          "fold": 2,
+          "log_loss": 0.6192153070648821,
+          "log_loss_skill": 0.10691569946592816,
+          "roc_auc": 0.7141974261409079,
+          "samples": 1408,
+          "test_end": "2008-07-01",
+          "test_rows": 1408,
+          "test_start": "2005-03-15",
+          "train_date_max": "2004-03-16",
+          "train_rows": 3840,
+          "train_target_end_max": "2005-03-03"
+        },
+        {
+          "average_precision": 0.6603360682433799,
+          "baseline_brier": 0.24898752475866637,
+          "baseline_log_loss": 0.6911209014044498,
+          "brier": 0.21861075559991103,
+          "brier_skill": 0.12200116928829396,
+          "calibration_intercept": 0.028762432716908364,
+          "calibration_slope": 0.9212088541831095,
+          "ece_10": 0.03387404413633384,
+          "embargo_cutoff": "2007-08-10",
+          "event_rate": 0.4680397727272727,
+          "fold": 3,
+          "log_loss": 0.6274386019199575,
+          "log_loss_skill": 0.09214350102142965,
+          "roc_auc": 0.7019860572822438,
+          "samples": 1408,
+          "test_end": "2012-10-16",
+          "test_rows": 1408,
+          "test_start": "2008-07-29",
+          "train_date_max": "2007-07-31",
+          "train_rows": 5248,
+          "train_target_end_max": "2008-07-17"
+        },
+        {
+          "average_precision": 0.6840682166765628,
+          "baseline_brier": 0.24801982122444857,
+          "baseline_log_loss": 0.6891839960471452,
+          "brier": 0.2084748192895428,
+          "brier_skill": 0.15944290960164442,
+          "calibration_intercept": -0.07610081361902925,
+          "calibration_slope": 1.0666217606824044,
+          "ece_10": 0.02446094337836993,
+          "embargo_cutoff": "2011-11-25",
+          "event_rate": 0.4481534090909091,
+          "fold": 4,
+          "log_loss": 0.6042146198538071,
+          "log_loss_skill": 0.12328982779734421,
+          "roc_auc": 0.7297276901080387,
+          "samples": 1408,
+          "test_end": "2016-03-01",
+          "test_rows": 1408,
+          "test_start": "2012-11-13",
+          "train_date_max": "2011-11-15",
+          "train_rows": 6656,
+          "train_target_end_max": "2012-11-01"
+        }
+      ],
+      "median_brier_skill": 0.13027147175148196,
+      "positive_brier_skill_fraction": 1.0
+    }
+  }
+}

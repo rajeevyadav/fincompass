@@ -1,0 +1,54 @@
+{
+  "automated_tests_passed": 113,
+  "bundled_adaptive": {
+    "adaptive_id": "50732cca02f306ed",
+    "base_model_id": "efd41fec7d9d24fd",
+    "live_eligible": false,
+    "settings_fingerprint": "f54949dee65f84d6",
+    "validation_tier": "fixture_only"
+  },
+  "bundled_anchor": {
+    "live_eligible": false,
+    "model_id": "efd41fec7d9d24fd",
+    "validation_tier": "fixture_only"
+  },
+  "engines": {
+    "adaptive_state_schema": "1.0.0-state1",
+    "event_schema": "1.0.0-event1",
+    "evidence": "1.0.0-evidence1",
+    "forecast_anchor": "1.0.0-prob1",
+    "normalized_data": "1.0.0-normalized1",
+    "realtime_adaptive": "1.0.0-adaptive1"
+  },
+  "locked_adaptive_fixture": {
+    "adaptive_brier": 0.2040692725296805,
+    "adaptive_log_loss": 0.5969881978595826,
+    "anchor_brier": 0.23565758397487638,
+    "anchor_log_loss": 0.6641061086317793,
+    "brier_improvement": 0.03158831144519589,
+    "log_loss_improvement": 0.06711791077219675,
+    "observations": 600
+  },
+  "locked_anchor_fixture": {
+    "average_precision": 0.6232856927874113,
+    "brier": 0.21772724481412042,
+    "brier_skill": 0.11781486576592881,
+    "calibration_intercept": -0.08187210125403377,
+    "calibration_slope": 0.8006905490704223,
+    "ece_10": 0.03593430039567775,
+    "log_loss": 0.6239591372860553,
+    "log_loss_skill": 0.09143033884657537,
+    "roc_auc": 0.6998013803680981,
+    "samples": 2304
+  },
+  "product": "FinCompass",
+  "release": "1.2.0",
+  "release_date": "2026-08-24",
+  "release_status": "research_freeware_release_candidate",
+  "validation_boundaries": {
+    "adaptive_fixture_synthetic": true,
+    "anchor_fixture_synthetic": true,
+    "live_market_model_bundled": false,
+    "market_skill_claimed": false
+  }
+}

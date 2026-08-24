@@ -1,0 +1,67 @@
+# ============================================================
+# FinCompass .gitignore — hardened (governance guardrail)
+# Never commit secrets, real credentials, or runtime data.
+# Synthetic fixtures (datasets/) and the fixture_only model
+# (models/) ARE committed on purpose for reproducibility.
+# ============================================================
+
+# --- Secrets / credentials — NEVER commit ---
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.pfx
+*.p12
+*.keystore
+id_rsa
+id_ed25519
+secrets/
+*.credentials
+credentials.json
+
+# --- Runtime data / logs (regenerated at run time) ---
+data/*.db
+data/*.db-*
+data/audit.jsonl*
+data/*.log
+*.sqlite
+*.sqlite3
+
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# --- Node / frontend build ---
+node_modules/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+data/*.json
+
+# --- Build + user-generated artifacts (never committed) ---
+build/
+dist/
+*.spec
+datasets/market/
+models/default-*
+models/*-market-*
+adaptive_models/*-live-*
+
+# Local-only project docs (directives/reports/handoff) — never committed
+_docs/

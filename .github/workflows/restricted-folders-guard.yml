@@ -1,0 +1,44 @@
+name: Restricted Folder Guard
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+concurrency:
+  group: guard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-restricted:
+    name: Fail if secrets or restricted files are present
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check for secrets / runtime-data paths
+        run: |
+          echo "Scanning for files that must never be committed..."
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          else
+            FILES=$(git ls-files)
+          fi
+          # Regex of never-commit paths. .env.example is explicitly allowed.
+          PATTERN='(^|/)\.env$|(^|/)\.env\.|(^|/)secrets/|\.(pem|key|pfx|p12|keystore)$|(^|/)id_rsa$|(^|/)id_ed25519$|(^|/)credentials\.json$|\.credentials$|(^|/)data/.*\.db($|-)|(^|/)data/audit\.jsonl|\.(sqlite|sqlite3)$'
+          BAD=0
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            base=$(basename "$f")
+            [ "$base" = ".env.example" ] && continue
+            if echo "$f" | grep -qE "$PATTERN"; then
+              echo "::error file=$f::Restricted / secret file must not be committed: $f"
+              BAD=1
+            fi
+          done <<< "$FILES"
+          if [ "$BAD" -ne 0 ]; then
+            echo "Restricted Folder Guard failed."
+            exit 1
+          fi
+          echo "OK — no secrets or restricted files present."

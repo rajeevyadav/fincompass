@@ -1,0 +1,40 @@
+{
+  "base_model_id": "efd41fec7d9d24fd",
+  "claims_boundary": "Synthetic streaming regression fixture only; never evidence of market skill.",
+  "dates": {
+    "locked_test": [
+      "2022-07-31",
+      "2025-11-10"
+    ],
+    "warmup": [
+      "2016-01-04",
+      "2022-07-29"
+    ]
+  },
+  "features": [
+    "market_return_1d",
+    "benchmark_relative_return_1d",
+    "return_z_20",
+    "relative_return_z_20",
+    "volume_z_20",
+    "intraday_range_pct",
+    "sec_filing_freshness",
+    "sec_is_8k_6k",
+    "sec_is_10q",
+    "sec_is_10k_family",
+    "yield_curve_change",
+    "hy_spread_change",
+    "macro_freshness"
+  ],
+  "files": {
+    "locked_test.csv": "06c40a5a7ef6625c3d8ea9523f43660f235edc894ecef2a1dc45501983ae8e3d",
+    "warmup.csv": "aab95ff42c3b289d1387a4d605288be7174b0137b99cc592f46df9f9d03f8c91"
+  },
+  "rows": {
+    "locked_test": 600,
+    "warmup": 1200
+  },
+  "schema_version": "1.0.0-event1",
+  "seed": 44004,
+  "synthetic": true
+}

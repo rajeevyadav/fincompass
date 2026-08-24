@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="FinCompass — free, transparent stock research with Bayesian evidence scoring and validation-gated probabilistic forecasting.">
+  <meta name="color-scheme" content="dark">
+  <title>FinCompass — Free Systematic Stock Research</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.ico">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <div id="consent-gate" class="consent-gate" role="dialog" aria-modal="true" aria-labelledby="consent-title">
+    <div class="consent-card">
+      <div class="logo consent-logo" id="consent-title">Fin<span>Compass</span></div>
+      <p>
+        FinCompass is a free research tool, not financial advice and not a recommendation to buy or sell securities.
+        Evidence-score probabilities describe uncertainty in the <strong>FinCompass evidence score</strong>, not returns.
+        A separate forecast probability is shown only when an empirically trained model passes the configured validation gate, and it applies only to that model's recorded horizon, benchmark, and hurdle. Public data can be incomplete, delayed, biased, or wrong.
+      </p>
+      <p class="meta legal-links">
+        <a href="/legal/disclaimer" target="_blank" rel="noopener">Disclaimer</a>
+        <span aria-hidden="true">·</span>
+        <a href="/legal/terms" target="_blank" rel="noopener">Terms of Use</a>
+        <span aria-hidden="true">·</span>
+        <a href="/legal/privacy" target="_blank" rel="noopener">Privacy</a>
+      </p>
+      <label class="consent-check">
+        <input type="checkbox" id="consent-checkbox">
+        <span>I understand this is educational research support only, not financial advice, and I use it at my own risk.</span>
+      </label>
+      <button class="primary wide" id="consent-accept" disabled aria-disabled="true">Continue</button>
+    </div>
+  </div>
+
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="wrap">
+    <header class="site-header">
+      <div>
+        <div class="logo">Fin<span>Compass</span></div>
+        <div class="tagline">Bayesian evidence · calibrated forecasting · transparent validation · zero subscription.</div>
+      </div>
+      <div class="header-actions">
+        <span class="badge">FREEWARE</span>
+        <span class="badge badge-muted" id="engine-badge">Engine —</span>
+      </div>
+    </header>
+
+    <nav class="tabs" role="tablist" aria-label="FinCompass sections">
+      <button class="active" role="tab" aria-selected="true" aria-controls="page-analyze" id="tab-btn-analyze" data-page="analyze">Analyze</button>
+      <button role="tab" aria-selected="false" aria-controls="page-screener" id="tab-btn-screener" data-page="screener">Screener</button>
+      <button role="tab" aria-selected="false" aria-controls="page-compare" id="tab-btn-compare" data-page="compare">Compare</button>
+      <button role="tab" aria-selected="false" aria-controls="page-watchlist" id="tab-btn-watchlist" data-page="watchlist">Watchlist <span id="watch-count" class="count-badge">0</span></button>
+      <button role="tab" aria-selected="false" aria-controls="page-forecast" id="tab-btn-forecast" data-page="forecast">Forecast</button>
+      <button role="tab" aria-selected="false" aria-controls="page-live" id="tab-btn-live" data-page="live">Live</button>
+      <button role="tab" aria-selected="false" aria-controls="page-settings" id="tab-btn-settings" data-page="settings">Settings</button>
+      <button role="tab" aria-selected="false" aria-controls="page-method" id="tab-btn-method" data-page="method">Methodology</button>
+    </nav>
+
+    <main id="main">
+      <section id="page-analyze" role="tabpanel" aria-labelledby="tab-btn-analyze">
+        <div class="search-row">
+          <div class="search-row-wrap">
+            <label for="ticker" class="sr-only">Search by ticker or company name</label>
+            <input type="text" id="ticker" placeholder="Ticker or company, e.g. AAPL or Apple" value="AAPL" autocomplete="off"
+              role="combobox" aria-expanded="false" aria-controls="ticker-suggestions" aria-autocomplete="list">
+            <div id="ticker-suggestions" class="suggestions" role="listbox" aria-label="Ticker suggestions" hidden></div>
+          </div>
+          <button class="primary" id="btn-analyze">Analyze</button>
+        </div>
+        <div id="analyze-out" aria-live="polite">
+          <div class="empty-state card">
+            <strong>Research a company in seconds.</strong>
+            <span>FinCompass combines five evidence pillars and shows how uncertainty changes the result.</span>
+          </div>
+        </div>
+      </section>
+
+      <section id="page-screener" role="tabpanel" aria-labelledby="tab-btn-screener" hidden>
+        <div class="card control-card">
+          <div class="control-grid">
+            <label>Minimum score
+              <input type="number" id="min-score" value="0" min="0" max="10" step="0.25">
+            </label>
+            <label>Sector contains
+              <input type="text" id="sector-filter" placeholder="Any sector">
+            </label>
+            <label>Minimum evidence
+              <select id="coverage-filter">
+                <option value="0">Any</option>
+                <option value="0.4">40%+</option>
+                <option value="0.6">60%+</option>
+                <option value="0.8">80%+</option>
+              </select>
+            </label>
+            <label>Confidence
+              <select id="confidence-filter">
+                <option value="">Any</option>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+              </select>
+            </label>
+          </div>
+          <div class="button-row">
+            <button class="primary" id="btn-screener">Load results</button>
+            <button class="secondary" id="btn-refresh">Refresh source data</button>
+            <button class="secondary" id="btn-export">Export CSV</button>
+          </div>
+          <div id="refresh-panel" class="refresh-panel" hidden aria-live="polite">
+            <div class="refresh-line"><span id="refresh-text">Preparing refresh…</span><span id="refresh-count"></span></div>
+            <progress id="refresh-progress" value="0" max="1">0%</progress>
+          </div>
+        </div>
+        <div id="screener-out" class="card" aria-live="polite">
+          <div class="empty-state"><strong>Screen the cached universe.</strong><span>Use Refresh source data when you want to rebuild the research snapshot.</span></div>
+        </div>
+      </section>
+
+      <section id="page-compare" role="tabpanel" aria-labelledby="tab-btn-compare" hidden>
+        <div class="search-row">
+          <label for="compare-tickers" class="sr-only">Tickers to compare, comma separated</label>
+          <input type="text" id="compare-tickers" placeholder="Up to 5 tickers, e.g. AAPL, MSFT, JNJ" value="AAPL,MSFT,JNJ">
+          <button class="primary" id="btn-compare">Compare</button>
+        </div>
+        <div id="compare-out" aria-live="polite"></div>
+      </section>
+
+      <section id="page-watchlist" role="tabpanel" aria-labelledby="tab-btn-watchlist" hidden>
+        <div class="section-head">
+          <div>
+            <h1>Local Watchlist</h1>
+            <p class="meta">Stored only in this browser. No account, sync, or tracking.</p>
+          </div>
+          <button class="secondary" id="btn-watch-compare">Compare selected</button>
+        </div>
+        <div id="watchlist-out" class="card" aria-live="polite"></div>
+      </section>
+
+      <section id="page-forecast" role="tabpanel" aria-labelledby="tab-btn-forecast" hidden>
+        <div class="card control-card">
+          <div class="section-head">
+            <div><h1>Validated Probabilistic Forecast</h1><p class="meta">Separate from the evidence score. Live forecasts activate only from a real dataset model that passes the validation gate.</p></div>
+            <span class="badge badge-muted" id="forecast-tier-badge">No active model</span>
+          </div>
+          <div class="control-grid forecast-controls">
+            <label>Ticker<input type="text" id="forecast-ticker" value="AAPL" autocomplete="off"></label>
+            <label>Validated model<select id="forecast-model"><option value="">Automatic best validated model</option></select></label>
+          </div>
+          <div class="button-row"><button class="primary" id="btn-forecast">Run forecast</button><button class="secondary" id="btn-forecast-status">Refresh model status</button></div>
+          <div class="refresh-panel">
+            <p class="meta">No usable model yet? Build one from free public data — no command line needed. Training takes several minutes and real models are often gate-rejected (that is the tool being honest).</p>
+            <div class="button-row"><button class="secondary" id="btn-build-model">Build forecast model</button><select id="build-profile" aria-label="Build validation profile"><option value="strict">Strict profile</option><option value="standard">Standard profile</option><option value="exploratory">Exploratory profile</option></select></div>
+          </div>
+        </div>
+        <div id="forecast-status" class="card" aria-live="polite"><div class="loading">Checking validated model registry…</div></div>
+        <div id="build-status" class="card" aria-live="polite" hidden></div>
+        <div id="forecast-out" aria-live="polite"></div>
+      </section>
+
+
+      <section id="page-live" role="tabpanel" aria-labelledby="tab-btn-live" hidden>
+        <div class="card control-card">
+          <div class="section-head">
+            <div><h1>Adaptive Live Research</h1><p class="meta">Fresh information can update the candidate immediately. Model parameters change only after the original outcome matures and the adaptive gate passes.</p></div>
+            <span class="badge badge-muted" id="live-state-badge">Checking state</span>
+          </div>
+          <div class="control-grid forecast-controls">
+            <label>Ticker<input type="text" id="live-ticker" value="AAPL" autocomplete="off"></label>
+            <label>Validated anchor<select id="live-model"><option value="">Automatic best validated model</option></select></label>
+            <label>Adaptive profile<select id="live-profile"><option value="balanced">Balanced</option><option value="responsive">Responsive</option><option value="conservative">Conservative</option></select></label>
+          </div>
+          <div class="button-row"><button class="primary" id="btn-live">Refresh live state</button><button class="secondary" id="btn-live-status">System status</button><button class="secondary" id="btn-process-matured">Process matured labels</button></div>
+          <p class="meta">Free public providers are best-effort polling, not exchange-grade streaming. Freshness and provider verification are shown with every result.</p>
+        </div>
+        <div id="live-status" class="card" aria-live="polite"><div class="loading">Checking realtime/adaptive registry…</div></div>
+        <div id="live-out" aria-live="polite"></div>
+      </section>
+
+      <section id="page-settings" role="tabpanel" aria-labelledby="tab-btn-settings" hidden>
+        <div class="card">
+          <h1>FinCompass Settings</h1>
+          <p class="meta">Runtime preferences stay in this browser. Forecast-training settings are exported/validated as a reproducible configuration; they never silently mutate a trained model.</p>
+          <h2>Runtime preferences</h2>
+          <div class="control-grid">
+            <label>Default chart period<select id="setting-chart-period"><option value="1y">1 year</option><option value="3y">3 years</option><option value="5y">5 years</option><option value="10y">10 years</option><option value="max">Maximum</option></select></label>
+            <label>Default screener evidence<select id="setting-min-coverage"><option value="0">Any</option><option value="0.4">40%+</option><option value="0.6">60%+</option><option value="0.8">80%+</option></select></label>
+            <label>Probability display<select id="setting-prob-format"><option value="percent">Percent</option><option value="decimal">Decimal</option></select></label>
+            <label>Default forecast model<select id="setting-model"><option value="">Automatic best validated model</option></select></label>
+            <label>Live auto-refresh<select id="setting-live-refresh"><option value="0">Off</option><option value="30">30 seconds</option><option value="60">60 seconds</option><option value="120">2 minutes</option></select></label>
+          </div>
+          <div class="button-row"><button class="primary" id="btn-save-runtime-settings">Save preferences</button><button class="secondary" id="btn-reset-settings">Reset</button></div>
+        </div>
+        <div class="card">
+          <h2>Forecast training configuration</h2>
+          <p class="meta">Advanced configuration includes horizon, benchmark, hurdle, split fractions, embargo, Bayesian prior strength, ensemble components, calibration, bootstrap depth and validation gates. Edit JSON and validate it here; the validated configuration is applied when you build a forecast model from the Forecast tab.</p>
+          <label for="training-settings-json" class="sr-only">Forecast training settings JSON</label>
+          <textarea id="training-settings-json" class="settings-json" spellcheck="false" aria-describedby="settings-validation-note"></textarea>
+          <div class="button-row"><button class="primary" id="btn-validate-settings">Validate configuration</button><button class="secondary" id="btn-download-settings">Export JSON</button><select id="settings-profile" aria-label="Validation profile"><option value="strict">Strict profile</option><option value="standard">Standard profile</option><option value="exploratory">Exploratory profile</option></select></div>
+          <div id="settings-validation-note" class="meta" aria-live="polite"></div>
+        </div>
+
+        <div class="card">
+          <h2>Adaptive realtime configuration</h2>
+          <p class="meta">Provider cadence, staleness, event half-life, Bayesian prior, forgetting/process noise, temporal-breadth gates, calibration limits, drift controls and bounded residual settings are all explicit. Learning-semantic changes create a new adaptive state lineage.</p>
+          <label for="realtime-settings-json" class="sr-only">Adaptive realtime settings JSON</label>
+          <textarea id="realtime-settings-json" class="settings-json" spellcheck="false" aria-describedby="realtime-settings-validation-note"></textarea>
+          <div class="button-row"><button class="primary" id="btn-validate-realtime-settings">Validate realtime configuration</button><button class="secondary" id="btn-download-realtime-settings">Export JSON</button><select id="realtime-settings-profile" aria-label="Realtime profile"><option value="balanced">Balanced</option><option value="responsive">Responsive</option><option value="conservative">Conservative</option></select></div>
+          <div id="realtime-settings-validation-note" class="meta" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section id="page-method" role="tabpanel" aria-labelledby="tab-btn-method" hidden>
+        <div id="method-out" class="card" aria-live="polite">Loading methodology…</div>
+      </section>
+    </main>
+
+    <footer>
+      <strong>FinCompass is educational research support, not financial advice.</strong><br>
+      Free data sources · No analytics · Local watchlist · Versioned evidence engine · Validation-gated forecasting · Governed adaptive updates<br>
+      <a href="/help" target="_blank" rel="noopener">Help</a>
+      <span aria-hidden="true">·</span>
+      <a href="/legal/disclaimer" target="_blank" rel="noopener">Disclaimer</a>
+      <span aria-hidden="true">·</span>
+      <a href="/legal/terms" target="_blank" rel="noopener">Terms</a>
+      <span aria-hidden="true">·</span>
+      <a href="/docs" target="_blank" rel="noopener">API</a>
+    </footer>
+  </div>
+</body>
+</html>

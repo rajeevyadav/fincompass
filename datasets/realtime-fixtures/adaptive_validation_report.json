@@ -1,0 +1,66 @@
+{
+  "claims_boundary": "Software/statistical regression only; not market validation.",
+  "final_gate": {
+    "active": true,
+    "checks": {
+      "brier_noninferiority": true,
+      "log_loss_noninferiority": true,
+      "max_ece": true,
+      "min_matured_observations": true,
+      "min_observation_span_days": true,
+      "min_unique_observation_dates": true,
+      "no_drift": true
+    },
+    "metrics": {
+      "adaptive_brier": 0.20280331428410023,
+      "adaptive_log_loss": 0.595260590411538,
+      "anchor_brier": 0.24062462315684474,
+      "anchor_log_loss": 0.6742797375868219,
+      "brier_improvement": 0.037821308872744513,
+      "ece": 0.0619243769245342,
+      "log_loss_improvement": 0.07901914717528391,
+      "observations": 250,
+      "span_days": 498,
+      "unique_dates": 250
+    },
+    "status": "active"
+  },
+  "locked_metrics": {
+    "adaptive_brier": 0.2040692725296805,
+    "adaptive_log_loss": 0.5969881978595826,
+    "anchor_brier": 0.23565758397487638,
+    "anchor_log_loss": 0.6641061086317793,
+    "brier_improvement": 0.03158831144519589,
+    "log_loss_improvement": 0.06711791077219675,
+    "observations": 600
+  },
+  "passed": true,
+  "profile": "balanced",
+  "protocol": "predict-before-update warmup followed by locked prequential stream",
+  "synthetic": true,
+  "warmup_gate": {
+    "active": true,
+    "checks": {
+      "brier_noninferiority": true,
+      "log_loss_noninferiority": true,
+      "max_ece": true,
+      "min_matured_observations": true,
+      "min_observation_span_days": true,
+      "min_unique_observation_dates": true,
+      "no_drift": true
+    },
+    "metrics": {
+      "adaptive_brier": 0.21989294174051022,
+      "adaptive_log_loss": 0.6308937272403411,
+      "anchor_brier": 0.23923354620541307,
+      "anchor_log_loss": 0.6714297830316771,
+      "brier_improvement": 0.01934060446490285,
+      "ece": 0.038013259511112556,
+      "log_loss_improvement": 0.04053605579133601,
+      "observations": 250,
+      "span_days": 498,
+      "unique_dates": 250
+    },
+    "status": "active"
+  }
+}

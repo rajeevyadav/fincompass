@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# STRICT RULE (do not remove): no AI co-author / AI "generated-by" attribution may
+# ever appear in a commit message, no matter what tool created the commit. This
+# hook silently strips such trailers. It must NEVER block a commit, so it always
+# exits 0 even if something goes wrong.
+msg="$1"
+[ -n "$msg" ] && [ -f "$msg" ] || exit 0
+tmp="$msg.nocoauthor"
+if grep -viE '^(Co-authored-by:[[:space:]]*.*(claude|anthropic|openai|chatgpt|gpt-|copilot|gemini|cursor|codeium|llm)|.*(Generated with|Co-created with|Co-authored with).*(Claude|Anthropic|Copilot|ChatGPT|OpenAI|Gemini))' "$msg" > "$tmp" 2>/dev/null; then
+  mv "$tmp" "$msg" 2>/dev/null
+else
+  rm -f "$tmp" 2>/dev/null
+fi
+exit 0

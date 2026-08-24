@@ -1,0 +1,99 @@
+{
+  "data_quality": {
+    "corporate_action_adjusted": false,
+    "delistings_included": false,
+    "note": "Synthetic fixtures are never evidence of market forecasting performance.",
+    "point_in_time_features": true,
+    "survivorship_control": false
+  },
+  "files": {
+    "test": {
+      "file": "test.csv",
+      "rows": 2304,
+      "sha256": "724ac1bd255662081a66f01d7d448c3807f6ac12ab731ddaeef74b1e301943a4"
+    },
+    "train": {
+      "file": "train.csv",
+      "rows": 6528,
+      "sha256": "0cff0e735453e10761edf5db2092f39848500d694ccdeda47049878dcb5c9964"
+    },
+    "validation": {
+      "file": "validation.csv",
+      "rows": 1920,
+      "sha256": "fb71a8d63e4d2a09024dbef8e4f0f198db3c3f3fb499df4a8773f7a823568dda"
+    }
+  },
+  "provenance": {
+    "generator": "tools/generate_validation_fixtures.py",
+    "purpose": "software/statistical regression testing only",
+    "seed": 37001
+  },
+  "schema_version": "1.0.0-forecast-dataset1",
+  "settings": {
+    "abstain_if_interval_crosses_half": false,
+    "abstain_probability_band": 0.03,
+    "bayesian_prior_sigma": 1.5,
+    "benchmark": "SPY",
+    "bootstrap_block_dates": 0,
+    "bootstrap_draws": 300,
+    "calibration_method": "sigmoid",
+    "embargo_trading_days": 252,
+    "excess_return_threshold": 0.0,
+    "horizon_trading_days": 252,
+    "max_bootstrap_ece_high": 0.1,
+    "max_calibration_slope": 1.5,
+    "max_ece": 0.08,
+    "min_auc": 0.52,
+    "min_bootstrap_auc_low": 0.5,
+    "min_bootstrap_brier_skill_low": 0.0,
+    "min_bootstrap_log_loss_skill_low": 0.0,
+    "min_brier_skill": 0.0,
+    "min_calibration_slope": 0.5,
+    "min_class_count": 100,
+    "min_log_loss_skill": 0.0,
+    "min_positive_walk_forward_fraction": 0.5,
+    "min_test_dates": 24,
+    "min_test_samples": 500,
+    "min_test_span_days": 540,
+    "posterior_draws": 1200,
+    "prediction_credible_level": 0.9,
+    "random_seed": 37001,
+    "sample_step_trading_days": 21,
+    "test_fraction": 0.2,
+    "train_fraction": 0.6,
+    "use_hist_gradient_boosting": true,
+    "use_random_forest": true,
+    "validation_fraction": 0.2,
+    "walk_forward_splits": 4
+  },
+  "split": {
+    "embargo_trading_days": 252,
+    "method": "purged_chronological",
+    "purge_rule": "Rows whose target_end_date crosses the next partition boundary are removed; an explicit business-day embargo is also applied before each downstream partition.",
+    "test": {
+      "end": "2022-08-09",
+      "rows": 2304,
+      "start": "2017-02-28"
+    },
+    "test_start": "2017-02-28",
+    "train": {
+      "end": "2010-08-24",
+      "rows": 6528,
+      "start": "1995-01-31"
+    },
+    "val_start": "2011-08-23",
+    "validation": {
+      "end": "2016-03-01",
+      "rows": 1920,
+      "start": "2011-08-23"
+    }
+  },
+  "synthetic": true,
+  "target": {
+    "benchmark": "SPY",
+    "event": "stock return represented by the dataset price series over horizon exceeds benchmark return represented by its price series plus threshold",
+    "excess_return_threshold": 0.0,
+    "horizon_trading_days": 252,
+    "return_basis": "Price-series return; corporate-action treatment is declared in data_quality/provenance."
+  }
+}

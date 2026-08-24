@@ -344,7 +344,7 @@ This namespace separation reduces the risk that an evidence posterior, frozen fo
 
 The frozen v1.2.0 source tree passes:
 
-**115 / 115 automated tests**
+**118 / 118 automated tests**
 
 plus:
 

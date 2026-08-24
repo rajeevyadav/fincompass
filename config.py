@@ -126,7 +126,7 @@ CHART_PERIODS = ["1y", "3y", "5y", "10y", "max"]
 DEFAULT_CHART_PERIOD = "5y"
 
 FUNDAMENTALS_CACHE_HOURS = 24
-PRICE_CACHE_HOURS = 6
+PRICE_CACHE_HOURS = 24
 MACRO_CACHE_HOURS = 24  # macro series update daily/weekly at most - one fetch a day is plenty
 
 # FRED (Federal Reserve Economic Data) series used for the Cycle pillar's

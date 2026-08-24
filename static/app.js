@@ -432,6 +432,7 @@ function renderAnalysis(d, history) {
         </div>
         <div class="score-actions">
           <button class="icon-button ${isWatched ? "active" : ""}" data-watch-toggle="${esc(d.ticker)}" aria-pressed="${isWatched ? "true" : "false"}">${isWatched ? "★ Saved" : "☆ Watch"}</button>
+          <button class="icon-button" data-print="1" title="Print or save this analysis as PDF">🖨 Print / PDF</button>
         </div>
       </div>
       ${plainRead(d)}
@@ -1025,7 +1026,8 @@ function initEvents() {
   });
   document.addEventListener("click", (event) => {
     const watch=event.target.closest("[data-watch-toggle]"); if(watch){toggleWatch(watch.dataset.watchToggle);return;}
-    const analyzeButton=event.target.closest("[data-analyze-ticker]"); if(analyzeButton){$("ticker").value=analyzeButton.dataset.analyzeTicker;showPage("analyze");analyze();}
+    const analyzeButton=event.target.closest("[data-analyze-ticker]"); if(analyzeButton){$("ticker").value=analyzeButton.dataset.analyzeTicker;showPage("analyze");analyze();return;}
+    const printBtn=event.target.closest("[data-print]"); if(printBtn){window.print();}
   });
   let resizeTimer=null;
   window.addEventListener("resize",()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(redrawCharts,120);});

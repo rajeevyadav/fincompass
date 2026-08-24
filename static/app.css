@@ -244,3 +244,21 @@ code { color: #bfe7ff; background: rgba(57,169,255,.08); padding: .08rem .25rem;
 .plain-read p { margin: .2rem 0; color: #dbe6f4; font-size: .92rem; line-height: 1.5; }
 .plain-read .plain-read-do { color: var(--muted); font-size: .82rem; }
 .price-context .k-value.label-strong { color: var(--green); }
+
+/* Print / Save-as-PDF: drop the app chrome and dark theme so an analysis prints
+   as a clean, ink-friendly document. Triggered by the "Print / PDF" button. */
+@media print {
+  .tabs, .header-actions, .search-row, .search-row-wrap, .score-actions,
+  footer, .skip-link, #refresh-panel, .refresh-panel, details,
+  .consent-overlay, .suggestions { display: none !important; }
+  html, body, .wrap, .card, .kpi, .pillar, .posture-item, .plain-read, .thesis,
+  .chart-card { background: #fff !important; color: #111 !important;
+    box-shadow: none !important; }
+  .card, .kpi, .pillar, .posture-item, .plain-read { border: 1px solid #ccc !important; }
+  .wrap { max-width: 100%; padding: 0; }
+  a { color: #111 !important; text-decoration: none; }
+  .k-label, .p-label, .meta, .canvas-note, .pillar .name { color: #444 !important; }
+  .two-col { grid-template-columns: 1fr 1fr; }
+  .score-num.label-strong, .p-value, .k-value { color: #111 !important; }
+  @page { margin: 14mm; }
+}

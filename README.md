@@ -5,7 +5,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/version-1.2.0-39a9ff" alt="version 1.2.0">
   <img src="https://img.shields.io/badge/license-MIT-58dbc9" alt="MIT license">
-  <img src="https://img.shields.io/badge/tests-118%20passing-5fe09b" alt="118 tests passing">
+  <img src="https://img.shields.io/badge/tests-119%20passing-5fe09b" alt="119 tests passing">
   <img src="https://img.shields.io/badge/python-3.11%2B-2a86d6" alt="python 3.11+">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-9fb0c5" alt="cross platform">
   <img src="https://img.shields.io/badge/accounts-none-5fe09b" alt="no accounts">
@@ -40,7 +40,7 @@ FinCompass is designed so an end user **never needs the command line**.
 The app opens at `http://127.0.0.1:8000/`. Local data (watchlist, settings, any models you build) lives in a
 writable per-user directory and survives upgrades.
 
-📘 **New here? Read the [User Manual (PDF)](docs/FinCompass-User-Manual.pdf)** for a guided walkthrough of every workspace.
+📘 **New here? Read the [User Manual (PDF)](docs/FinCompass-User-Manual.pdf)** for a guided walkthrough of every workspace. It's also linked in the app footer.
 
 Everything operational is an **in-app button**, including:
 
@@ -173,7 +173,7 @@ python tools/verify_release.py
 The verifier runs compilation, the full automated suite, JavaScript syntax validation, CSP/frontend dependency
 scanning, anchor/adaptive dataset-hash verification, fixture-tier lockout, model/adaptive-artifact hash and
 contract checks, forecast/realtime configuration drift checks, documentation consistency checks, and Docker
-packaging/ownership checks. The frozen v1.2.0 release gate passes **118 automated tests** before packaging.
+packaging/ownership checks. The frozen v1.2.0 release gate passes **119 automated tests** before packaging.
 
 ---
 

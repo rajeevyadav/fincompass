@@ -51,3 +51,10 @@ def test_docs_vendor_assets_served():
         r = client.get(path)
         assert r.status_code == 200
         assert len(r.content) > 1000
+
+
+def test_user_manual_pdf_served():
+    r = client.get("/user-manual.pdf")
+    assert r.status_code == 200
+    assert r.headers["content-type"] == "application/pdf"
+    assert len(r.content) > 1000

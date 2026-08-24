@@ -600,6 +600,14 @@ def help_page():
     return _doc_page("Help", "docs/HELP.md", "Help unavailable.")
 
 
+@app.get("/user-manual.pdf")
+def user_manual_pdf():
+    p = Path("docs/FinCompass-User-Manual.pdf")
+    if not p.exists():
+        raise HTTPException(404, "User manual unavailable")
+    return FileResponse(str(p), media_type="application/pdf", filename="FinCompass-User-Manual.pdf")
+
+
 @app.exception_handler(HTTPException)
 async def http_exc_handler(request: Request, exc: HTTPException):
     rid = _rid(request)

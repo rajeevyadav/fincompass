@@ -5,7 +5,8 @@ Philosophy: Use every legitimate free source so the tool stays free and useful f
 """
 
 import logging
-from datetime import datetime, timezone
+import os
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 
 try:
@@ -15,7 +16,7 @@ except ImportError:  # health/docs can still start; market-data routes will degr
 import pandas as pd
 import requests
 
-from config import FMP_API_KEY, ALPHA_VANTAGE_KEY, DATA_SCHEMA_VERSION
+from config import FMP_API_KEY, ALPHA_VANTAGE_KEY, STOOQ_API_KEY, DATA_SCHEMA_VERSION
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("FinCompass.DataFetcher")
@@ -59,9 +60,10 @@ class DataFetcher:
     def __init__(self):
         self.fmp_key = FMP_API_KEY
         self.av_key = ALPHA_VANTAGE_KEY
+        self.stooq_key = STOOQ_API_KEY
         self.session = requests.Session()
         self.session.headers.update({
-            "User-Agent": "FinCompass/3.0 (Free Educational Tool)"
+            "User-Agent": "FinCompass (Free Educational Tool)"
         })
         # Operational visibility without exposing credentials. This is a
         # best-effort last-event snapshot, not a provider SLA monitor.
@@ -69,6 +71,7 @@ class DataFetcher:
             "fmp": {"status": "not_checked", "configured": bool(self.fmp_key)},
             "alpha_vantage": {"status": "not_checked", "configured": bool(self.av_key)},
             "yfinance": {"status": "not_checked", "configured": True},
+            "stooq": {"status": "not_checked", "configured": bool(self.stooq_key)},
         }
 
     def _mark_provider(self, provider: str, status: str, http_status: Optional[int] = None) -> None:
@@ -111,8 +114,9 @@ class DataFetcher:
         # 2. Backup: Stooq (completely free, no key, good historical data)
         try:
             stooq_ticker = ticker.replace("-", ".") + ".US"
-            url = f"https://stooq.com/q/d/l/?s={stooq_ticker.lower()}&i=d"
-            resp = self.session.get(url, timeout=REQUEST_TIMEOUT)
+            public_url = f"https://stooq.com/q/d/l/?s={stooq_ticker.lower()}&i=d"
+            request_url = public_url + (f"&apikey={self.stooq_key}" if self.stooq_key else "")
+            resp = self.session.get(request_url, timeout=REQUEST_TIMEOUT)
             resp.raise_for_status()
             import io
             df = pd.read_csv(io.StringIO(resp.text))
@@ -125,13 +129,108 @@ class DataFetcher:
                     years = {"1y": 1, "3y": 3, "5y": 5, "10y": 10}.get(period, 5)
                     cutoff = df.index.max() - pd.DateOffset(years=years)
                     df = df[df.index >= cutoff]
+                self._mark_provider("stooq", "ok")
                 logger.info(f"[Price] Stooq OK → {ticker}")
                 return df
         except Exception as e:
-            logger.warning(f"[Price] Stooq failed {ticker}: {e}")
+            self._mark_provider("stooq", "degraded")
+            logger.warning("[Price] Stooq failed %s: %s", ticker, type(e).__name__)
 
         logger.error(f"[Price] All free sources failed for {ticker}")
         return None
+
+    def get_price_history_range(self, ticker: str, start: Any, end: Any):
+        """Fetch an explicit inclusive date range for the durable research store.
+
+        Returns ``(frame, metadata)``.  The metadata declares the provider and
+        price-basis contract so Model Lab never silently splices adjusted and
+        raw histories.  Yahoo is preferred because ``Adj Close`` gives an
+        explicit corporate-action-aware return basis.  Stooq remains a raw
+        fallback for ordinary US symbols only.
+        """
+        symbol = str(ticker or "").strip().upper()
+        if not symbol:
+            raise ValueError("ticker is required")
+        start_ts = pd.Timestamp(start).tz_localize(None).normalize()
+        end_ts = pd.Timestamp(end).tz_localize(None).normalize()
+        if end_ts < start_ts:
+            raise ValueError("end must be on or after start")
+
+        # Yahoo uses dots for exchange suffixes (XIU.TO, 000001.SS), while a
+        # small set of US share classes use a dash (BRK-B/BF-B).  Do not apply
+        # the old global dot->dash transform to international symbols.
+        yahoo_symbol = {"BRK.B": "BRK-B", "BF.B": "BF-B"}.get(symbol, symbol)
+        if yf is not None:
+            try:
+                t = yf.Ticker(yahoo_symbol)
+                # yfinance treats `end` as exclusive.
+                request_end = (end_ts + pd.Timedelta(days=1)).date().isoformat()
+                df = t.history(
+                    start=start_ts.date().isoformat(),
+                    end=request_end,
+                    auto_adjust=False,
+                    actions=False,
+                    timeout=REQUEST_TIMEOUT,
+                )
+                if df is not None and not df.empty:
+                    wanted = [c for c in ("Open", "High", "Low", "Close", "Adj Close", "Volume") if c in df.columns]
+                    df = df[wanted].copy()
+                    df.index = pd.to_datetime(df.index).tz_localize(None)
+                    price_basis = "adjusted" if "Adj Close" in df.columns and df["Adj Close"].notna().any() else "raw"
+                    self._mark_provider("yfinance", "ok")
+                    return df, {
+                        "provider": "yfinance",
+                        "provider_symbol": yahoo_symbol,
+                        "price_basis": price_basis,
+                        "source_url": f"https://finance.yahoo.com/quote/{yahoo_symbol}/history",
+                        "requested_start": start_ts.date().isoformat(),
+                        "requested_end": end_ts.date().isoformat(),
+                    }
+            except Exception as exc:
+                self._mark_provider("yfinance", "degraded")
+                logger.warning("[PriceRange] yfinance failed %s: %s", symbol, type(exc).__name__)
+
+        # Stooq symbol conventions vary by exchange/index.  Restrict this
+        # fallback to plain US symbols rather than pretending an international
+        # mapping is correct.  The raw price basis is explicitly declared.
+        if symbol.replace("-", "").isalnum() and "." not in symbol and not symbol.startswith("^"):
+            try:
+                stooq_ticker = symbol.replace("-", ".") + ".US"
+                public_url = (
+                    "https://stooq.com/q/d/l/?s=" + stooq_ticker.lower()
+                    + "&d1=" + start_ts.strftime("%Y%m%d")
+                    + "&d2=" + end_ts.strftime("%Y%m%d") + "&i=d"
+                )
+                request_url = public_url + (f"&apikey={self.stooq_key}" if self.stooq_key else "")
+                resp = self.session.get(request_url, timeout=REQUEST_TIMEOUT)
+                resp.raise_for_status()
+                import io
+                df = pd.read_csv(io.StringIO(resp.text))
+                if df is not None and not df.empty and "Close" in df.columns:
+                    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+                    df = df.dropna(subset=["Date"]).set_index("Date").sort_index()
+                    wanted = [c for c in ("Open", "High", "Low", "Close", "Volume") if c in df.columns]
+                    df = df[wanted]
+                    self._mark_provider("stooq", "ok")
+                    return df, {
+                        "provider": "stooq",
+                        "provider_symbol": stooq_ticker,
+                        "price_basis": "raw",
+                        "source_url": public_url,
+                        "requested_start": start_ts.date().isoformat(),
+                        "requested_end": end_ts.date().isoformat(),
+                    }
+            except Exception as exc:
+                self._mark_provider("stooq", "degraded")
+                logger.warning("[PriceRange] Stooq failed %s: %s", symbol, type(exc).__name__)
+
+        return pd.DataFrame(), {
+            "provider": "none",
+            "provider_symbol": yahoo_symbol,
+            "price_basis": "adjusted",
+            "requested_start": start_ts.date().isoformat(),
+            "requested_end": end_ts.date().isoformat(),
+        }
 
     def get_current_price(self, ticker: str) -> Optional[float]:
         try:

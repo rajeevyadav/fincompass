@@ -1,5 +1,5 @@
 {
-  "automated_tests_passed": 119,
+  "automated_tests_passed": 160,
   "bundled_adaptive": {
     "adaptive_id": "50732cca02f306ed",
     "base_model_id": "efd41fec7d9d24fd",
@@ -42,7 +42,7 @@
     "samples": 2304
   },
   "product": "FinCompass",
-  "release": "1.2.0",
+  "release": "1.3.0",
   "release_date": "2026-08-24",
   "release_status": "research_freeware_release_candidate",
   "validation_boundaries": {

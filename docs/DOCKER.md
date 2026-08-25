@@ -1,4 +1,4 @@
-# FinCompass 1.0 — Docker Deployment
+# FinCompass — Docker Deployment
 
 ## Build and run
 

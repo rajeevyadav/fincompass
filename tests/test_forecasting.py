@@ -11,7 +11,7 @@ from api import app
 from forecasting.bayesian import BayesianLogisticClassifier
 from forecasting.config import get_profile, settings_from_dict
 from forecasting.features import build_price_features
-from forecasting.model import dataset_validation_tier
+from forecasting.model import _partition_validation, dataset_validation_tier
 from forecasting.metrics import date_cluster_bootstrap
 from forecasting.registry import registry_status
 from forecasting.sec_fundamentals import extract_annual_fundamentals
@@ -54,6 +54,49 @@ def test_purged_split_prevents_target_overlap_and_applies_embargo():
     assert result.train["target_end_date"].max() < val_start
     assert result.validation["target_end_date"].max() < test_start
     assert result.train["date"].max() < val_start - pd.offsets.BDay(63)
+
+
+
+def _validation_stage_frame(*, distinct_dates: int, horizon: int, tickers: int = 12) -> pd.DataFrame:
+    dates = pd.bdate_range("2010-01-04", periods=distinct_dates * 21)[::21][:distinct_dates]
+    rows = []
+    for date_i, date in enumerate(dates):
+        for ticker_i in range(tickers):
+            rows.append({
+                "date": date,
+                "target_end_date": date + pd.offsets.BDay(horizon),
+                "ticker": f"T{ticker_i:02d}",
+                "target_outperform": (date_i + ticker_i) % 2,
+                "feature": float(date_i + ticker_i),
+            })
+    return pd.DataFrame(rows)
+
+
+def test_internal_validation_partition_does_not_reapply_outer_embargo_for_6m_model():
+    settings = settings_from_dict({"horizon_trading_days": 126, "embargo_trading_days": 252}, base="exploratory")
+    validation = _validation_stage_frame(distinct_dates=29, horizon=126)
+    stage1, stage2, stage3, meta = _partition_validation(validation, settings)
+
+    stage_dates = [part["date"].nunique() for part in (stage1, stage2, stage3)]
+    assert min(stage_dates) >= 5
+    assert max(stage_dates) - min(stage_dates) <= 1
+    assert all(part["target_outperform"].nunique() == 2 for part in (stage1, stage2, stage3))
+    assert stage1["target_end_date"].max() < pd.Timestamp(meta["stage2_start"])
+    assert stage2["target_end_date"].max() < pd.Timestamp(meta["stage3_start"])
+    assert stage1["date"].max() < stage2["date"].min() < stage3["date"].min()
+    assert meta["inner_observation_embargo_trading_days"] == 0
+    assert meta["outer_split_embargo_trading_days"] == 252
+
+
+def test_internal_validation_partition_supports_12m_horizon_with_target_purge():
+    settings = settings_from_dict({"horizon_trading_days": 252, "embargo_trading_days": 252}, base="standard")
+    validation = _validation_stage_frame(distinct_dates=41, horizon=252)
+    stage1, stage2, stage3, meta = _partition_validation(validation, settings)
+
+    assert min(part["date"].nunique() for part in (stage1, stage2, stage3)) >= 5
+    assert all(part["target_outperform"].nunique() == 2 for part in (stage1, stage2, stage3))
+    assert stage1["target_end_date"].max() < pd.Timestamp(meta["stage2_start"])
+    assert stage2["target_end_date"].max() < pd.Timestamp(meta["stage3_start"])
 
 
 def test_bayesian_logistic_returns_ordered_probability_intervals():

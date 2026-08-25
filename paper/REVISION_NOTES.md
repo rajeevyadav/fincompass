@@ -1,35 +1,24 @@
 # Revision notes
 
-The manuscript was rebuilt as a single progressive argument intended to be readable by a technically curious newcomer while retaining enough mathematical detail for specialist review.
+The manuscript remains a single progressive argument intended to be readable by a technically curious newcomer while retaining enough mathematical detail for specialist review.
 
-Major changes:
+Current revision changes:
+
+- Removed product-version branding from the manuscript; release identification belongs to the software release metadata, not the scientific argument.
+- Corrected the temporal-validation description to match the tested implementation:
+  - the configured embargo applies at the broad train-to-validation and validation-to-test boundaries;
+  - component calibration, ensemble stacking, and final calibration remain chronological and use strict forward-target purging;
+  - the full outer embargo is **not** repeated inside each validation sub-stage.
+- Added the operational rule that a passing candidate is not automatically live; activation is explicit and separate from model creation.
+- Updated the bundled-data scope statement to distinguish deterministic synthetic regression fixtures from the small real historical research-only bootstrap corpus.
+- Preserved the claims boundary: neither the synthetic fixtures nor the bootstrap corpus are evidence of live market forecasting skill.
+
+Earlier major revisions retained in this edition:
 
 - Added the final author identity: Rajeev Yadav, Ph.D.; rajeevyadav@gmail.com.
 - Reorganized the exposition around a concrete forecasting example before introducing formal notation.
 - Clearly separated evidence-score uncertainty, empirical forward-event probability, and adaptive posterior correction.
-- Added/expanded the mathematical specification for:
-  - exact common-session target construction;
-  - point-in-time information availability;
-  - continuous metric maps and robust peer scoring;
-  - fractional-Beta evidence aggregation and posterior variance;
-  - dependence-sensitive composite uncertainty;
-  - Bayesian logistic MAP/Laplace inference;
-  - component calibration and constrained Brier-optimal stacking;
-  - purge-and-embargo chronology;
-  - moving date-block/cross-sectional cluster bootstrap;
-  - Brier score, log loss, skill and calibration slope;
-  - 13-dimensional adaptive feature contract;
-  - freshness decay and provider-verification staleness;
-  - bounded log-odds adaptation and odds interpretation;
-  - sequential rank-one covariance/mean updates;
-  - exact-horizon matured-label learning;
-  - date-balanced online loss and ECE;
-  - adaptive activation and EWMA deterioration safeguards;
-  - fail-closed live probability and model lineage.
+- Added/expanded the mathematical specification for exact common-session targets, point-in-time information availability, fractional-Beta evidence aggregation, Bayesian logistic MAP/Laplace inference, separated component calibration and constrained stacking, dependence-aware bootstrap validation, bounded online log-odds adaptation, matured-label learning, date-balanced online loss, drift control, and fail-closed live use.
 - Added a complete end-to-end worked example.
-- Kept synthetic validation results explicitly separated from market-performance claims.
-- Rebuilt the visual style as a conventional academic paper rather than a software white paper.
-- Redrew all figures to eliminate overlapping labels and connector lines through text.
-- Added detailed derivations and reference settings in appendices.
-
-The linked Bailey et al. article was used only as a high-level reference for traditional quantitative-finance exposition: motivate the problem in ordinary language, formalize it progressively, and keep figures and typography restrained. No passages were copied or closely paraphrased from that paper.
+- Kept software/statistical regression results explicitly separated from market-performance claims.
+- Rebuilt figures and typography as a conventional academic paper with no external figure dependencies.

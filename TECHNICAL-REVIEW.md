@@ -1,14 +1,14 @@
-# FinCompass v1.0.0 Patch and Manuscript Technical Review
+# FinCompass Patch and Manuscript Technical Review
 
 **Review date:** 2026-08-23  
-**Reviewed inputs:** the FinCompass 1.0.0 application and the arXiv manuscript source (`paper/`)  
+**Reviewed inputs:** the FinCompass application and the arXiv manuscript source (`paper/`)  
 **Reviewed application version:** `1.0.0`  
 **Realtime adaptive engine:** `1.0.0-adaptive1`  
 **Final automated regression suite:** **72/72 passed**
 
 ## Executive assessment
 
-The submitted v1.0.0 patch made a correct and important methodological restoration: the Evidence-plane Cycle pillar is explicitly constrained to current, observable, causal/regime evidence and excludes fixed-calendar or deterministic cycle theories. The code already respected that principle, but the constraint had only been documentary. The reviewed build now makes the guardrail executable through regression testing.
+The submitted patch made a correct and important methodological restoration: the Evidence-plane Cycle pillar is explicitly constrained to current, observable, causal/regime evidence and excludes fixed-calendar or deterministic cycle theories. The code already respected that principle, but the constraint had only been documentary. The reviewed build now makes the guardrail executable through regression testing.
 
 The patch also exposed several adjacent issues that were more consequential than the original change. These have been corrected in the reviewed package. The most important was delayed-label target resolution: an online learning job could previously use the latest available close when the job happened to run, silently lengthening a nominal 252-session target when processing was late. The reviewed build now resolves the label at the exact H-th common stock/benchmark trading session after the original observation date and leaves the label pending until that endpoint is available.
 

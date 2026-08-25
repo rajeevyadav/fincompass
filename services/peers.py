@@ -1,4 +1,4 @@
-"""Robust peer-reference helpers for FinCompass v3.
+"""Robust peer-reference helpers for FinCompass.
 
 Peer statistics are descriptive context, not forecasts. We use medians and IQRs
 instead of means/standard deviations so one extreme multiple does not move the

@@ -11,34 +11,37 @@ concurrency:
 
 jobs:
   check-restricted:
-    name: Fail if secrets or restricted files are present
+    name: Fail if private data, models, or secrets are tracked
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Check for secrets / runtime-data paths
+      - name: Check tracked files and proposed changes
+        shell: bash
         run: |
-          echo "Scanning for files that must never be committed..."
+          set -euo pipefail
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
           else
             FILES=$(git ls-files)
           fi
-          # Regex of never-commit paths. .env.example is explicitly allowed.
-          PATTERN='(^|/)\.env$|(^|/)\.env\.|(^|/)secrets/|\.(pem|key|pfx|p12|keystore)$|(^|/)id_rsa$|(^|/)id_ed25519$|(^|/)credentials\.json$|\.credentials$|(^|/)data/.*\.db($|-)|(^|/)data/audit\.jsonl|\.(sqlite|sqlite3)$'
           BAD=0
           while IFS= read -r f; do
             [ -z "$f" ] && continue
+            f="${f#./}"
             base=$(basename "$f")
             [ "$base" = ".env.example" ] && continue
-            if echo "$f" | grep -qE "$PATTERN"; then
-              echo "::error file=$f::Restricted / secret file must not be committed: $f"
-              BAD=1
-            fi
+            [ "$f" = "data/.gitkeep" ] && continue
+            case "$f" in
+              .env|.env.*|secrets/*|*/secrets/*|*.pem|*.key|*.pfx|*.p12|*.keystore|id_rsa|*/id_rsa|id_ed25519|*/id_ed25519|credentials.json|*/credentials.json|*.credentials|data/*|datasets/market-seed/*|models/*|adaptive_models/*|private_assets/*|*.db|*.sqlite|*.sqlite3|*.joblib|*.npz|*.tar.gz)
+                echo "::error file=$f::Private/restricted file must not be committed: $f"
+                BAD=1
+                ;;
+            esac
           done <<< "$FILES"
           if [ "$BAD" -ne 0 ]; then
-            echo "Restricted Folder Guard failed."
+            echo "Restricted Folder Guard failed. Do not bypass this guard."
             exit 1
           fi
-          echo "OK — no secrets or restricted files present."
+          echo "OK - no private data/model/secret paths are tracked in this revision."

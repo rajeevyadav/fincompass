@@ -41,7 +41,6 @@
 \newcommand{\R}{\mathbb{R}}
 \newcommand{\calF}{\mathcal{F}}
 \newcommand{\calJ}{\mathcal{J}}
-\newcommand{\version}{1.0.0}
 
 \title{\textbf{Validation-Gated Adaptive Probabilistic Forecasting\\in Nonstationary Equity Markets}}
 \author{Rajeev Yadav, Ph.D.\\\texttt{rajeevyadav@gmail.com}}
@@ -68,7 +67,7 @@ The approach developed here is conservative by construction. It separates three 
 
 The distinction matters. A statement such as ``there is a high posterior probability that the research score exceeds 8'' is not the same statement as ``there is a 64\% probability that the stock will outperform.'' The former is uncertainty about an internally defined score. The latter is an empirical forecasting claim that must be calibrated against realized events. Keeping these claims apart is the starting point of the model.
 
-The reference implementation used to make the discussion concrete is FinCompass v\version. The software is not the contribution by itself. It is useful here because every equation in the paper is tied to an executable rule, a validation gate, or an audit artifact. The bundled models and data fixtures remain classified as synthetic regression fixtures; no bundled model is represented as a validated market forecaster.
+The reference implementation used to make the discussion concrete is FinCompass. The software is not the contribution by itself. It is useful here because every equation in the paper is tied to an executable rule, a validation gate, or an audit artifact. The bundled regression fixtures remain synthetic and permanently ineligible for live use. A separate small real historical bootstrap corpus is included only to exercise the offline training pipeline; it is explicitly research-only and is not represented as evidence of market forecasting skill.
 
 \subsection{How to read the paper}
 
@@ -378,9 +377,9 @@ An additional embargo of $E$ business days requires
 t<s-\operatorname{BDay}(E).
 \label{eq:embargo}
 \end{equation}
-The strict reference configuration uses $E=252$. These rules are applied not only between the broad train, validation and test partitions, but also between the three internal validation roles used for component calibration, stacking and final calibration.
+The strict reference configuration uses $E=252$ at the broad train-to-validation and validation-to-test boundaries. The three internal validation roles used for component calibration, stacking and final calibration remain chronological and purge any observation whose forward target crosses the next internal stage boundary, but they do not reapply the full outer embargo. Reapplying a one-year embargo inside a much smaller validation partition can eliminate an entire fitting stage without adding a new leakage barrier.
 
-Figure~\ref{fig:timeline} shows the order. The blank gaps are not wasted data. They are the cost of preventing forward target windows from straddling fitting boundaries.
+Figure~\ref{fig:timeline} shows the order. The large blank gaps at the outer partition boundaries represent purge plus embargo. The internal validation roles are also separated chronologically, but use forward-target purging rather than a repeated full outer embargo.
 
 \begin{figure}[H]
 \centering
@@ -743,7 +742,7 @@ Tier & Meaning \\
 \end{tabularx}
 \end{table}
 
-The distinction between \texttt{validated\_research} and \texttt{validated\_market} prevents a common shortcut: reporting excellent test metrics on a present-day universe and overlooking the securities that disappeared from that universe. Delisting bias can materially distort historical performance \citep{shumway1997delisting}.
+The distinction between \texttt{validated\_research} and \texttt{validated\_market} prevents a common shortcut: reporting excellent test metrics on a present-day universe and overlooking the securities that disappeared from that universe. Delisting bias can materially distort historical performance \citep{shumway1997delisting}. A passing artifact is still only a candidate: operational activation is an explicit, separate action. The reference implementation never treats the newest usable artifact as live merely because it was created later.
 
 \section{Synthetic regression results}
 \label{sec:fixtures}
@@ -1017,7 +1016,7 @@ The reference implementation encodes several statistical assumptions as testable
 \item A feature cannot be joined into a historical observation before its documented availability time.
 \item The forward label resolves at the exact $H$th common stock/benchmark trading session, not at the scheduler's processing date.
 \item The locked test is excluded from model fitting, component calibration, stacking and final calibration.
-\item Validation boundaries purge unresolved target windows and apply the configured embargo.
+\item Outer train/validation/test boundaries purge unresolved target windows and apply the configured embargo; internal validation-role boundaries purge unresolved targets without reapplying the full outer embargo.
 \item The adaptive state is fingerprinted by the base model, engine version and complete adaptive settings contract.
 \item Pending labels carry the same lineage as the state that generated them.
 \item Repeated browser refreshes do not create independent matured learning evidence.

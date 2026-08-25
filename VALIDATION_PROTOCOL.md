@@ -1,4 +1,4 @@
-# FinCompass 1.0 — Forecast Validation Protocol
+# FinCompass — Forecast Validation Protocol
 
 ## Purpose
 
@@ -55,7 +55,7 @@ A single excellent fold does not establish robustness.
 
 ## 5. Calibration
 
-Partition validation into three chronological stages: (1) component calibration, (2) ensemble stacking/weight fitting, and (3) final ensemble calibration. At each internal boundary, purge upstream rows whose `target_end_date` reaches the downstream stage and apply the configured embargo. Do not reuse one validation observation across these roles, and never use the locked test for any of them.
+Partition validation into three chronological stages: (1) component calibration, (2) ensemble stacking/weight fitting, and (3) final ensemble calibration. At each internal boundary, purge upstream rows whose `target_end_date` reaches the downstream stage. The configured business-day embargo belongs to the outer train/validation/test split and must not be reapplied inside each validation stage. Do not reuse one validation observation across these roles, and never use the locked test for any of them.
 
 Review reliability/calibration plots outside the core package if desired. Quantitatively record:
 

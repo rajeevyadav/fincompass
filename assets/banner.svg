@@ -31,7 +31,6 @@
   <!-- wordmark -->
   <text x="290" y="150" class="wm" font-size="86"><tspan fill="#edf5ff">Fin</tspan><tspan fill="#58dbc9">Compass</tspan></text>
   <rect x="292" y="176" width="96" height="30" rx="15" fill="#12324e" stroke="#39a9ff" stroke-width="1.5"/>
-  <text x="340" y="197" text-anchor="middle" fill="#8fd0ff" font-size="17" font-weight="700">v1.2.0</text>
   <text x="404" y="197" fill="#9fb0c5" class="sub" font-size="19">Free systematic stock research — evidence, forecasts &amp; adaptive context</text>
 
   <!-- three layer chips -->

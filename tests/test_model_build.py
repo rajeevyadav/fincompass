@@ -89,9 +89,10 @@ def test_build_status_endpoint_reports_idle():
 def test_build_endpoint_starts_job(monkeypatch):
     calls = {}
 
-    def fake_start(profile="strict", tickers=None):
+    def fake_start(profile="strict", tickers=None, *, recipe_id="core-us-6m"):
         calls["profile"] = profile
-        return {"status": "running", "started": True, "profile": profile}
+        calls["recipe_id"] = recipe_id
+        return {"status": "running", "started": True, "profile": profile, "recipe_id": recipe_id}
 
     monkeypatch.setattr(api, "start_model_build", fake_start)
     r = client.post("/api/v4/forecast/build", json={"profile": "exploratory"})
@@ -99,4 +100,33 @@ def test_build_endpoint_starts_job(monkeypatch):
     body = r.json()
     assert body["started"] is True
     assert calls["profile"] == "exploratory"
+    assert calls["recipe_id"] == "core-us-6m"
     assert "request_id" in body
+
+
+def test_build_endpoint_accepts_recipe_and_optional_profile(monkeypatch):
+    calls = {}
+
+    def fake_start(profile=None, tickers=None, *, recipe_id='core-us-6m'):
+        calls.update(profile=profile, recipe_id=recipe_id)
+        return {'status': 'running', 'started': True, 'profile': profile, 'recipe_id': recipe_id}
+
+    monkeypatch.setattr(api, 'start_model_build', fake_start)
+    r = client.post('/api/v4/forecast/build', json={'recipe_id': 'nasdaq-growth-6m'})
+    assert r.status_code == 200
+    assert calls == {'profile': None, 'recipe_id': 'nasdaq-growth-6m'}
+    assert r.json()['recipe_id'] == 'nasdaq-growth-6m'
+
+
+def test_reclaimed_build_marks_prior_experiment_interrupted(no_thread, monkeypatch):
+    with cache._get_conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO meta (key,value) VALUES ('model_build', ?)",
+            ('{"status":"running","phase":"train","experiment_id":"exp-old","recipe_id":"core-us-6m","updated_at":"2000-01-01T00:00:00+00:00"}',),
+        )
+    calls = []
+    monkeypatch.setattr(mb.research_store, "mark_experiment_interrupted", lambda experiment_id, message: calls.append((experiment_id, message)) or True)
+    result = mb.start_model_build(recipe_id="core-us-6m")
+    assert result["started"] is True
+    assert calls and calls[0][0] == "exp-old"
+    assert "interrupted" in calls[0][1].lower()

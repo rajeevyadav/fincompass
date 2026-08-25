@@ -1,4 +1,4 @@
-"""Runtime orchestration for validated frozen-anchor forecast models in FinCompass 4.0."""
+"""Runtime orchestration for validated frozen-anchor forecast models in FinCompass."""
 from __future__ import annotations
 
 import os
@@ -10,15 +10,28 @@ from forecasting.features import asof_merge_fundamentals, build_price_features
 from forecasting.registry import load_model, registry_status
 from forecasting.sec_fundamentals import SecClient, fetch_ticker_fundamental_history
 from services.analyzer import get_price_history_cached
+from services.research_store import research_store
 
+
+
+
+def _get_price_history(symbol: str) -> pd.DataFrame:
+    """Prefer the durable research corpus; use the legacy network/cache path only as fallback."""
+    local = research_store.read_price_history(symbol)
+    if local is not None and not local.empty:
+        return local
+    remote = get_price_history_cached(symbol, "max")
+    if remote is None:
+        return pd.DataFrame()
+    return remote
 
 def get_forecast_status() -> Dict[str, Any]:
     status = registry_status()
     if not status["usable_models"]:
         status["message"] = (
-            "No validated market/research forecast model is installed. Use the in-app "
-            "“Build forecast model” action to train one from free public data. "
-            "Synthetic fixture models are never activated for live forecasts."
+            "No explicitly activated validated forecast model is available. Use Model Lab to "
+            "train from retained local data, review the validation evidence, and explicitly activate "
+            "an eligible candidate. Synthetic fixture models are never activated for live forecasts."
         )
     return status
 
@@ -28,8 +41,8 @@ def forecast_ticker(ticker: str, model_id: Optional[str] = None, profile_name: O
     if model is None or manifest is None:
         return {"available": False, **get_forecast_status()}
     benchmark = str((manifest.get("target") or {}).get("benchmark") or model.settings.get("benchmark") or "SPY").upper()
-    stock = get_price_history_cached(ticker, "max")
-    bench = get_price_history_cached(benchmark, "max")
+    stock = _get_price_history(ticker)
+    bench = _get_price_history(benchmark)
     if stock is None or bench is None or stock.empty or bench.empty:
         return {"available": False, "message": "Price history unavailable for the ticker or benchmark.", "model_id": manifest.get("model_id")}
     features = build_price_features(stock, bench)

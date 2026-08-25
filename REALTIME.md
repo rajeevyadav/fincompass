@@ -1,8 +1,8 @@
-# FinCompass 1.0 — Adaptive Near-Real-Time Research
+# FinCompass — Adaptive Near-Real-Time Research
 
 ## Purpose
 
-FinCompass 1.0 adds a governed event-driven layer on top of the validation-gated forward-event anchor. It is designed to react to newly available market, filing and macro evidence without converting every browser refresh or fresh observation into a training sample.
+FinCompass adds a governed event-driven layer on top of the validation-gated forward-event anchor. It is designed to react to newly available market, filing and macro evidence without converting every browser refresh or fresh observation into a training sample.
 
 The architecture separates three operations:
 
@@ -201,6 +201,14 @@ Every v1 live snapshot can report:
 
 A probability detached from these timestamps/model/state identifiers is not a complete v1 result.
 
+## Guided Live conditions and comparison
+
+The Live workspace exposes three validated typed settings profiles: **Conservative**, **Balanced**, and **Responsive**. Selecting one profile changes only the governed adaptive settings; it does not change the frozen anchor model.
+
+**Compare all conditions** evaluates those three profiles against the same observed information state. It is a sensitivity comparison, not three simulated market futures. The comparison path deliberately does **not** queue pending learning observations, so repeatedly comparing profiles cannot manufacture training evidence. Normal operational state/snapshot persistence may still occur.
+
+A normal manual Live refresh first performs a bounded best-effort matured-label maintenance pass and then calculates the selected live state. This lets ordinary users benefit from delayed-outcome maintenance without understanding the queue. Research mode keeps the maintenance endpoint available explicitly. In every case, only outcomes whose original forecast horizon has actually matured may update parameters.
+
 ## Adaptive validation tiers
 
 Adaptive artifacts use four tiers:
@@ -257,6 +265,7 @@ These results validate implementation/regression behavior against a known synthe
 
 - `GET /api/v1/realtime/status`
 - `GET /api/v1/realtime/{ticker}`
+- `GET /api/v4/realtime/{ticker}/compare` - Conservative/Balanced/Responsive sensitivity comparison without label queuing
 - `GET /api/v1/realtime/{ticker}/events`
 - `POST /api/v1/adaptive/process-matured`
 - `GET /api/v1/realtime/settings/schema`

@@ -65,3 +65,20 @@ adaptive_models/*-live-*
 
 # Local-only project docs (directives/reports/handoff) — never committed
 _docs/
+
+# --- PRIVATE LOCAL-ONLY data/model assets - NEVER publish ---
+data/*
+!data/.gitkeep
+datasets/market-seed/
+models/
+adaptive_models/
+private_assets/
+*.joblib
+*.npz
+
+# Local-only working notes (recovery/worklog/state) — never published
+handoff/
+development/
+
+# The private testmodels replica package — never committed (deleted after integration)
+testmodels/

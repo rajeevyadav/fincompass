@@ -1,4 +1,4 @@
-# FinCompass 1.0 — Market Data Contract
+# FinCompass — Market Data Contract
 
 A model can earn `validated_market` only when the dataset is both statistically acceptable and the market-data controls are substantiated. This document defines the expected evidence.
 

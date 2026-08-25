@@ -1,8 +1,8 @@
-# FinCompass 1.0.0 — Statistical Model Card
+# FinCompass — Statistical Model Card
 
 ## 1. Scope
 
-FinCompass 1.0 contains **three separately governed analytical layers**. They must not be interpreted as one interchangeable score:
+FinCompass contains **three separately governed analytical layers**. They must not be interpreted as one interchangeable score:
 
 1. **Bayesian evidence score** — uncertainty-aware 0–10 research score from current fundamental/macro evidence.
 2. **Forecast anchor** — calibrated forward-event probability learned from historical point-in-time data and activated only after locked temporal validation.
@@ -14,7 +14,7 @@ FinCompass is research software, not investment advice. None of these outputs is
 
 | Contract | Version |
 |---|---|
-| Application | `1.2.0` |
+| Application | `1.3.0` |
 | Evidence engine | `1.0.0-evidence1` |
 | Normalized data schema | `1.0.0-normalized1` |
 | Forecast anchor engine | `1.0.0-prob1` |
@@ -89,7 +89,7 @@ The historical pipeline uses chronological train, validation and locked-test reg
 2. ensemble stacking;
 3. final ensemble calibration.
 
-Each internal boundary is target-horizon purged and embargoed so overlapping forward labels cannot leak outcomes into the next fitting stage.
+Each internal validation boundary is target-horizon purged so an earlier stage's forward label resolves before the next fitting stage begins. The configured business-day embargo is applied by the outer train/validation/test split and is not duplicated inside each validation role.
 
 The locked test fits no parameter.
 

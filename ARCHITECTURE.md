@@ -1,8 +1,8 @@
-# FinCompass 1.0.0 — Architecture
+# FinCompass — Architecture
 
 ## 1. Product boundary
 
-FinCompass 1.0 is a local/self-hosted research workbench with **three deliberately separated analytical planes**:
+FinCompass is a local/self-hosted research workbench with **three deliberately separated analytical planes**:
 
 ```text
 CURRENT PUBLIC FUNDAMENTALS / MACRO
@@ -33,9 +33,8 @@ DELAYED OUTCOMES
 
 The evidence score is not a return forecast. The anchor forecast and adaptive residual are independently versioned and independently gated. If no eligible anchor exists, FinCompass does not invent a forecast. If an adaptive state is warming, degraded, stale, incompatible with the selected settings, or not live-eligible, its applied residual is zero.
 
-## 2. Versioned analytical contracts
+## 2. Analytical contract identifiers
 
-- Application: `1.2.0`
 - Evidence engine: `1.0.0-evidence1`
 - Normalized data schema: `1.0.0-normalized1`
 - Forecast anchor engine: `1.0.0-prob1`
@@ -75,7 +74,13 @@ default context on every ticker.
 
 ## 4. Forecast-anchor plane
 
-### 4.1 Dataset construction
+### 4.1 Durable Model Lab research store
+
+`services/research_store.py` owns a separate SQLite corpus for Model Lab. The packaged source includes a small real historical research-only seed so a fresh install has an offline acceptance path. A writable user database is created with SQLite backup semantics; later refreshes append the missing tail plus a short overlap window, deduplicate unchanged rows, journal changed overlap values, and retain raw provider frames with SHA-256 provenance. Broad provider histories remain user-local and are not redistributed in the source package.
+
+Data acquisition and training are deliberately separate. `services/model_builder.py` never performs a network fetch. Recipe readiness reports the locally available benchmark and target series before a build can be launched.
+
+### 4.2 Dataset construction
 
 `forecasting/features.py` creates backward-looking market features. Forward shifts are confined to target construction so leakage checks can establish that changing future prices cannot alter earlier features.
 
@@ -83,7 +88,7 @@ default context on every ticker.
 
 `forecasting/dataset.py` writes chronologically split train/validation/test bundles, SHA-256 file hashes, target definition, provenance, split metadata and conservative data-quality flags.
 
-### 4.2 Temporal split and fitting
+### 4.3 Temporal split and fitting
 
 `forecasting/split.py`:
 
@@ -93,15 +98,15 @@ default context on every ticker.
 4. applies the configured business-day embargo;
 5. records exact ranges and row counts.
 
-The validation region is itself divided into three non-overlapping chronological stages, each separated by target-horizon purge + embargo:
+The validation region is itself divided into three non-overlapping chronological stages:
 
 1. component calibration;
 2. ensemble stacking/weight selection;
 3. final ensemble calibration.
 
-The locked test fits no parameter.
+The outer train/validation/test split already applies the configured business-day embargo. Inside validation, earlier-stage rows are retained only when their `target_end_date` is strictly before the next fitting stage begins. The outer embargo is **not applied a second time inside each validation third**; this preserves leakage safety without mathematically erasing otherwise adequate six- or twelve-month calibration stages. The locked test fits no parameter.
 
-### 4.3 Anchor learners and validation
+### 4.4 Anchor learners and validation
 
 `forecasting/model.py` fits:
 
@@ -112,7 +117,7 @@ The locked test fits no parameter.
 
 Acceptance evidence includes Brier/log-loss skill, ROC AUC, average precision, ECE, calibration slope/intercept, purged walk-forward stability, temporal breadth, and moving observation-date-block bootstrap uncertainty that carries the full same-date cross-section together.
 
-### 4.4 Anchor registry
+### 4.5 Anchor registry
 
 `forecasting/registry.py` binds every model ID to the serialized artifact SHA-256 and records settings, target, feature list, dataset hashes/provenance, validation report and tier.
 

@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Run deterministic local FinCompass 1.0.0 release checks."""
+"""Run deterministic local FinCompass release checks."""
 from __future__ import annotations
 
 from hashlib import sha256
 import json
 import shutil
+import sqlite3
 import subprocess
 import sys
 from pathlib import Path
@@ -12,6 +13,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+from tools.generate_release_manifest import release_files
 
 from forecasting.config import get_profile
 from config import APP_VERSION
@@ -72,6 +75,62 @@ def anchor_fixture_integrity_scan():
     if not audit.get("passed"):
         raise SystemExit("Bundled anchor fixture failed dataset audit")
     print("[verify] anchor fixture hashes / temporal audit / tier / validation report: OK")
+
+
+def market_seed_integrity_scan():
+    base = ROOT / "datasets" / "market-seed"
+    db = base / "market_seed.db"
+    manifest_path = base / "SEED_MANIFEST.json"
+    sidecar = base / "SEED_MANIFEST.sha256"
+    # The market seed is a PRIVATE, local-only asset (see PRIVATE-DATA-NOTICE.md).
+    # It is absent from the public repository / a clean CI clone, so when it is
+    # not present we skip its integrity checks; when it IS present (private/local
+    # working tree, exe/Docker packaging) the full integrity gate is enforced.
+    if not db.exists():
+        print("[verify] market seed: SKIPPED (private local-only seed absent — public/CI mode)")
+        return
+    for path in [db, manifest_path, sidecar, base / "README.md"]:
+        if not path.exists():
+            raise SystemExit(f"Missing bundled market seed file: {path.relative_to(ROOT)}")
+    if list(base.glob("market_seed.db-*")):
+        raise SystemExit("Bundled market seed must not ship SQLite WAL/SHM sidecars")
+    manifest_digest = sha256(manifest_path.read_bytes()).hexdigest()
+    if not sidecar.read_text(encoding="utf-8").strip().startswith(manifest_digest):
+        raise SystemExit("Market seed manifest sidecar mismatch")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("live_eligible") is not False or manifest.get("bootstrap_recipe") != "bootstrap-real-1m":
+        raise SystemExit("Bundled market seed must remain research-only and bound to bootstrap-real-1m")
+    db_digest = sha256(db.read_bytes()).hexdigest()
+    if manifest.get("database_sha256") != db_digest:
+        raise SystemExit("Bundled market seed database SHA-256 mismatch")
+    for source in manifest.get("sources") or []:
+        source_path = base / str(source.get("file") or "")
+        license_path = base / str(source.get("license_file") or "")
+        if not source_path.is_file() or sha256(source_path.read_bytes()).hexdigest() != source.get("sha256"):
+            raise SystemExit(f"Bundled market seed source hash mismatch: {source_path.name}")
+        if not license_path.is_file() or sha256(license_path.read_bytes()).hexdigest() != source.get("license_sha256"):
+            raise SystemExit(f"Bundled market seed license/metadata hash mismatch: {license_path.name}")
+        raw_matches = [x for x in (base / "raw").glob(f"{str(source.get('sha256') or '')[:12]}-*") if x.is_file()]
+        if len(raw_matches) != 1 or sha256(raw_matches[0].read_bytes()).hexdigest() != source.get("sha256"):
+            raise SystemExit(f"Bundled market seed retained raw source mismatch: {source_path.name}")
+    conn = sqlite3.connect(db)
+    try:
+        integrity = conn.execute("PRAGMA integrity_check").fetchone()
+        if not integrity or str(integrity[0]).lower() != "ok":
+            raise SystemExit(f"Bundled market seed SQLite integrity check failed: {integrity}")
+        rows = dict(conn.execute("SELECT symbol,COUNT(*) FROM price_bars GROUP BY symbol").fetchall())
+        basis = dict(conn.execute("SELECT symbol,price_basis FROM symbol_contracts WHERE symbol IN ('GOOG','MSFT')").fetchall())
+        revisions = conn.execute("SELECT COUNT(*) FROM price_revisions").fetchone()[0]
+        experiments = conn.execute("SELECT COUNT(*) FROM experiments").fetchone()[0]
+    finally:
+        conn.close()
+    if rows.get("GOOG") != 1047 or rows.get("MSFT") != 7983:
+        raise SystemExit(f"Bundled market seed row counts drifted: {rows}")
+    if basis != {"GOOG": "adjusted", "MSFT": "raw"}:
+        raise SystemExit(f"Bundled market seed price-basis contracts drifted: {basis}")
+    if revisions != 0 or experiments != 0:
+        raise SystemExit("Bundled market seed must not contain revisions or experiment history")
+    print("[verify] market seed hashes / SQLite integrity / real bootstrap corpus: OK")
 
 
 def adaptive_fixture_integrity_scan():
@@ -174,10 +233,6 @@ def docs_scan():
         raise SystemExit(f"Application version mismatch: VERSION={version}, config={APP_VERSION}, RELEASE_INFO={release_info.get('release')}")
     if release_info.get("engines", {}).get("realtime_adaptive") != REALTIME_ENGINE_VERSION:
         raise SystemExit("Realtime engine version mismatch in RELEASE_INFO.json")
-    app_token = f"`{APP_VERSION}`"
-    for name, text in [("ARCHITECTURE.md", architecture), ("MODEL_CARD.md", model_card), ("RELEASE_AUDIT.md", audit_text)]:
-        if app_token not in text:
-            raise SystemExit(f"Documentation missing application version {APP_VERSION}: {name}")
     test_token = f"{int(release_info.get('automated_tests_passed', 0))} automated tests"
     required = [stream["adaptive_id"], stream["state_sha256"], stream["contract_sha256"], stream["settings_fingerprint"], test_token, REALTIME_ENGINE_VERSION]
     corpus = readme + realtime + architecture + model_card + audit_text
@@ -193,13 +248,73 @@ def docs_scan():
 
 def docker_scan():
     docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-    required = ["COPY forecasting/ ./forecasting/", "COPY realtime/ ./realtime/", "COPY models/ ./models/", "COPY adaptive_models/ ./adaptive_models/", "USER appuser", "chown -R appuser:appuser /app/data"]
+    required = ["COPY forecasting/ ./forecasting/", "COPY realtime/ ./realtime/", "COPY config/ ./config/", "COPY datasets/market-seed/ ./datasets/market-seed/", "COPY models/ ./models/", "COPY adaptive_models/ ./adaptive_models/", "USER appuser", "chown -R appuser:appuser /app/data"]
     missing = [x for x in required if x not in docker]
     if missing:
         raise SystemExit("Docker static scan failed: " + ", ".join(missing))
     if "chown -R appuser:appuser /app\n" in docker:
         raise SystemExit("Docker app tree must not be runtime-writable")
-    print("[verify] Docker packaging/ownership scan: OK")
+    dockerignore = (ROOT / ".dockerignore").read_text(encoding="utf-8")
+    if "!datasets/market-seed/**" not in dockerignore or "\nconfig/\n" in "\n" + dockerignore:
+        raise SystemExit("Docker context excludes required config or market-seed resources")
+    exe = (ROOT / "build_exe.bat").read_text(encoding="utf-8").replace("/", "\\")
+    if "datasets\\market-seed;datasets\\market-seed" not in exe:
+        raise SystemExit("Windows one-file build does not bundle datasets/market-seed")
+    print("[verify] Docker + Windows packaging/ownership/market-seed scan: OK")
+
+
+def release_manifest_scan():
+    manifest_path = ROOT / "RELEASE_MANIFEST.sha256"
+    if not manifest_path.is_file():
+        raise SystemExit("Missing RELEASE_MANIFEST.sha256")
+    entries = {}
+    for raw in manifest_path.read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        try:
+            expected, rel = line.split(None, 1)
+        except ValueError as exc:
+            raise SystemExit(f"Malformed release manifest line: {raw}") from exc
+        rel = rel.strip()
+        if rel.startswith("*"):
+            rel = rel[1:]
+        if rel.startswith("./"):
+            rel = rel[2:]
+        if rel == "RELEASE_MANIFEST.sha256":
+            raise SystemExit("Release manifest must not hash itself")
+        path = ROOT / rel
+        if not path.is_file():
+            raise SystemExit(f"Release manifest references missing file: {rel}")
+        actual = sha256(path.read_bytes()).hexdigest()
+        if actual != expected:
+            raise SystemExit(f"Release manifest SHA-256 mismatch: {rel}")
+        entries[rel] = expected
+    # Required PUBLIC source artifacts. Private local-only assets (market-seed,
+    # handoff/, development/) are intentionally excluded from the public manifest
+    # and therefore not required here (see PRIVATE-DATA-NOTICE.md).
+    required = {
+        "api.py", "services/model_builder.py", "services/research_store.py",
+        "forecasting/model.py", "forecasting/recipes.py", "tools/build_builtin_seed.py",
+        "tools/generate_release_manifest.py", "tools/package_source.py", "tools/verify_release.py",
+        "docs/USER_MANUAL.md", "docs/FinCompass-User-Manual.pdf",
+        "paper/main.tex", "paper/arxiv-manuscript-final.pdf",
+    }
+    missing = sorted(required - set(entries))
+    if missing:
+        raise SystemExit("Release manifest missing required source artifacts: " + ", ".join(missing))
+    expected_files = {path.relative_to(ROOT).as_posix() for path in release_files()}
+    manifest_files = set(entries)
+    if manifest_files != expected_files:
+        unmanifested = sorted(expected_files - manifest_files)
+        stale = sorted(manifest_files - expected_files)
+        detail = []
+        if unmanifested:
+            detail.append("unmanifested=" + ", ".join(unmanifested[:20]))
+        if stale:
+            detail.append("stale=" + ", ".join(stale[:20]))
+        raise SystemExit("Release manifest file-set mismatch: " + "; ".join(detail))
+    print(f"[verify] release manifest: {len(entries)} files hash-verified and file-set exact")
 
 
 def hygiene_scan():
@@ -231,12 +346,14 @@ def main() -> int:
         print("[verify] javascript syntax: SKIPPED (node not found)")
     frontend_scan()
     anchor_fixture_integrity_scan()
+    market_seed_integrity_scan()
     adaptive_fixture_integrity_scan()
     model_registry_scan()
     adaptive_registry_scan()
     settings_scan()
     docs_scan()
     docker_scan()
+    release_manifest_scan()
     hygiene_scan()
     print("[verify] PASS")
     return 0

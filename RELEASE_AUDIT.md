@@ -1,8 +1,8 @@
-# FinCompass 1.0 — Adaptive / Event-Driven Release Audit
+# FinCompass — Adaptive / Event-Driven Release Audit
 
 **Review date:** 2026-08-23  
 **Baseline:** FinCompass validation-gated probabilistic forecasting release  
-**Release:** `1.2.0`  
+**Release:** `1.3.0`  
 **Evidence engine:** `1.0.0-evidence1`  
 **Normalized-data schema:** `1.0.0-normalized1`  
 **Forecast anchor engine:** `1.0.0-prob1`  
@@ -12,7 +12,7 @@
 
 ## 1. Executive assessment
 
-FinCompass 1.0 is a material architectural release. It moves the product from a static evidence + periodically trained probabilistic forecasting workbench to a **three-plane governed system**:
+FinCompass is a material architectural release. It moves the product from a static evidence + periodically trained probabilistic forecasting workbench to a **three-plane governed system**:
 
 1. Bayesian current-evidence scoring;
 2. a frozen, historically validated forward-event anchor;
@@ -24,7 +24,7 @@ This prevents “realtime” from becoming uncontrolled self-training or outcome
 
 ### Release conclusion
 
-The v1.0.0 package is suitable as a **research/freeware release candidate** from a code/regression-governance perspective. The bundled anchor and adaptive artifacts are both intentionally `fixture_only`; the package ships **zero live-eligible market models/states**. Real-market forecasting or adaptive-skill claims still require external point-in-time market validation under the supplied protocol.
+The package is suitable as a **research/freeware release candidate** from a code/regression-governance perspective. The bundled anchor and adaptive artifacts are both intentionally `fixture_only`; the package ships **zero live-eligible market models/states**. Real-market forecasting or adaptive-skill claims still require external point-in-time market validation under the supplied protocol.
 
 ## 2. Scope reviewed
 
@@ -58,7 +58,7 @@ The anchor retains the v1 controls:
 
 - point-in-time feature construction;
 - purged chronological train/validation/locked-test splits;
-- target-horizon purge + embargo at every internal calibration/stacking boundary;
+- leakage-safe target-horizon purge between internal calibration/stacking roles without duplicating the outer split embargo;
 - Bayesian logistic + histogram gradient boosting + random forest ensemble;
 - dedicated validation-stage stacking;
 - final probability calibration;
@@ -342,9 +342,9 @@ This namespace separation reduces the risk that an evidence posterior, frozen fo
 
 ## 14. Automated release verification
 
-The frozen v1.2.0 source tree passes:
+The frozen source tree passes:
 
-**119 / 119 automated tests**
+**160 / 160 automated tests**
 
 plus:
 
@@ -361,7 +361,7 @@ plus:
 - Docker packaging/ownership static checks;
 - documentation consistency checks before final packaging.
 
-The automated suite includes regressions for ticker/benchmark polling scope, provider-check cadence, previous-session-close one-day return, provider-verification staleness, settings-lineage delayed labels, observation-date evaluation windows, external-payload redaction, fixture lockout and frontend adaptive registry/status semantics.
+The automated suite includes regressions for ticker/benchmark polling scope, provider-check cadence, previous-session-close one-day return, provider-verification staleness, settings-lineage delayed labels, observation-date evaluation windows, external-payload redaction, fixture lockout, Model Lab recipe recommendation, Guided/Research workflow visibility, and side-effect-free Live condition comparison.
 
 ## 15. Market-data limitations / claims not made
 
@@ -400,4 +400,4 @@ Before describing v1 as validated realtime/adaptive market forecasting, the rele
 **Live-eligible bundled anchor models:** 0  
 **Live-eligible bundled adaptive states:** 0
 
-FinCompass 1.0 therefore ships a substantially stronger adaptive forecasting architecture while preserving a fail-closed claims boundary: the software can ingest and reason over new information continuously, but the package does not promote synthetic validation into market credibility.
+FinCompass therefore ships a substantially stronger adaptive forecasting architecture while preserving a fail-closed claims boundary: the software can ingest and reason over new information continuously, but the package does not promote synthetic validation into market credibility.

@@ -1,5 +1,5 @@
 """
-FinCompass Configuration v1.2.0
+FinCompass Configuration
 """
 import os
 from pathlib import Path
@@ -9,7 +9,7 @@ load_dotenv()
 # Application / scoring engine versions. The score cache is explicitly tied to
 # SCORING_ENGINE_VERSION so a methodology change can never silently reuse a
 # score produced by an older engine.
-APP_VERSION = "1.2.0"
+APP_VERSION = "1.3.0"
 SCORING_ENGINE_VERSION = "1.0.0-evidence1"
 DATA_SCHEMA_VERSION = "1.0.0-normalized1"
 
@@ -52,6 +52,7 @@ DATA_DIR.mkdir(exist_ok=True)
 FMP_API_KEY = os.getenv("FMP_API_KEY", "")
 ALPHA_VANTAGE_KEY = os.getenv("ALPHA_VANTAGE_KEY", "")
 FRED_API_KEY = os.getenv("FRED_API_KEY", "")
+STOOQ_API_KEY = os.getenv("STOOQ_API_KEY", "").strip()
 
 # Scoring weights (must sum to 1.0)
 PILLAR_WEIGHTS = {

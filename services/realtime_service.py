@@ -1,4 +1,4 @@
-"""FinCompass v4 adaptive/live orchestration."""
+"""FinCompass adaptive/live orchestration."""
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
@@ -82,7 +82,15 @@ def _pending_id(ticker,model_id,settings_fp,observation_date):
     return sha256(f"{ticker}|{model_id}|{settings_fp}|{observation_date}".encode("utf-8")).hexdigest()[:32]
 
 
-def live_snapshot(ticker: str, model_id: Optional[str]=None, profile_name: Optional[str]=None, realtime_settings: Optional[RealtimeSettings]=None, db: RealtimeStore=store, force_sources: bool=False) -> Dict[str,Any]:
+def live_snapshot(
+    ticker: str,
+    model_id: Optional[str]=None,
+    profile_name: Optional[str]=None,
+    realtime_settings: Optional[RealtimeSettings]=None,
+    db: RealtimeStore=store,
+    force_sources: bool=False,
+    queue_observation: bool=True,
+) -> Dict[str,Any]:
     ticker=ticker.upper(); settings=(realtime_settings or PROFILES["balanced"]).validate(); now=_now()
     anchor=forecast_ticker(ticker,model_id=model_id,profile_name=profile_name)
     if not anchor.get("available"):
@@ -108,10 +116,10 @@ def live_snapshot(ticker: str, model_id: Optional[str]=None, profile_name: Optio
         "sec":_event_status(sec,sec_check,settings.max_sec_staleness_seconds,now),
         "macro":_event_status(macro,macro_check,settings.max_macro_staleness_seconds,now),
     }
-    pending={"created":False,"reason":"market context unavailable"}
+    pending={"created":False,"reason":"market context unavailable" if queue_observation else "comparison-only view; no learning observation queued"}
     mp=(market or {}).get("payload") or {}
     stock_price=mp.get("latest_price"); bench_price=mp.get("benchmark_latest_price")
-    if settings.enable_online_learning and market_fresh and stock_price and bench_price:
+    if queue_observation and settings.enable_online_learning and market_fresh and stock_price and bench_price:
         obs_date=now.date().isoformat(); horizon=int(target.get("horizon_trading_days") or 252); cal_days=max(1,int(math.ceil(horizon*365.25/252.0)))
         earliest=(now.date()+timedelta(days=cal_days)).isoformat(); lid=_pending_id(ticker,model_id,settings.fingerprint(),obs_date)
         pending_row={"label_id":lid,"ticker":ticker,"benchmark":benchmark,"base_model_id":model_id,"settings_fingerprint":settings.fingerprint(),"settings":settings.to_dict(),"observation_ts":now.isoformat(),"observation_date":obs_date,"earliest_maturity":earliest,"anchor_probability":anchor_prob,"candidate_probability":pred["candidate_probability"],"features":features,"stock_entry_price":float(stock_price),"benchmark_entry_price":float(bench_price),"horizon_trading_days":horizon,"excess_return_threshold":float(target.get("excess_return_threshold") or 0.0)}
@@ -124,6 +132,69 @@ def live_snapshot(ticker: str, model_id: Optional[str]=None, profile_name: Optio
     snap_key=sha256(f"{ticker}|{benchmark}|{model_id}|{settings.fingerprint()}".encode()).hexdigest()[:24]
     db.save_snapshot(snap_key,snapshot)
     return snapshot
+
+
+def compare_live_profiles(
+    ticker: str,
+    model_id: Optional[str]=None,
+    profile_name: Optional[str]=None,
+    db: RealtimeStore=store,
+    force_sources: bool=False,
+) -> Dict[str,Any]:
+    """Compare governed realtime profiles against the same observed information state.
+
+    This is a sensitivity comparison of FinCompass adaptive settings, not a
+    simulation of alternative future market scenarios. It never queues online
+    learning observations, so comparing profiles cannot manufacture training
+    evidence or alter pending-label counts.
+    """
+    ticker=str(ticker or "").strip().upper()
+    rows=[]
+    for index, name in enumerate(("conservative", "balanced", "responsive")):
+        snapshot=live_snapshot(
+            ticker,
+            model_id=model_id,
+            profile_name=profile_name,
+            realtime_settings=PROFILES[name],
+            db=db,
+            force_sources=bool(force_sources and index == 0),
+            queue_observation=False,
+        )
+        if not snapshot.get("available"):
+            return {
+                "available": False,
+                "ticker": ticker,
+                "anchor": snapshot.get("anchor"),
+                "message": snapshot.get("message") or "No live-eligible anchor is available.",
+                "conditions": [],
+            }
+        gate=snapshot.get("gate") or {}
+        rows.append({
+            "profile": name,
+            "base_model_id": snapshot.get("base_model_id"),
+            "settings_fingerprint": snapshot.get("settings_fingerprint"),
+            "anchor_probability": snapshot.get("anchor_probability"),
+            "adaptive_candidate_probability": snapshot.get("adaptive_candidate_probability"),
+            "adaptive_applied_probability": snapshot.get("adaptive_applied_probability"),
+            "adaptive_shift_applied": snapshot.get("adaptive_shift_applied"),
+            "candidate_logit_shift": snapshot.get("candidate_logit_shift"),
+            "posterior_shift_sd": snapshot.get("posterior_shift_sd"),
+            "gate_status": gate.get("status") or "warming",
+            "gate_active": bool(gate.get("active")),
+            "gate_metrics": gate.get("metrics") or {},
+            "source_health": snapshot.get("source_health") or {},
+        })
+    first=rows[0] if rows else {}
+    return {
+        "available": True,
+        "ticker": ticker,
+        "base_model_id": first.get("base_model_id"),
+        "anchor_probability": first.get("anchor_probability"),
+        "conditions": rows,
+        "comparison_contract": "Same observed live information; only the governed adaptive profile changes.",
+        "learning_side_effects": False,
+        "disclaimer": "Condition comparison is sensitivity analysis, not a simulated future scenario or trading recommendation.",
+    }
 
 
 def _aligned_horizon_closes(

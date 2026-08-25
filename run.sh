@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# FinCompass 1.0.0 - one-click local run (macOS / Linux)
+# FinCompass - one-click local run (macOS / Linux)
 set -e
 cd "$(dirname "$0")"
 if [ ! -x ".venv/bin/python" ]; then

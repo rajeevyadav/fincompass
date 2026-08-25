@@ -42,6 +42,13 @@
         <div class="tagline">Bayesian evidence · calibrated forecasting · transparent validation · zero subscription.</div>
       </div>
       <div class="header-actions">
+        <label class="experience-control" for="experience-mode">
+          <span>Mode</span>
+          <select id="experience-mode" aria-label="FinCompass experience mode">
+            <option value="guided" selected>Guided</option>
+            <option value="research">Research</option>
+          </select>
+        </label>
         <span class="badge">FREEWARE</span>
         <span class="badge badge-muted" id="engine-badge">Engine —</span>
       </div>
@@ -140,28 +147,56 @@
       </section>
 
       <section id="page-forecast" role="tabpanel" aria-labelledby="tab-btn-forecast" hidden>
+        <div class="card guided-only guided-flow">
+          <h1>Forecast in three steps</h1>
+          <ol class="guided-steps">
+            <li><strong>Update:</strong> collect or refresh the local history needed by the recommended model.</li>
+            <li><strong>Train:</strong> FinCompass builds, calibrates and checks the candidate on locked test data.</li>
+            <li><strong>Activate:</strong> only a candidate that passes the gates can be selected for Forecast and Live.</li>
+          </ol>
+          <div id="guided-model-message" class="notice">Checking the safest next step…</div>
+          <div class="button-row"><button class="primary" id="btn-guided-update-train">Update data &amp; train recommended model</button></div>
+          <p class="meta">Nothing is auto-approved. A failed model stays rejected and the existing active model, if any, remains unchanged.</p>
+        </div>
         <div class="card control-card">
           <div class="section-head">
-            <div><h1>Validated Probabilistic Forecast</h1><p class="meta">Separate from the evidence score. Live forecasts activate only from a real dataset model that passes the validation gate.</p></div>
+            <div><h1>Model Lab &amp; Validated Probabilistic Forecast</h1><p class="meta">Training, validation and activation are separate governed steps. Model Lab trains only from the durable local research store; a validated candidate is never made live automatically.</p></div>
             <span class="badge badge-muted" id="forecast-tier-badge">No active model</span>
           </div>
           <div class="control-grid forecast-controls">
             <label>Ticker<input type="text" id="forecast-ticker" value="AAPL" autocomplete="off"></label>
-            <label>Validated model<select id="forecast-model"><option value="">Automatic best validated model</option></select></label>
+            <label>Forecast model<select id="forecast-model"><option value="">Active model (default)</option></select></label>
           </div>
-          <div class="button-row"><button class="primary" id="btn-forecast">Run forecast</button><button class="secondary" id="btn-forecast-status">Refresh model status</button></div>
-          <div class="refresh-panel">
-            <p class="meta"><strong>Heads up:</strong> on free public data a forecast model <strong>almost never passes</strong> the validation gates — the price signal simply isn't strong enough, and the tool refuses to activate a model that hasn't earned it. Building here is a genuine validation exercise, not a shortcut to a working forecast; expect a "rejected" result. The Evidence score, Screener, Investor Posture and price context all work without any forecast model. Training runs locally and takes several minutes.</p>
-            <div class="button-row"><button class="secondary" id="btn-build-model">Build forecast model</button><select id="build-profile" aria-label="Build validation profile"><option value="strict">Strict profile</option><option value="standard">Standard profile</option><option value="exploratory">Exploratory profile</option></select></div>
-          </div>
+          <div class="button-row"><button class="primary" id="btn-forecast">Run forecast</button><button class="secondary advanced-only" id="btn-forecast-compare-models">Compare validated models</button><button class="secondary advanced-only" id="btn-deactivate-model">Deactivate active model</button><button class="secondary" id="btn-forecast-status">Refresh model status</button></div>
         </div>
+
+        <div class="card control-card" id="model-lab-panel">
+          <div class="section-head"><div><h2>Model Lab</h2><p class="meta">Local data are retained across sessions. Refresh requests only the overlap and missing tail; raw provider frames and SHA-256 provenance are retained.</p></div><span class="badge badge-muted" id="research-data-badge">Checking data</span></div>
+          <div id="research-data-status" class="meta" aria-live="polite">Checking local research data…</div>
+          <div class="button-row"><button class="secondary" id="btn-update-research-data">Update local data</button><button class="secondary" id="btn-research-data">Refresh data status</button></div>
+          <div class="control-grid">
+            <label>Training recipe<select id="build-recipe" aria-label="Model Lab training recipe"><option value="core-us-6m">Loading recipes…</option></select></label>
+            <label class="advanced-only">Validation profile override<select id="build-profile" aria-label="Build validation profile"><option value="" selected>Use recipe default</option><option value="exploratory">Exploratory</option><option value="standard">Standard</option><option value="strict">Strict</option></select></label>
+          </div>
+          <div id="recipe-readiness" class="meta" aria-live="polite">Checking recipe data readiness…</div>
+          <p class="meta">Rejected candidates are retained with their failed gates. Passing candidates remain inactive until you explicitly activate one below.</p>
+          <div class="button-row"><button class="primary" id="btn-build-model">Train selected recipe</button><button class="secondary advanced-only" id="btn-refresh-experiments">Refresh experiments</button></div>
+        </div>
+
         <div id="forecast-status" class="card" aria-live="polite"><div class="loading">Checking validated model registry…</div></div>
         <div id="build-status" class="card" aria-live="polite" hidden></div>
+        <div id="model-lab-experiments" class="card" aria-live="polite"><div class="loading">Loading Model Lab experiments…</div></div>
+        <div id="forecast-model-compare-out" aria-live="polite"></div>
         <div id="forecast-out" aria-live="polite"></div>
       </section>
 
 
       <section id="page-live" role="tabpanel" aria-labelledby="tab-btn-live" hidden>
+        <div class="card guided-only guided-flow">
+          <h1>Live condition check</h1>
+          <p>Use the same validated anchor under three governed responsiveness settings. <strong>Conservative</strong> changes least, <strong>Balanced</strong> is the default, and <strong>Responsive</strong> can react faster but still cannot bypass freshness, calibration, drift or evidence gates.</p>
+          <p class="meta">This compares model sensitivity to the same observed information. It is not a prediction of three different future market scenarios.</p>
+        </div>
         <div class="card control-card">
           <div class="section-head">
             <div><h1>Adaptive Live Research</h1><p class="meta">Fresh information can update the candidate immediately. Model parameters change only after the original outcome matures and the adaptive gate passes.</p></div>
@@ -169,13 +204,14 @@
           </div>
           <div class="control-grid forecast-controls">
             <label>Ticker<input type="text" id="live-ticker" value="AAPL" autocomplete="off"></label>
-            <label>Validated anchor<select id="live-model"><option value="">Automatic best validated model</option></select></label>
+            <label>Validated anchor<select id="live-model"><option value="">Active model (default)</option></select></label>
             <label>Adaptive profile<select id="live-profile"><option value="balanced">Balanced</option><option value="responsive">Responsive</option><option value="conservative">Conservative</option></select></label>
           </div>
-          <div class="button-row"><button class="primary" id="btn-live">Refresh live state</button><button class="secondary" id="btn-live-status">System status</button><button class="secondary" id="btn-process-matured">Process matured labels</button></div>
-          <p class="meta">Free public providers are best-effort polling, not exchange-grade streaming. Freshness and provider verification are shown with every result.</p>
+          <div class="button-row"><button class="primary" id="btn-live">Refresh selected condition</button><button class="secondary" id="btn-live-compare">Compare all conditions</button><button class="secondary" id="btn-live-status">System status</button><button class="secondary advanced-only" id="btn-process-matured">Process matured labels</button></div>
+          <p class="meta">Free public providers are best-effort polling, not exchange-grade streaming. Freshness and provider verification are shown with every result. Matured outcomes are processed automatically on a manual Live refresh; Research mode also exposes the maintenance control.</p>
         </div>
         <div id="live-status" class="card" aria-live="polite"><div class="loading">Checking realtime/adaptive registry…</div></div>
+        <div id="live-compare-out" aria-live="polite"></div>
         <div id="live-out" aria-live="polite"></div>
       </section>
 
@@ -188,12 +224,12 @@
             <label>Default chart period<select id="setting-chart-period"><option value="1y">1 year</option><option value="3y">3 years</option><option value="5y">5 years</option><option value="10y" selected>10 years</option><option value="max">Maximum</option></select></label>
             <label>Default screener evidence<select id="setting-min-coverage"><option value="0">Any</option><option value="0.4">40%+</option><option value="0.6">60%+</option><option value="0.8">80%+</option></select></label>
             <label>Probability display<select id="setting-prob-format"><option value="percent">Percent</option><option value="decimal">Decimal</option></select></label>
-            <label>Default forecast model<select id="setting-model"><option value="">Automatic best validated model</option></select></label>
+            <label>Default forecast model<select id="setting-model"><option value="">Active model (default)</option></select></label>
             <label>Live auto-refresh<select id="setting-live-refresh"><option value="0">Off</option><option value="30">30 seconds</option><option value="60">60 seconds</option><option value="120">2 minutes</option></select></label>
           </div>
           <div class="button-row"><button class="primary" id="btn-save-runtime-settings">Save preferences</button><button class="secondary" id="btn-reset-settings">Reset</button></div>
         </div>
-        <div class="card">
+        <div class="card advanced-only">
           <h2>Forecast training configuration</h2>
           <p class="meta">Advanced configuration includes horizon, benchmark, hurdle, split fractions, embargo, Bayesian prior strength, ensemble components, calibration, bootstrap depth and validation gates. Edit JSON and validate it here; the validated configuration is applied when you build a forecast model from the Forecast tab.</p>
           <label for="training-settings-json" class="sr-only">Forecast training settings JSON</label>
@@ -202,7 +238,7 @@
           <div id="settings-validation-note" class="meta" aria-live="polite"></div>
         </div>
 
-        <div class="card">
+        <div class="card advanced-only">
           <h2>Adaptive realtime configuration</h2>
           <p class="meta">Provider cadence, staleness, event half-life, Bayesian prior, forgetting/process noise, temporal-breadth gates, calibration limits, drift controls and bounded residual settings are all explicit. Learning-semantic changes create a new adaptive state lineage.</p>
           <label for="realtime-settings-json" class="sr-only">Adaptive realtime settings JSON</label>

@@ -1,4 +1,4 @@
-# FinCompass 1.0 — Probabilistic Forecasting Design
+# FinCompass — Probabilistic Forecasting Design
 
 ## Objective
 
@@ -10,6 +10,22 @@ The default event is:
 
 where the return basis is whatever price series the dataset records. Corporate-action adjustment must be explicitly verified in the dataset manifest before `validated_market` can be assigned.
 
+## Model Lab data and experiment lifecycle
+
+Model Lab is offline-first. `services/research_store.py` keeps market history in a dedicated user-writable SQLite database; `services/research_data.py` owns acquisition; and `services/model_builder.py` consumes only that local store. Training never falls back to an implicit network call.
+
+The source package contains a small real historical GOOG/MSFT acceptance corpus. Its `bootstrap-real-1m` recipe is explicitly research-only and cannot be activated for live forecasts. It proves first-run data loading and the full training/validation evidence path, but it is **not** evidence of current market skill and may correctly be rejected by the statistical gates.
+
+Current cross-asset recipes cover US broad market and Nasdaq, Russell/small-cap proxies, Canada/TSX, Japan, China/Hong Kong, emerging markets, Treasury/credit proxies, and commodity proxies. A refresh requests only an overlap window and missing tail, journals provider corrections, and retains raw frames plus hashes. Recipe readiness reports the available benchmark and target series before training.
+
+Experiment states are retained as `training`, `candidate`, `validated`, `rejected`, `failed`, or `interrupted`. A stale interrupted build can be reclaimed without deleting research data or prior evidence. A validated live-eligible candidate is still inert until explicit activation; forecasts never select the newest artifact implicitly.
+
+### Guided and Research operation
+
+The same validation engine is exposed through two UI layers. **Guided mode** is the default and recommends a stable starting recipe, tells the user whether required local data are ready, performs the bounded data refresh when needed, starts training, and then requires explicit activation of an eligible passing candidate. **Research mode** exposes the full recipe list, profile overrides, experiment lineage, raw metrics, validated-model comparison, and explicit deactivate/maintenance controls. Neither mode changes the statistical gates.
+
+Model comparison is descriptive: models with different horizons, benchmarks, hurdles or event definitions are not ranked as if their probabilities were interchangeable.
+
 ## Why this architecture
 
 A probability is only meaningful if three layers are separated:
@@ -18,7 +34,7 @@ A probability is only meaningful if three layers are separated:
 2. **calibration** — do 70% forecasts occur about 70% of the time for the defined event?;
 3. **validation** — were both measured on data the model/calibrator did not fit?
 
-The design therefore uses train data for base-model fitting; three chronological validation stages for component calibration, ensemble weighting, and final ensemble calibration, with target-horizon purging and an explicit embargo at **every internal stage boundary**; and a locked test for final acceptance.
+The design therefore uses train data for base-model fitting; an outer purged train/validation/locked-test split with the configured business-day embargo; three chronological validation roles for component calibration, ensemble weighting, and final ensemble calibration separated by strict forward-target purging; and a locked test for final acceptance. The outer embargo is not reapplied inside each validation role.
 
 ## Base models
 
@@ -50,7 +66,7 @@ Advantages:
 
 ## Calibration
 
-Calibration never uses the locked test. The first validation stage calibrates each component; the third validation stage calibrates the weighted ensemble. The boundaries between component calibration, stacking, and final calibration are purged by `target_end_date` and embargoed, so outcomes used upstream are resolved before a downstream stage begins. `sigmoid` is the default. `isotonic` is available when the calibration sample is sufficiently large and the user accepts greater overfit risk.
+Calibration never uses the locked test. The first validation stage calibrates each component; the third validation stage calibrates the weighted ensemble. At each internal validation boundary, upstream observations are retained only when `target_end_date` is strictly before the next fitting stage. This prevents unresolved forward labels from crossing roles without duplicating the outer split embargo. `sigmoid` is the default. `isotonic` is available when the calibration sample is sufficiently large and the user accepts greater overfit risk.
 
 A model with a high AUC but poor Brier/log-loss/calibration performance can fail the activation gate.
 

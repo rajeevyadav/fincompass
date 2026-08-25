@@ -382,11 +382,17 @@ class Cache:
                     state = json.loads(row["value"])
                 except (TypeError, json.JSONDecodeError):
                     state = {}
+            reclaimed: Dict[str, Any] = {}
             if state.get("status") == "running":
                 updated = _parse_dt(state.get("updated_at"))
                 if updated and now - updated < timedelta(minutes=stale_minutes):
                     conn.commit()
                     return False, state
+                reclaimed = {
+                    "reclaimed_experiment_id": state.get("experiment_id"),
+                    "reclaimed_recipe_id": state.get("recipe_id"),
+                    "reclaimed_updated_at": state.get("updated_at"),
+                }
             state = {
                 "status": "running",
                 "phase": "fetch",
@@ -399,6 +405,7 @@ class Cache:
                 "started_at": now.isoformat(),
                 "updated_at": now.isoformat(),
                 "message": "Starting model build",
+                **{k: v for k, v in reclaimed.items() if v is not None},
             }
             conn.execute(
                 "INSERT OR REPLACE INTO meta (key, value) VALUES ('model_build', ?)",

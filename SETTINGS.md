@@ -1,4 +1,4 @@
-# FinCompass 1.0 — Settings and Configuration
+# FinCompass — Settings and Configuration
 
 ## Two settings classes
 

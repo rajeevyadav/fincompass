@@ -1,4 +1,4 @@
-# FinCompass 1.0 — Privacy Notice
+# FinCompass — Privacy Notice
 
 FinCompass is designed to collect as little user data as practical.
 

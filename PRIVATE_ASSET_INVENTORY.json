@@ -1,0 +1,37 @@
+{
+  "classification": "PRIVATE_LOCAL_ONLY",
+  "do_not_publish": true,
+  "protected_paths": [
+    "data/",
+    "datasets/market-seed/",
+    "models/",
+    "adaptive_models/",
+    "private_assets/"
+  ],
+  "packaged_assets": [
+    {
+      "path": "datasets/market-seed/market_seed.db",
+      "type": "real_historical_research_seed",
+      "rows": 9030,
+      "symbols": ["GOOG", "MSFT"],
+      "live_eligible": false
+    },
+    {
+      "path": "datasets/market-seed/source-originals/",
+      "type": "source_originals_and_provenance"
+    },
+    {
+      "path": "datasets/market-seed/raw/",
+      "type": "raw_archived_sources"
+    },
+    {
+      "path": "models/",
+      "type": "forecast_model_artifacts"
+    },
+    {
+      "path": "adaptive_models/",
+      "type": "adaptive_model_artifacts_and_state"
+    }
+  ],
+  "note": "Broader market histories are acquired and retained locally by FinCompass. They are intentionally not bulk-redistributed in this private delivery because provider redistribution rights may differ by source."
+}

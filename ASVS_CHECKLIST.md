@@ -1,4 +1,4 @@
-# OWASP ASVS-Oriented Self-Assessment — FinCompass 1.0
+# OWASP ASVS-Oriented Self-Assessment — FinCompass
 
 FinCompass uses OWASP ASVS Level 1 concepts as a practical checklist for a no-auth freeware research app. This is a self-assessment, not certification.
 

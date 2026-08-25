@@ -1,4 +1,4 @@
-"""FinCompass REST API v1.0.0."""
+"""FinCompass REST API."""
 from __future__ import annotations
 
 import csv
@@ -42,6 +42,10 @@ from services.guardrails import GuardrailMiddleware, effective_rate_limit_backen
 from services.scoring import generate_thesis, get_label_color
 from services.posture import build_posture
 from services.model_builder import start_model_build, get_model_build_status
+from forecasting.registry import clear_active_model, get_active_pointer, set_active_model
+from forecasting.recipes import get_recipe as get_model_lab_recipe, list_instruments as list_model_lab_instruments, list_recipes as list_model_lab_recipes
+from services.research_store import research_store
+from services.research_data import start_refresh as start_research_refresh, refresh_status as research_refresh_status
 from forecasting import FORECAST_ENGINE_VERSION
 from forecasting.config import settings_from_dict, settings_schema
 from services.forecast_service import forecast_ticker, get_forecast_status
@@ -632,7 +636,7 @@ for path, endpoint, methods, response_model in [
     app.add_api_route(path, endpoint, methods=methods, response_model=response_model, include_in_schema=True)
 
 
-# Forecasting API v2 compatibility aliases. FinCompass 3.0 publishes v3 as the
+# Forecasting API v2 compatibility aliases. FinCompass publishes v3 as the
 # primary forecasting surface; these aliases avoid breaking pre-release v2 clients.
 for path, endpoint, methods in [
     ("/api/v2/forecast/status", forecast_status, ["GET"]),
@@ -644,12 +648,12 @@ for path, endpoint, methods in [
     app.add_api_route(path, endpoint, methods=methods, include_in_schema=False)
 
 # ---------------------------------------------------------------------------
-# FinCompass v4 adaptive / near-real-time API
+# FinCompass adaptive / near-real-time API
 # ---------------------------------------------------------------------------
 from realtime import REALTIME_ENGINE_VERSION
 from realtime.config import settings_from_dict as realtime_settings_from_dict, settings_schema as realtime_settings_schema
 from realtime.store import store as realtime_store
-from services.realtime_service import live_snapshot, process_matured_labels, realtime_status
+from services.realtime_service import compare_live_profiles, live_snapshot, process_matured_labels, realtime_status
 import hmac as _hmac
 import hashlib as _hashlib
 import json as _json
@@ -662,11 +666,184 @@ def forecast_status_v4(request: Request):
     return {**get_forecast_status(), "realtime_engine_version": REALTIME_ENGINE_VERSION, "request_id": _rid(request)}
 
 
+@app.get("/api/v4/model-lab/data")
+def model_lab_data_v4(request: Request):
+    return {
+        "audit": research_store.audit(),
+        "refresh": research_refresh_status(),
+        "recent_fetches": research_store.fetch_history(20),
+        "raw_sources": research_store.raw_sources(25),
+        "request_id": _rid(request),
+    }
+
+
+@app.get("/api/v4/model-lab/data/refresh/status")
+def model_lab_refresh_status_v4(request: Request):
+    return {**research_refresh_status(), "request_id": _rid(request)}
+
+
+@app.post("/api/v4/model-lab/data/refresh")
+def model_lab_refresh_v4(request: Request, payload: Dict[str, Any] = Body(default={})):
+    payload = payload if isinstance(payload, dict) else {}
+    raw_symbols = payload.get("symbols")
+    symbols = None
+    if raw_symbols is not None:
+        if not isinstance(raw_symbols, list) or len(raw_symbols) > 100:
+            raise HTTPException(422, "symbols must be a list of at most 100 tickers")
+        catalogue = {str(row.get("symbol") or "").upper() for row in list_model_lab_instruments()}
+        symbols = []
+        for value in raw_symbols:
+            candidate = str(value or "").strip().upper()
+            if candidate in catalogue:
+                # Reference indices such as ^GSPTSE and ^N225 are intentional
+                # Model Lab symbols even though they are not normal equity
+                # tickers accepted by the public analysis guardrail.
+                symbols.append(candidate)
+            else:
+                symbols.append(validate_ticker(candidate))
+    try:
+        overlap = int(payload.get("overlap_calendar_days", 10))
+    except (TypeError, ValueError):
+        raise HTTPException(422, "overlap_calendar_days must be an integer")
+    if overlap < 0 or overlap > 90:
+        raise HTTPException(422, "overlap_calendar_days must be between 0 and 90")
+    return {**start_research_refresh(symbols, overlap_calendar_days=overlap), "request_id": _rid(request)}
+
+
+def _model_lab_recipe_readiness() -> List[Dict[str, Any]]:
+    """Return recipe metadata annotated with local-corpus readiness.
+
+    Readiness is descriptive only; it never relaxes training or validation. A
+    recipe is trainable when its benchmark and at least one declared target are
+    present locally. Missing targets remain visible so partial-corpus builds are
+    never mistaken for full-universe runs.
+    """
+    recipes = list_model_lab_recipes()
+    symbols = sorted({
+        str(symbol).upper()
+        for recipe in recipes
+        for symbol in [recipe.get("benchmark"), *(recipe.get("tickers") or [])]
+        if symbol
+    })
+    coverage = {
+        str(row.get("symbol") or "").upper(): row
+        for row in research_store.coverage(symbols)
+    }
+    out: List[Dict[str, Any]] = []
+    for recipe in recipes:
+        row = dict(recipe)
+        benchmark = str(row.get("benchmark") or "").upper()
+        targets = [str(x).upper() for x in (row.get("tickers") or [])]
+        benchmark_rows = int((coverage.get(benchmark) or {}).get("rows") or 0)
+        present = [symbol for symbol in targets if int((coverage.get(symbol) or {}).get("rows") or 0) > 0]
+        missing = [symbol for symbol in targets if symbol not in present]
+        row["readiness"] = {
+            "trainable": benchmark_rows > 0 and bool(present),
+            "benchmark_ready": benchmark_rows > 0,
+            "benchmark_rows": benchmark_rows,
+            "targets_present_count": len(present),
+            "targets_required_count": len(targets),
+            "target_symbols_present": present,
+            "target_symbols_missing": missing,
+        }
+        out.append(row)
+    return out
+
+
+@app.get("/api/v4/model-lab/recipes")
+def model_lab_recipes_v4(request: Request):
+    recipes = _model_lab_recipe_readiness()
+    live_ready = [
+        row for row in recipes
+        if row.get("live_eligible_target") is not False and (row.get("readiness") or {}).get("trainable")
+    ]
+    if live_ready:
+        # Keep the novice default stable and interpretable: prefer the core
+        # six-month contract when it is ready, then rank other live-eligible
+        # recipes by local target coverage. Research mode still exposes every
+        # recipe explicitly.
+        core = next((row for row in live_ready if row.get("recipe_id") == "core-us-6m"), None)
+        if core is not None:
+            recommended = core
+            reason = "Core US 6M is trainable from the local research store and is the default guided starting point."
+        else:
+            recommended = sorted(
+                live_ready,
+                key=lambda row: (
+                    -int((row.get("readiness") or {}).get("targets_present_count") or 0),
+                    str(row.get("recipe_id") or ""),
+                ),
+            )[0]
+            reason = "A live-eligible recipe is already trainable from the local research store."
+    else:
+        recommended = next((row for row in recipes if row.get("recipe_id") == "core-us-6m"), recipes[0] if recipes else None)
+        reason = "Update local data first; Core US 6M is the default guided starting point when no live-eligible recipe is ready."
+    return {
+        "recipes": recipes,
+        "instruments": list_model_lab_instruments(),
+        "recommended_recipe_id": recommended.get("recipe_id") if recommended else None,
+        "recommended_reason": reason if recommended else "No recipes are configured.",
+        "guided_workflow": [
+            "Update local data",
+            "Train the recommended recipe",
+            "Inspect the locked-test result",
+            "Explicitly activate only an eligible validated candidate",
+            "Run Forecast or compare governed Live conditions",
+        ],
+        "request_id": _rid(request),
+    }
+
+
+@app.get("/api/v4/model-lab/experiments")
+def model_lab_experiments_v4(request: Request, limit: int = Query(50, ge=1, le=200)):
+    return {
+        "experiments": research_store.list_experiments(limit),
+        "active": get_active_pointer(),
+        "request_id": _rid(request),
+    }
+
+
+@app.get("/api/v4/model-lab/experiments/{experiment_id}")
+def model_lab_experiment_v4(experiment_id: str, request: Request):
+    experiment = research_store.get_experiment(experiment_id)
+    if not experiment:
+        raise HTTPException(404, "experiment not found")
+    return {"experiment": experiment, "active": get_active_pointer(), "request_id": _rid(request)}
+
+
+@app.post("/api/v4/model-lab/experiments/{experiment_id}/activate")
+def model_lab_activate_v4(experiment_id: str, request: Request):
+    experiment = research_store.get_experiment(experiment_id)
+    if not experiment:
+        raise HTTPException(404, "experiment not found")
+    if experiment.get("status") != "validated" or not experiment.get("model_id"):
+        raise HTTPException(409, "only a validated experiment with a saved model can be activated")
+    if (experiment.get("lineage") or {}).get("live_eligible_target") is False:
+        raise HTTPException(409, "this experiment uses a research-only recipe and cannot be activated")
+    try:
+        pointer = set_active_model(str(experiment["model_id"]), experiment_id=experiment_id)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc))
+    return {"activated": True, "active": pointer, "experiment": experiment, "request_id": _rid(request)}
+
+
+@app.post("/api/v4/model-lab/active/deactivate")
+def model_lab_deactivate_v4(request: Request):
+    cleared = clear_active_model()
+    return {"deactivated": cleared, "active": get_active_pointer(), "request_id": _rid(request)}
+
+
 @app.post("/api/v4/forecast/build")
 def forecast_build_v4(request: Request, payload: Dict[str, Any] = Body(default={})):
-    """Start an in-app forecast-model build from free public data (background job)."""
-    profile = str((payload or {}).get("profile", "strict")) if isinstance(payload, dict) else "strict"
-    state = start_model_build(profile=profile)
+    """Start an offline-only Model Lab recipe build from retained local data."""
+    payload = payload if isinstance(payload, dict) else {}
+    recipe_id = str(payload.get("recipe_id") or "core-us-6m").strip().lower()
+    profile_value = payload.get("profile")
+    profile = str(profile_value).strip().lower() if profile_value not in (None, "") else None
+    try:
+        state = start_model_build(profile=profile, recipe_id=recipe_id)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
     return {**state, "request_id": _rid(request)}
 
 
@@ -688,6 +865,24 @@ def forecast_settings_validate_v4(request: Request, payload: Dict[str, Any] = Bo
 @app.get("/api/v4/realtime/status")
 def realtime_status_v4(request: Request):
     return {**realtime_status(), "request_id": _rid(request)}
+
+
+@app.get("/api/v4/realtime/{ticker}/compare")
+def realtime_compare_v4(
+    ticker: str,
+    request: Request,
+    model_id: Optional[str] = Query(None, max_length=64),
+    profile: Optional[str] = Query(None, max_length=64),
+    force_sources: bool = Query(False),
+):
+    ticker = validate_ticker(ticker)
+    result = compare_live_profiles(
+        ticker, model_id=model_id, profile_name=profile, force_sources=force_sources
+    )
+    result["request_id"] = _rid(request)
+    if not result.get("available"):
+        return JSONResponse(status_code=409, content=result)
+    return result
 
 
 @app.get("/api/v4/realtime/{ticker}/events")

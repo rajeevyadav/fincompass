@@ -1,4 +1,4 @@
-# FinCompass v1.0.0 - arXiv manuscript package
+# FinCompass — arXiv Manuscript Package
 
 ## Manuscript
 
@@ -37,4 +37,4 @@ pdflatex main.tex
 
 ## Scope boundary
 
-The numerical results reported in the paper are deterministic synthetic regression-fixture results from the FinCompass validation pipeline. They verify statistical/software behavior and are not presented as evidence of market alpha or live market forecasting skill.
+The numerical results reported in the paper are deterministic synthetic regression-fixture results from the FinCompass validation pipeline. They verify statistical/software behavior and are not presented as evidence of market alpha or live market forecasting skill. The separate real historical GOOG/MSFT bootstrap bundled with the application exists only to exercise offline Model Lab operation; it is research-only, is not a live model dataset, and is not used to claim market forecasting skill.

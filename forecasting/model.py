@@ -92,40 +92,80 @@ class EnsembleForecastModel:
 
 
 def _partition_validation(validation: pd.DataFrame, settings: ForecastSettings) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, Dict[str, Any]]:
-    """Create purged, embargoed chronological validation fitting stages.
+    """Create leakage-safe chronological validation fitting stages.
 
-    Component calibration, stacking, and final calibration must not only use
-    different observation dates; their forward target windows must also resolve
-    before the next stage starts. This prevents overlapping outcome windows from
-    leaking dependence across fitting roles.
+    The outer train/validation/test split already applies the configured
+    business-day embargo. Re-applying that full embargo inside each third of
+    validation can make otherwise adequate 6M/12M datasets mathematically
+    impossible to fit. Internal fitting roles instead use a strict forward-
+    target purge: every label used by an earlier stage must resolve before the
+    next stage begins. Candidate boundaries are selected to maximize temporal
+    support while keeping component calibration, stacking, and final
+    calibration chronologically disjoint.
     """
     work = validation.copy()
     work["date"] = pd.to_datetime(work["date"])
     work["target_end_date"] = pd.to_datetime(work["target_end_date"])
+    work = work.dropna(subset=["date", "target_end_date", "target_outperform"]).copy()
     dates = np.array(sorted(work["date"].dropna().unique()))
     if len(dates) < 18:
         raise ValueError("validation partition requires at least 18 distinct observation dates for purged three-stage fitting")
-    cut1 = max(6, len(dates) // 3)
-    cut2 = max(cut1 + 6, (2 * len(dates)) // 3)
-    cut2 = min(cut2, len(dates) - 6)
+
+    min_raw_stage_dates = 6
+    min_effective_stage_dates = 3
+    candidates = []
+    n_dates = len(dates)
+
+    # Exhaustive boundary search is intentionally small (validation typically
+    # has tens of sampled dates) and is more robust than fixed thirds when the
+    # forecast horizon consumes several sampled observations at each purge.
+    for cut1 in range(min_raw_stage_dates, n_dates - 2 * min_raw_stage_dates + 1):
+        for cut2 in range(cut1 + min_raw_stage_dates, n_dates - min_raw_stage_dates + 1):
+            stage2_start = pd.Timestamp(dates[cut1])
+            stage3_start = pd.Timestamp(dates[cut2])
+            p1 = work[(work["date"] < stage2_start) & (work["target_end_date"] < stage2_start)].copy()
+            p2 = work[(work["date"] >= stage2_start) & (work["date"] < stage3_start) & (work["target_end_date"] < stage3_start)].copy()
+            p3 = work[work["date"] >= stage3_start].copy()
+            parts = (p1, p2, p3)
+            distinct_dates = tuple(int(part["date"].nunique()) for part in parts)
+            if min(distinct_dates) < min_effective_stage_dates:
+                continue
+            if any(part.empty or part["target_outperform"].nunique() < 2 for part in parts):
+                continue
+            row_counts = tuple(int(len(part)) for part in parts)
+            # Prefer the candidate with the strongest weakest stage, then the
+            # most balanced temporal/row support, then boundaries closest to
+            # thirds as a deterministic tie-breaker.
+            score = (
+                min(distinct_dates),
+                -max(distinct_dates) + min(distinct_dates),
+                min(row_counts),
+                -max(row_counts) + min(row_counts),
+                -(abs(cut1 - n_dates / 3.0) + abs(cut2 - 2.0 * n_dates / 3.0)),
+            )
+            candidates.append((score, cut1, cut2, parts))
+
+    if not candidates:
+        raise ValueError(
+            "validation partition cannot form three leakage-safe fitting stages with at least "
+            f"{min_effective_stage_dates} distinct dates and both target classes per stage after forward-target purge; "
+            "provide more history, a shorter forecast horizon, or a denser sampling cadence"
+        )
+
+    _, cut1, cut2, parts = max(candidates, key=lambda item: item[0])
     stage2_start = pd.Timestamp(dates[cut1])
     stage3_start = pd.Timestamp(dates[cut2])
-
-    embargo1 = stage2_start - pd.offsets.BDay(settings.embargo_trading_days)
-    embargo2 = stage3_start - pd.offsets.BDay(settings.embargo_trading_days)
-    p1 = work[(work["date"] < embargo1) & (work["target_end_date"] < stage2_start)].copy()
-    p2 = work[(work["date"] >= stage2_start) & (work["date"] < embargo2) & (work["target_end_date"] < stage3_start)].copy()
-    p3 = work[work["date"] >= stage3_start].copy()
-    parts = [p1, p2, p3]
     names = ["component_calibration", "ensemble_stacking", "final_calibration"]
     meta: Dict[str, Any] = {
         "stage2_start": stage2_start.date().isoformat(),
         "stage3_start": stage3_start.date().isoformat(),
-        "embargo_trading_days": int(settings.embargo_trading_days),
+        "boundary_selection": "adaptive_maximin_temporal_support",
+        "purge_rule": "Earlier-stage rows are retained only when target_end_date is strictly before the next fitting stage starts.",
+        "inner_observation_embargo_trading_days": 0,
+        "outer_split_embargo_trading_days": int(settings.embargo_trading_days),
+        "minimum_effective_stage_dates": min_effective_stage_dates,
     }
     for name, part in zip(names, parts):
-        if part.empty or part["target_outperform"].nunique() < 2:
-            raise ValueError(f"{name} validation stage is empty or lacks both target classes after purge/embargo; provide more history or a shorter horizon/embargo")
         meta[name] = {
             "rows": int(len(part)),
             "distinct_dates": int(part["date"].nunique()),
@@ -416,7 +456,7 @@ def train_validate_ensemble(
         "locked_test_metrics": test_metrics,
         "walk_forward": walk,
         "validation_protocol": {
-            "method": "purged_embargoed_three_stage_validation_then_locked_test",
+            "method": "purged_three_stage_validation_then_locked_embargoed_test",
             "stages": val_protocol,
             "locked_test_used_for_fitting": False,
         },

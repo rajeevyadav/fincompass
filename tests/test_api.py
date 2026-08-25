@@ -68,3 +68,55 @@ def test_csv_export_neutralizes_formula_injection(monkeypatch):
     assert r.status_code == 200
     assert "'=2+2" in r.text
     assert "'@sector" in r.text
+
+
+def test_model_lab_data_and_recipe_endpoints(monkeypatch):
+    class StubStore:
+        def audit(self):
+            return {"rows": 12, "symbols_with_data": 2, "coverage": []}
+        def fetch_history(self, limit):
+            assert limit == 20
+            return [{"fetch_id": "f1", "status": "complete"}]
+        def raw_sources(self, limit):
+            assert limit == 25
+            return [{"sha256": "a" * 64, "file_name": "SPY.csv"}]
+        def coverage(self, symbols=None):
+            return [{"symbol": str(symbol).upper(), "rows": 0} for symbol in (symbols or [])]
+
+    monkeypatch.setattr(api, "research_store", StubStore())
+    monkeypatch.setattr(api, "research_refresh_status", lambda: {"status": "idle"})
+
+    data = client.get("/api/v4/model-lab/data")
+    assert data.status_code == 200
+    body = data.json()
+    assert body["audit"]["rows"] == 12
+    assert body["refresh"]["status"] == "idle"
+    assert body["recent_fetches"][0]["fetch_id"] == "f1"
+
+    recipes = client.get("/api/v4/model-lab/recipes")
+    assert recipes.status_code == 200
+    ids = {r["recipe_id"] for r in recipes.json()["recipes"]}
+    assert {"core-us-6m", "nasdaq-growth-6m", "global-proxy-6m", "cross-asset-regime-6m"} <= ids
+    symbols = {r["symbol"] for r in recipes.json()["instruments"]}
+    assert {"IWM", "EWJ", "MCHI", "TLT", "XIC.TO", "XIU.TO"} <= symbols
+
+
+def test_model_lab_refresh_endpoint_validates_and_starts_incremental_refresh(monkeypatch):
+    called = {}
+
+    def fake_start(symbols, *, overlap_calendar_days):
+        called["symbols"] = symbols
+        called["overlap"] = overlap_calendar_days
+        return {"started": True, "status": "running"}
+
+    monkeypatch.setattr(api, "start_research_refresh", fake_start)
+    response = client.post(
+        "/api/v4/model-lab/data/refresh",
+        json={"symbols": ["SPY", "QQQ"], "overlap_calendar_days": 7},
+    )
+    assert response.status_code == 200
+    assert response.json()["started"] is True
+    assert called == {"symbols": ["SPY", "QQQ"], "overlap": 7}
+
+    invalid = client.post("/api/v4/model-lab/data/refresh", json={"overlap_calendar_days": 91})
+    assert invalid.status_code == 422

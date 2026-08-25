@@ -1,6 +1,6 @@
-# FinCompass 1.0 — Engineering / Validation TODO
+# FinCompass — Engineering / Validation TODO
 
-## Closed in 1.0.0
+## Completed platform controls
 
 - [x] Keep the validated historical forecast as an immutable anchor rather than continuously refitting the whole model.
 - [x] Add append-only timestamped market, filing, macro and operator-event storage.
@@ -31,7 +31,35 @@
 - [x] Aggregate public provider health and redact external event payloads to avoid shared-deployment symbol/feed leakage.
 - [x] Reconcile all v1 documentation and Docker examples with the final statistical/event contract.
 
+## Source-commit scope completed
+
+- [x] Durable Model Lab SQLite research store with append/deduplicate/revision journaling.
+- [x] Packaged real historical research-only bootstrap corpus with retained originals, provenance and SHA-256 manifest.
+- [x] Incremental overlap/tail refresh with raw provider-frame retention.
+- [x] Cross-asset catalogue and declarative training recipes.
+- [x] Recipe readiness preflight in API/UI; untrainable recipes are identified before launch.
+- [x] Corrected leakage-safe internal validation partitioning without duplicated outer embargo.
+- [x] Experiment lifecycle, explicit activation, and activated-artifact hash verification.
+- [x] Interrupted stale-build reclamation with experiment evidence retained.
+- [x] Docker and Windows one-file packaging include config and market seed.
+- [x] Release verifier enforces seed integrity and packaging contracts.
+
+## One-shot source commit - operator workflow complete
+
+- [x] Guided mode is the default and exposes a plain-language update -> train -> inspect -> activate -> forecast workflow.
+- [x] Research mode preserves full recipe selection, advanced configuration, experiment lineage and model comparison.
+- [x] Guided recipe recommendation prefers the Core US 6M contract when local data make it trainable.
+- [x] Model selection, explicit activation, explicit deactivation and validated-model comparison are available in-app.
+- [x] Live supports Conservative, Balanced and Responsive governed conditions.
+- [x] Live condition comparison uses the same observed information and does not queue learning labels.
+- [x] Normal manual Live refresh performs bounded matured-outcome maintenance before calculating the new state.
+- [x] Beginner-oriented user manual source and verified PDF updated.
+- [x] arXiv manuscript corrected to match the implemented outer-embargo/internal-purge validation contract.
+- [x] Recovery-grade handoff and machine-readable source-of-truth map added.
+
 ## Required before claiming real adaptive market skill
+
+> These are **evidence-generation requirements, not source-commit blockers**. They require point-in-time datasets, untouched future intervals, or independent empirical validation and must not be marked complete from code changes alone.
 
 - [ ] Build a historically reconstructed event stream with source/effective timestamps for every predictive event feature.
 - [ ] Use vintage-aware historical macro values rather than revised current history.
@@ -43,7 +71,9 @@
 - [ ] Validate the consequence of provider delays/outages and simulated stale-source scenarios.
 - [ ] Validate any news/NLP/event-feed feature separately before it can influence probability.
 
-## Potential v1.x / v5 research
+## Future research
+
+> These are extension directions for a research user/professor and are intentionally not required for the one-shot source commit.
 
 - [ ] Dynamic hierarchical sector/regime priors.
 - [ ] Explicit latent-state/regime model with posterior regime probabilities.
@@ -54,11 +84,14 @@
 - [ ] Cross-sectional portfolio/decision layer only after transaction-cost and liquidity validation.
 - [ ] Streaming connector SDK with signed source contracts and schema registry.
 
-## Independent release validation
+## Post-commit independent / deployment validation
+
+> These require external accessibility tooling, deployment infrastructure, live provider credentials, or independent review. They remain deliberately open after source closure.
 
 - [ ] Real VoiceOver/NVDA pass.
 - [ ] Public TLS/reverse-proxy review.
 - [ ] Live Docker build/run validation in an environment with Docker available.
-- [ ] Explicit redistribution/open-source license chosen by the release owner.
+- [x] Application source license present: MIT (`LICENSE`).
+- [ ] Independently review third-party/provider redistribution terms before adding any additional bulk provider market data to the distributable source package.
 - [ ] Independent security review before high-traffic public deployment.
 - [ ] Live smoke tests with the operator's SEC/FRED/optional provider configuration.

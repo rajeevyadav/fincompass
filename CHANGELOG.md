@@ -3,6 +3,23 @@
 All notable changes to FinCompass are documented here. This project follows
 Semantic Versioning.
 
+## [1.3.0] — 2026-08-25
+
+Additive, non-breaking release.
+
+### Model Lab
+- New **Model Lab** workspace to build, compare and activate forecast models from
+  a local research data store — fully in-app, no command line. Endpoints under
+  `/api/v4/model-lab/*` (data, recipes, experiments, activate/deactivate).
+- Local research data store (`services/research_store.py`, `services/research_data.py`)
+  with reproducible seed import; training reads from the local store rather than
+  re-fetching. Forecast horizon/profile **recipes** (`forecasting/recipes.py`).
+- Real historical **market seed** support (private, local-only) so a model can
+  legitimately reach `validated_research`; the public repository ships only the
+  synthetic fixtures — the private seed/model/adaptive assets are never published
+  (`.gitignore` + restricted-file hook + CI Restricted Folder Guard +
+  `tools/package_source.py` public-safe export). See `PRIVATE-DATA-NOTICE.md`.
+
 ## [1.2.0] — 2026-08-24
 
 Additive, non-breaking release.

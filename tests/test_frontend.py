@@ -35,3 +35,35 @@ def test_static_html_has_unique_accessibility_targets_and_no_inline_code():
     assert all(target in ids for target in parser.labelledby)
     assert parser.inline_handlers == []
     assert parser.inline_styles == []
+
+
+def test_model_lab_ui_exposes_data_recipe_experiment_and_explicit_activation_workflow():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    for element_id in [
+        "model-lab-panel", "research-data-status", "btn-update-research-data",
+        "build-recipe", "recipe-readiness", "btn-build-model", "model-lab-experiments", "btn-refresh-experiments",
+    ]:
+        assert f'id="{element_id}"' in html
+    assert "validated candidate is never made live automatically" in html
+    assert "/api/v4/model-lab/data/refresh" in js
+    assert "/api/v4/model-lab/experiments/" in js
+    assert "Needs local data before training." in js
+    assert "Ready to train locally." in js
+    assert "Validated candidate created — not active." in js
+    assert "Model built and activated" not in js
+
+
+def test_guided_and_research_modes_expose_simple_and_advanced_workflows():
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    js = Path("static/app.js").read_text(encoding="utf-8")
+    for element_id in [
+        "experience-mode", "btn-guided-update-train", "guided-model-message",
+        "btn-live-compare", "live-compare-out", "btn-forecast-compare-models",
+    ]:
+        assert f'id="{element_id}"' in html
+    assert "Forecast in three steps" in html
+    assert "Compare all conditions" in html
+    assert "/api/v4/realtime/${encodeURIComponent(ticker)}/compare" in js
+    assert "process-matured" in js
+    assert "realtime_engine_version" in js

@@ -5,6 +5,7 @@ const WATCH_KEY = "fincompass_watchlist_v2";
 const SETTINGS_KEY = "fincompass_settings_v3";
 const TRAINING_SETTINGS_KEY = "fincompass_training_settings_v4";
 const REALTIME_SETTINGS_KEY = "fincompass_realtime_settings_v4";
+const EXPERIENCE_MODE_KEY = "fincompass_experience_mode_v1";
 const volatileStorage = new Map();
 
 // --- Plain-language tooltips for jargon metric labels ---------------------
@@ -64,6 +65,10 @@ const state = {
   liveStatusLoaded: false,
   liveTimer: null,
   forecastRegistry: null,
+  modelLabRecipes: [],
+  modelLabRecommended: null,
+  modelLabRecommendedReason: "",
+  modelBuildRunning: false,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -128,6 +133,24 @@ function storageSet(key, value) {
   try { window.localStorage.setItem(key, value); return true; } catch (_) { return false; }
 }
 
+function getExperienceMode() {
+  const value = String(storageGet(EXPERIENCE_MODE_KEY, "guided") || "guided").toLowerCase();
+  return value === "research" ? "research" : "guided";
+}
+
+function applyExperienceMode(mode) {
+  const resolved = mode === "research" ? "research" : "guided";
+  document.body.classList.toggle("mode-guided", resolved === "guided");
+  document.body.classList.toggle("mode-research", resolved === "research");
+  const select = $("experience-mode");
+  if (select) select.value = resolved;
+  storageSet(EXPERIENCE_MODE_KEY, resolved);
+}
+
+function changeExperienceMode() {
+  applyExperienceMode($("experience-mode")?.value || "guided");
+}
+
 function getWatchlist() {
   try {
     const data = JSON.parse(storageGet(WATCH_KEY, "[]") || "[]");
@@ -180,7 +203,7 @@ function showPage(page) {
     tab.tabIndex = active ? 0 : -1;
   });
   if (page === "watchlist") renderWatchlist();
-  if (page === "forecast") { if (!state.forecastStatusLoaded) loadForecastStatus(); resumeBuildStatus(); }
+  if (page === "forecast") { if (!state.forecastStatusLoaded) loadForecastStatus(); loadModelLab(); resumeBuildStatus(); }
   if (page === "live") { if (!state.liveStatusLoaded) loadLiveStatus(); scheduleLiveTimer(); } else if (state.liveTimer) { clearInterval(state.liveTimer); state.liveTimer=null; }
   if (page === "settings" && !state.settingsLoaded) loadSettings();
   if (page === "method" && !state.methodLoaded) loadMethodology();
@@ -808,7 +831,7 @@ function populateModelSelects(status) {
   [$("forecast-model"), $("live-model"), $("setting-model")].forEach((select)=>{
     if (!select) return;
     const current = select.value;
-    select.innerHTML = '<option value="">Automatic best validated model</option>' + models.map((m)=>{
+    select.innerHTML = '<option value="">Active model (default)</option>' + models.map((m)=>{
       const t=m.target||{}; const label=`${m.validation_tier} · ${t.horizon_trading_days||"?"}d vs ${t.benchmark||"?"} · ${String(m.model_id||"").slice(0,8)}`;
       return `<option value="${esc(m.model_id)}">${esc(label)}</option>`;
     }).join("");
@@ -819,11 +842,13 @@ function populateModelSelects(status) {
 function renderForecastStatus(status) {
   state.forecastRegistry=status; state.forecastStatusLoaded=true; populateModelSelects(status);
   const out=$("forecast-status"); const usable=num(status.usable_models); const market=num(status.market_validated_models);
-  const tier=status.active_tier||"none"; $("forecast-tier-badge").textContent=usable?String(tier).replaceAll("_"," "):"No active model";
+  const active=String(status.active_model||""); const tier=status.active_tier||"none";
+  $("forecast-tier-badge").textContent=active?String(tier).replaceAll("_"," "):"No active model";
   if(!usable){
-    out.innerHTML=`<div class="notice"><strong>No validated forecast model is activated.</strong> This is by design: a forecast only appears after a real model passes strict validation, and real models are often rejected (honest behavior). The Evidence score and Screener work without one. Use <strong>Build forecast model</strong> above to train one from free public data — no command line needed.</div><p class="meta">The bundled synthetic fixture validates the software/statistics pipeline only and is intentionally blocked from live forecasting.</p>`; return;
+    out.innerHTML=`<div class="notice"><strong>No validated forecast candidate is installed.</strong> Train a Model Lab recipe from retained local data and inspect the locked-test gates. Candidates that fail remain rejected; the synthetic fixture is never live.</div>`; return;
   }
-  out.innerHTML=`<div class="forecast-grid"><div class="kpi"><div class="k-label">Usable models</div><div class="k-value">${usable}</div></div><div class="kpi"><div class="k-label">Market-validated</div><div class="k-value">${market}</div></div><div class="kpi"><div class="k-label">Active tier</div><div class="k-value validation-tier">${esc(tier.replaceAll("_"," "))}</div></div><div class="kpi"><div class="k-label">Forecast engine</div><div class="k-value">${esc(status.forecast_engine_version||"—")}</div></div></div>`;
+  const activationNote=active?`Active model: <strong>${esc(active)}</strong>.`:`<strong>${usable} validated candidate${usable===1?"":"s"} available, but none is active.</strong> Review an experiment and explicitly activate an eligible candidate.`;
+  out.innerHTML=`<div class="notice">${activationNote}</div><div class="forecast-grid"><div class="kpi"><div class="k-label">Validated candidates</div><div class="k-value">${usable}</div></div><div class="kpi"><div class="k-label">Market-validated</div><div class="k-value">${market}</div></div><div class="kpi"><div class="k-label">Active tier</div><div class="k-value validation-tier">${esc(active?tier.replaceAll("_"," "):"none")}</div></div><div class="kpi"><div class="k-label">Forecast engine</div><div class="k-value">${esc(status.forecast_engine_version||"—")}</div></div></div>`;
 }
 
 async function loadForecastStatus(){
@@ -834,13 +859,15 @@ async function loadForecastStatus(){
 function renderBuildStatus(s){
   const box=$("build-status"); if(!box)return;
   const st=String(s.status||"idle");
-  if(st==="idle"){ box.hidden=true; return; }
+  state.modelBuildRunning=st==="running";
+  if(st==="idle"){ box.hidden=true; renderRecipeReadiness(); return; }
   box.hidden=false;
   const total=num(s.total)||0, done=num(s.completed)||0;
   const pctDone=total?Math.min(100,Math.round(done/total*100)):(st==="complete"?100:0);
   const phase=esc(String(s.phase||"").replaceAll("_"," "));
   if(st==="running"){
     box.innerHTML=`<div class="notice"><strong>Building forecast model…</strong> <span class="meta">${phase}</span></div><div class="build-bar"><span style="width:${pctDone}%"></span></div><p class="meta">${esc(s.message||"")}</p><p class="meta">This runs in the background — you can keep using the app; leave this tab open to watch progress.</p>`;
+    renderRecipeReadiness();
     return;
   }
   if(st==="failed"){
@@ -850,7 +877,139 @@ function renderBuildStatus(s){
   // complete
   const usable=!!s.usable;
   const tier=esc(String(s.validation_tier||"none").replaceAll("_"," "));
-  box.innerHTML=`<div class="notice"><strong>${usable?"Model built and activated.":"Build complete — no usable model."}</strong> <span class="meta">tier: ${tier}</span></div><p class="meta">${esc(s.message||"")}</p>`;
+  const failed=Array.isArray(s.failed_gates)&&s.failed_gates.length?`<p class="meta"><strong>Failed gates:</strong> ${s.failed_gates.map(esc).join(", ")}</p>`:"";
+  box.innerHTML=`<div class="notice"><strong>${usable?"Validated candidate created — not active.":"Build complete — candidate rejected."}</strong> <span class="meta">tier: ${tier}</span></div><p class="meta">${esc(s.message||"")}</p>${failed}`;
+  renderRecipeReadiness();
+}
+
+let _researchPollTimer=null;
+let _guidedRecipeAfterRefresh=null;
+
+function renderResearchData(d){
+  const audit=d?.audit||{}; const refresh=d?.refresh||{}; const rows=num(audit.rows); const covered=num(audit.symbols_with_data);
+  const badge=$("research-data-badge"); if(badge)badge.textContent=covered?`${covered} symbols · ${rows.toLocaleString()} rows`:"No seed data";
+  const out=$("research-data-status"); if(!out)return;
+  const coverage=Array.isArray(audit.coverage)?audit.coverage.filter((x)=>num(x.rows)>0):[];
+  const ranges=coverage.slice(0,12).map((x)=>`${esc(x.symbol)}: ${esc(x.earliest||"?")}→${esc(x.latest||"?")} (${num(x.rows).toLocaleString()})`).join(" · ");
+  out.innerHTML=`<strong>Local corpus:</strong> ${covered} populated symbols / ${num(audit.symbols_catalogued)} catalogued · ${rows.toLocaleString()} rows · ${num(audit.revisions)} retained revisions · ${num(audit.quality_issue_count)} quality flags.<br><strong>Refresh:</strong> ${esc(refresh.status||"idle")}${refresh.message?` — ${esc(refresh.message)}`:""}${ranges?`<br><span class="meta">${ranges}</span>`:""}`;
+}
+
+function renderRecipeReadiness(){
+  const select=$("build-recipe"), out=$("recipe-readiness"), btn=$("btn-build-model");
+  if(!select||!out)return;
+  const recipe=state.modelLabRecipes.find((row)=>row.recipe_id===select.value);
+  if(!recipe){out.textContent="Recipe readiness unavailable.";if(btn)btn.disabled=true;return;}
+  const ready=recipe.readiness||{};
+  const present=num(ready.targets_present_count), required=num(ready.targets_required_count);
+  const benchmark=esc(recipe.benchmark||"benchmark");
+  if(ready.trainable){
+    const partial=present<required?` Partial local universe: ${present}/${required} targets available.`:` ${present}/${required} targets available.`;
+    out.innerHTML=`<strong>Ready to train locally.</strong> Benchmark ${benchmark}: ${num(ready.benchmark_rows).toLocaleString()} rows.${partial}`;
+  }else{
+    const missing=Array.isArray(ready.target_symbols_missing)?ready.target_symbols_missing.slice(0,8):[];
+    const benchmarkNote=ready.benchmark_ready?"":` benchmark ${benchmark}`;
+    const targetNote=present?"":`${benchmarkNote?" and":""} at least one target series`;
+    const examples=missing.length?` Missing examples: ${missing.map(esc).join(", ")}${ready.target_symbols_missing.length>missing.length?", …":""}.`:"";
+    out.innerHTML=`<strong>Needs local data before training.</strong> Missing${benchmarkNote}${targetNote}.${examples} Use <em>Update local data</em> or import an operator-owned corpus.`;
+  }
+  if(btn)btn.disabled=state.modelBuildRunning||!ready.trainable;
+  const guided=$("guided-model-message"), guidedBtn=$("btn-guided-update-train");
+  if(guided){
+    const recommended=recipe.recipe_id===state.modelLabRecommended;
+    const prefix=recommended?"Recommended: ":"Selected: ";
+    if(ready.trainable){
+      guided.innerHTML=`<strong>${prefix}${esc(recipe.name)}.</strong> Local data are ready. Training will still have to pass calibration and locked-test gates before activation is possible.`;
+      if(guidedBtn)guidedBtn.textContent="Train recommended model";
+    }else{
+      guided.innerHTML=`<strong>${prefix}${esc(recipe.name)}.</strong> Local history is incomplete. FinCompass can update only the required symbols, then train if the data become sufficient. ${esc(state.modelLabRecommendedReason||"")}`;
+      if(guidedBtn)guidedBtn.textContent="Update data & train recommended model";
+    }
+  }
+  if(guidedBtn)guidedBtn.disabled=state.modelBuildRunning;
+}
+
+function renderExperiments(payload){
+  const out=$("model-lab-experiments"); if(!out)return; const experiments=Array.isArray(payload?.experiments)?payload.experiments:[]; const active=payload?.active?.model_id||"";
+  if(!experiments.length){out.innerHTML='<h2>Experiments</h2><p class="meta">No Model Lab experiment has been run yet.</p>';return;}
+  out.innerHTML='<h2>Experiments</h2>'+experiments.map((e)=>{
+    const failed=Array.isArray(e.failed_gates)?e.failed_gates:[]; const tier=String(e.validation_tier||"none").replaceAll("_"," "); const isActive=active&&e.model_id===active;
+    const eligible=e.status==="validated"&&e.model_id&&e.lineage?.live_eligible_target!==false;
+    const action=isActive?'<span class="badge">Active</span>':eligible?`<button class="secondary" data-activate-experiment="${esc(e.experiment_id)}">Activate</button>`:'';
+    return `<details class="experiment-row"><summary><strong>${esc(e.recipe_id)}</strong> · ${esc(e.status)} · ${esc(tier)} · ${esc(String(e.experiment_id||"").slice(0,10))} ${action}</summary><p class="meta">${esc(e.message||"")}</p>${failed.length?`<p class="meta"><strong>Failed gates:</strong> ${failed.map(esc).join(", ")}</p>`:""}<pre class="detail advanced-only">${esc(JSON.stringify({model_id:e.model_id,metrics:e.metrics,lineage:e.lineage},null,2))}</pre></details>`;
+  }).join('');
+}
+
+async function loadModelLab(){
+  try{
+    const [data, recipes, experiments]=await Promise.all([api('/api/v4/model-lab/data'),api('/api/v4/model-lab/recipes'),api('/api/v4/model-lab/experiments')]);
+    renderResearchData(data); renderExperiments(experiments);
+    state.modelLabRecipes=Array.isArray(recipes.recipes)?recipes.recipes:[];
+    state.modelLabRecommended=recipes.recommended_recipe_id||null;
+    state.modelLabRecommendedReason=recipes.recommended_reason||"";
+    const select=$("build-recipe"); if(select){
+      const current=select.value;
+      select.innerHTML=state.modelLabRecipes.map((r)=>{const ready=r.readiness?.trainable?"ready":"needs local data";const tag=r.recipe_id===state.modelLabRecommended?" · recommended":"";return `<option value="${esc(r.recipe_id)}">${esc(r.name)} · ${num(r.horizon_trading_days)}d vs ${esc(r.benchmark)} · ${ready}${tag}</option>`;}).join('');
+      const keepCurrent=current&&[...select.options].some((o)=>o.value===current)&&getExperienceMode()==="research";
+      if(keepCurrent)select.value=current;
+      else if(state.modelLabRecommended&&[...select.options].some((o)=>o.value===state.modelLabRecommended))select.value=state.modelLabRecommended;
+      else{const firstReady=state.modelLabRecipes.find((r)=>r.readiness?.trainable);if(firstReady)select.value=firstReady.recipe_id;}
+      renderRecipeReadiness();
+    }
+  }catch(error){const out=$("model-lab-experiments");if(out)out.innerHTML=`<div class="error">${esc(error.message)}</div>`;}
+}
+
+async function pollResearchRefresh(){
+  try{
+    const status=await api('/api/v4/model-lab/data/refresh/status');
+    if(status.status==="running"){_researchPollTimer=setTimeout(pollResearchRefresh,3000);return;}
+    _researchPollTimer=null;
+    await loadModelLab();
+    if($("btn-update-research-data"))$("btn-update-research-data").disabled=false;
+    if($("btn-guided-update-train"))$("btn-guided-update-train").disabled=false;
+    if(_guidedRecipeAfterRefresh){
+      const wanted=_guidedRecipeAfterRefresh; _guidedRecipeAfterRefresh=null;
+      const select=$("build-recipe"); if(select)select.value=wanted; renderRecipeReadiness();
+      const recipe=state.modelLabRecipes.find((row)=>row.recipe_id===wanted);
+      if(recipe?.readiness?.trainable){await startModelBuild();}
+      else{const out=$("guided-model-message");if(out)out.innerHTML=`<strong>Data update finished, but the recommended recipe is still not trainable.</strong> Check provider status or switch to Research mode to inspect the missing symbols.`;}
+    }
+  }catch(error){
+    _researchPollTimer=null;_guidedRecipeAfterRefresh=null;
+    if($("btn-update-research-data"))$("btn-update-research-data").disabled=false;
+    if($("btn-guided-update-train"))$("btn-guided-update-train").disabled=false;
+  }
+}
+
+async function startResearchRefresh(){
+  _guidedRecipeAfterRefresh=null;
+  const btn=$("btn-update-research-data");if(btn)btn.disabled=true;
+  try{const s=await api('/api/v4/model-lab/data/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});if(s.status==="running"){if(_researchPollTimer)clearTimeout(_researchPollTimer);pollResearchRefresh();}else{if(btn)btn.disabled=false;await loadModelLab();}}catch(error){if(btn)btn.disabled=false;const out=$("research-data-status");if(out)out.innerHTML=`<span class="error">${esc(error.message)}</span>`;}
+}
+
+async function guidedUpdateAndTrain(){
+  const recipeId=state.modelLabRecommended||$("build-recipe")?.value;
+  const recipe=state.modelLabRecipes.find((row)=>row.recipe_id===recipeId);
+  const btn=$("btn-guided-update-train");
+  if(!recipe){if($("guided-model-message"))$("guided-model-message").textContent="No recommended recipe is configured.";return;}
+  if($("build-recipe"))$("build-recipe").value=recipe.recipe_id;
+  renderRecipeReadiness();
+  if(recipe.readiness?.trainable){await startModelBuild();return;}
+  if(btn)btn.disabled=true;
+  _guidedRecipeAfterRefresh=recipe.recipe_id;
+  const symbols=[recipe.benchmark,...(recipe.tickers||[])].filter(Boolean);
+  try{
+    const result=await api('/api/v4/model-lab/data/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbols})});
+    if($("guided-model-message"))$("guided-model-message").innerHTML=`<strong>Updating ${symbols.length} required symbol${symbols.length===1?"":"s"}.</strong> Existing local history is retained; only missing/overlap data are requested.`;
+    if(result.status==="running"){if(_researchPollTimer)clearTimeout(_researchPollTimer);pollResearchRefresh();}
+    else{await pollResearchRefresh();}
+  }catch(error){
+    _guidedRecipeAfterRefresh=null;if(btn)btn.disabled=false;
+    if($("guided-model-message"))$("guided-model-message").innerHTML=`<span class="error">${esc(error.message)}</span>`;
+  }
+}
+
+async function activateExperiment(experimentId){
+  try{await api(`/api/v4/model-lab/experiments/${encodeURIComponent(experimentId)}/activate`,{method:'POST'});await Promise.all([loadModelLab(),loadForecastStatus()]);}catch(error){const out=$("model-lab-experiments");if(out)out.insertAdjacentHTML('afterbegin',`<div class="error">${esc(error.message)}</div>`);}
 }
 
 async function resumeBuildStatus(){
@@ -872,6 +1031,7 @@ async function pollBuildStatus(){
     else{
       _buildPollTimer=null; $("btn-build-model").disabled=false;
       loadForecastStatus(); // refresh the registry/tier badge once a build settles
+      loadModelLab();
     }
   }catch(error){
     renderBuildStatus({status:"failed",message:error.message});
@@ -881,17 +1041,49 @@ async function pollBuildStatus(){
 
 async function startModelBuild(){
   const btn=$("btn-build-model"); if(!btn)return;
-  const profile=($("build-profile")&&$("build-profile").value)||"strict";
+  const recipeId=($("build-recipe")&&$("build-recipe").value)||"core-us-6m";
+  const recipe=state.modelLabRecipes.find((row)=>row.recipe_id===recipeId);
+  if(recipe&&recipe.readiness&&!recipe.readiness.trainable){renderRecipeReadiness();return;}
+  const profile=($("build-profile")&&$("build-profile").value)||null;
   btn.disabled=true;
-  renderBuildStatus({status:"running",phase:"fetch",message:"Starting build…",total:0,completed:0});
+  renderBuildStatus({status:"running",phase:"queued",message:"Starting offline Model Lab build…",total:0,completed:0});
   try{
-    const s=await api("/api/v4/forecast/build",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({profile})});
+    const body={recipe_id:recipeId}; if(profile)body.profile=profile;
+    const s=await api("/api/v4/forecast/build",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
     renderBuildStatus(s);
     if(s.status==="running"){ if(_buildPollTimer)clearTimeout(_buildPollTimer); pollBuildStatus(); }
     else{ btn.disabled=false; }
   }catch(error){
     renderBuildStatus({status:"failed",message:error.message}); btn.disabled=false;
   }
+}
+
+async function deactivateActiveModel(){
+  const btn=$("btn-deactivate-model"); if(btn)btn.disabled=true;
+  try{await api("/api/v4/model-lab/active/deactivate",{method:"POST"});await Promise.all([loadForecastStatus(),loadModelLab()]);}
+  catch(error){const out=$("forecast-status");if(out)out.insertAdjacentHTML("afterbegin",`<div class="error">${esc(error.message)}</div>`);}
+  finally{if(btn)btn.disabled=false;}
+}
+
+async function runForecastModelCompare(){
+  const ticker=$("forecast-ticker").value.trim().toUpperCase(); if(!ticker)return; $("forecast-ticker").value=ticker;
+  const out=$("forecast-model-compare-out");
+  const models=(state.forecastRegistry?.models||[]).filter((m)=>["validated_research","validated_market"].includes(m.validation_tier)).slice(0,8);
+  if(!models.length){out.innerHTML='<div class="notice">No validated models are available to compare.</div>';return;}
+  out.innerHTML='<div class="card loading">Comparing validated anchors…</div>';
+  try{
+    const rows=await Promise.all(models.map(async (m)=>{
+      try{const d=await api(`/api/v4/forecast/${encodeURIComponent(ticker)}?model_id=${encodeURIComponent(m.model_id)}`);return {ok:true,model:m,result:d};}
+      catch(error){return {ok:false,model:m,error:error.message};}
+    }));
+    const body=rows.map((row)=>{
+      const m=row.model||{}; const target=m.target||{};
+      if(!row.ok)return `<tr><td>${esc(String(m.model_id||"").slice(0,10))}</td><td>${esc(String(m.validation_tier||"").replaceAll("_"," "))}</td><td>${num(target.horizon_trading_days)||"—"}</td><td>${esc(target.benchmark||"—")}</td><td colspan="3">${esc(row.error||"unavailable")}</td></tr>`;
+      const d=row.result||{}, p=d.probability||{}, metrics=d.validation_summary?.locked_test_metrics||{};
+      return `<tr><td>${esc(String(d.model_id||"").slice(0,10))}</td><td>${esc(String(d.validation_tier||"").replaceAll("_"," "))}</td><td>${num(d.target?.horizon_trading_days)||"—"}</td><td>${esc(d.target?.benchmark||"—")}</td><td>${probabilityText(p.probability_outperform)}</td><td>${Number.isFinite(Number(metrics.brier_skill))?pct(metrics.brier_skill,1):"—"}</td><td>${Number.isFinite(Number(metrics.roc_auc))?num(metrics.roc_auc).toFixed(3):"—"}</td></tr>`;
+    }).join("");
+    out.innerHTML=`<article class="card"><h2>${esc(ticker)} model comparison</h2><p class="meta">Each row keeps its own horizon, benchmark and validation record. A higher probability from a different target contract is not automatically a better model.</p><div class="table-wrap"><table><thead><tr><th>Model</th><th>Tier</th><th>Horizon</th><th>Benchmark</th><th>Probability</th><th>Brier skill</th><th>ROC AUC</th></tr></thead><tbody>${body}</tbody></table></div></article>`;
+  }catch(error){out.innerHTML=`<div class="error">${esc(error.message)}</div>`;}
 }
 
 async function runForecast(){
@@ -904,7 +1096,7 @@ async function runForecast(){
   }catch(error){
     const pl=error&&error.payload;
     if(error&&(error.status===409||(pl&&pl.available===false))){
-      $("forecast-out").innerHTML=`<div class="notice"><strong>No validated forecast model is installed yet.</strong> A forward-event probability is only shown after a real model passes strict validation gates — which real models often do <em>not</em> (that is the tool being honest, not a failure). The <strong>Evidence score</strong> and <strong>Screener</strong> work without one. Use the <strong>Build forecast model</strong> button above to train one from free public data — no command line needed. The bundled model is synthetic and never activates for live forecasts.</div>`;
+      $("forecast-out").innerHTML=`<div class="notice"><strong>No active validated forecast model is available.</strong> Use Model Lab to update/import local data, train a recipe, inspect its locked-test gates, and explicitly activate an eligible validated candidate. Rejected candidates and the bundled synthetic fixture never become live.</div>`;
     } else {
       $("forecast-out").innerHTML=`<div class="error">${esc(error.message)}</div>`;
     }
@@ -981,12 +1173,25 @@ async function runLive(silent=false){
   const q=new URLSearchParams(); const modelId=$("live-model").value; if(modelId)q.set("model_id",modelId); q.set("realtime_profile",$("live-profile").value||"balanced");
   if(!silent)$("live-out").innerHTML='<div class="card loading">Refreshing timestamped information state…</div>'; $("btn-live").disabled=true;
   try{
+    if(!silent){try{await api("/api/v4/adaptive/process-matured",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({limit:100})});}catch(_){/* maintenance is best-effort; live gate still fails closed */}}
     const d=await api(`/api/v4/realtime/${encodeURIComponent(ticker)}?${q}`); const gate=d.gate||{}; const gm=gate.metrics||{}; $("live-state-badge").textContent=gate.status||"warming";
     let events=[]; try{events=(await api(`/api/v4/realtime/${encodeURIComponent(ticker)}/events?limit=12`)).events||[];}catch(_){events=[];}
     const contributions=(d.top_contributions||[]).map((c)=>`<tr><td>${esc(c.feature)}</td><td>${num(c.value).toFixed(3)}</td><td>${num(c.log_odds_contribution).toFixed(4)}</td></tr>`).join("");
     const eventRows=events.map((e)=>`<tr><td>${esc(e.source_time||"")}</td><td>${esc(e.source)}</td><td>${esc(e.event_type)}</td><td>${esc(e.payload?.form||e.payload?.note||"")}</td></tr>`).join("");
     $("live-out").innerHTML=`<article class="card score-card"><div class="score-top"><div><h1 class="company-name">${esc(d.ticker)} adaptive live state</h1><div class="meta">As of ${esc(d.as_of)} · anchor ${esc(d.base_model_id)} · lineage ${esc(d.settings_fingerprint)}</div><div class="score-hero"><span class="forecast-probability">${probabilityText(d.adaptive_applied_probability)}</span><span class="score-denom">applied live probability</span></div></div></div><div class="forecast-grid"><div class="kpi"><div class="k-label">Frozen anchor</div><div class="k-value">${probabilityText(d.anchor_probability)}</div></div><div class="kpi"><div class="k-label">Adaptive candidate</div><div class="k-value">${probabilityText(d.adaptive_candidate_probability)}</div><div class="k-note">${d.adaptive_shift_applied?"residual applied":"candidate shown; residual gated off"}</div></div><div class="kpi"><div class="k-label">Gate</div><div class="k-value validation-tier">${esc(gate.status||"warming")}</div><div class="k-note">${num(gm.unique_dates)} dates · ${num(gm.span_days)} day span</div></div><div class="kpi"><div class="k-label">Pending observation</div><div class="k-value">${d.pending_label?.created?"queued":"not added"}</div><div class="k-note">${esc(d.pending_label?.reason||"")}</div></div>${renderSourceHealth(d.source_health)}</div><div class="notice"><strong>Governance:</strong> fresh events may change the candidate now; posterior coefficients update only after the queued target matures. A stale/warming/degraded adapter contributes zero applied shift.</div><div class="split-grid"><div><h2>Top adaptive contributions</h2><div class="table-wrap"><table><thead><tr><th>Feature</th><th>Value</th><th>Log-odds contribution</th></tr></thead><tbody>${contributions||'<tr><td colspan="3">No adaptive contribution yet.</td></tr>'}</tbody></table></div></div><div><h2>Recent event chronology</h2><div class="table-wrap"><table><thead><tr><th>Source time</th><th>Source</th><th>Type</th><th>Context</th></tr></thead><tbody>${eventRows||'<tr><td colspan="4">No stored events.</td></tr>'}</tbody></table></div></div></div><details><summary>Inspect gate, drift, features and provenance</summary><pre class="detail">${esc(JSON.stringify({gate:d.gate,drift:d.drift,features:d.features,source_health:d.source_health,target:d.target,state_key:d.state_key,state_source:d.state_source},null,2))}</pre></details><p class="meta">${esc(d.disclaimer||"")}</p></article>`;
   }catch(error){if(!silent)$("live-out").innerHTML=`<div class="error">${esc(error.message)}</div>`;}finally{$("btn-live").disabled=false;}
+}
+
+async function runLiveCompare(){
+  const ticker=$("live-ticker").value.trim().toUpperCase(); if(!ticker)return; $("live-ticker").value=ticker;
+  const q=new URLSearchParams(); const modelId=$("live-model").value; if(modelId)q.set("model_id",modelId);
+  const out=$("live-compare-out"); const btn=$("btn-live-compare"); if(btn)btn.disabled=true;
+  out.innerHTML='<div class="card loading">Comparing conservative, balanced and responsive conditions…</div>';
+  try{
+    const d=await api(`/api/v4/realtime/${encodeURIComponent(ticker)}/compare${q.toString()?`?${q}`:""}`);
+    const cards=(d.conditions||[]).map((row)=>`<article class="condition-card"><h3>${esc(row.profile)}</h3><div class="condition-prob">${probabilityText(row.adaptive_applied_probability)}</div><p class="meta">applied probability</p><p><strong>Candidate:</strong> ${probabilityText(row.adaptive_candidate_probability)}<br><strong>Anchor:</strong> ${probabilityText(row.anchor_probability)}<br><strong>Gate:</strong> ${esc(row.gate_status||"warming")}</p><p class="meta">${row.adaptive_shift_applied?"Adaptive shift applied":"Anchor retained"}</p></article>`).join("");
+    out.innerHTML=`<article class="card"><h2>${esc(ticker)} live condition comparison</h2><p>${esc(d.comparison_contract||"")}</p><div class="condition-grid">${cards}</div><p class="meta">No learning observation is queued by this comparison. ${esc(d.disclaimer||"")}</p></article>`;
+  }catch(error){out.innerHTML=`<div class="error">${esc(error.message)}</div>`;}finally{if(btn)btn.disabled=false;}
 }
 
 async function processMatured(){
@@ -1003,13 +1208,23 @@ function initEvents() {
   $("compare-tickers").addEventListener("keydown", (e) => { if (e.key === "Enter") compare(); });
   $("btn-watch-compare").addEventListener("click", compareWatchlist);
   $("btn-forecast").addEventListener("click", runForecast);
+  if($("btn-forecast-compare-models"))$("btn-forecast-compare-models").addEventListener("click", runForecastModelCompare);
+  if($("btn-deactivate-model"))$("btn-deactivate-model").addEventListener("click", deactivateActiveModel);
   $("forecast-ticker").addEventListener("keydown", (e) => { if (e.key === "Enter") runForecast(); });
   $("btn-forecast-status").addEventListener("click", loadForecastStatus);
   if($("btn-build-model"))$("btn-build-model").addEventListener("click", startModelBuild);
+  if($("btn-guided-update-train"))$("btn-guided-update-train").addEventListener("click", guidedUpdateAndTrain);
+  if($("build-recipe"))$("build-recipe").addEventListener("change", renderRecipeReadiness);
+  if($("btn-update-research-data"))$("btn-update-research-data").addEventListener("click", startResearchRefresh);
+  if($("btn-research-data"))$("btn-research-data").addEventListener("click", loadModelLab);
+  if($("btn-refresh-experiments"))$("btn-refresh-experiments").addEventListener("click", loadModelLab);
+  if($("model-lab-experiments"))$("model-lab-experiments").addEventListener("click",(event)=>{const btn=event.target.closest("[data-activate-experiment]");if(btn){event.preventDefault();activateExperiment(btn.dataset.activateExperiment);}});
   $("btn-live").addEventListener("click", ()=>runLive(false));
+  if($("btn-live-compare"))$("btn-live-compare").addEventListener("click", runLiveCompare);
   $("live-ticker").addEventListener("keydown", (e) => { if (e.key === "Enter") runLive(false); });
   $("btn-live-status").addEventListener("click", loadLiveStatus);
   $("btn-process-matured").addEventListener("click", processMatured);
+  if($("experience-mode"))$("experience-mode").addEventListener("change", changeExperienceMode);
   $("btn-save-runtime-settings").addEventListener("click", saveRuntimeSettings);
   $("btn-reset-settings").addEventListener("click", resetSettings);
   $("btn-validate-settings").addEventListener("click", validateTrainingSettings);
@@ -1034,8 +1249,8 @@ function initEvents() {
 }
 
 async function bootstrap() {
-  initConsent(); initTabs(); initAutocomplete(); initEvents(); updateWatchCount(); applyRuntimeSettings(getRuntimeSettings());
-  await Promise.all([loadUniverse(), api("/api/v1/health").then((h)=>{$("engine-badge").textContent=`Evidence ${h.engine_version} · Forecast ${h.forecast_engine_version||"—"} · Adaptive 4.0`; if(h.forecast_registry){state.forecastRegistry=h.forecast_registry;populateModelSelects(h.forecast_registry);}}).catch(()=>{})]);
+  initConsent(); initTabs(); initAutocomplete(); initEvents(); updateWatchCount(); applyExperienceMode(getExperienceMode()); applyRuntimeSettings(getRuntimeSettings());
+  await Promise.all([loadUniverse(), api("/api/v1/health").then((h)=>{$("engine-badge").textContent=`Evidence ${h.engine_version} · Forecast ${h.forecast_engine_version||"—"} · Adaptive ${h.realtime_engine_version||"—"}`; if(h.forecast_registry){state.forecastRegistry=h.forecast_registry;populateModelSelects(h.forecast_registry);}}).catch(()=>{})]);
   renderWatchlist();
   api("/api/v1/screener/status").then((s)=>{if(String(s.status||"").toLowerCase().includes("running")){renderRefreshStatus(s);state.refreshTimer=setInterval(pollRefresh,1800);}}).catch(()=>{});
 }

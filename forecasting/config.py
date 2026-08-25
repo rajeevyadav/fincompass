@@ -1,4 +1,4 @@
-"""Forecast-anchor configuration inherited from FinCompass 3.0 and governed by FinCompass 4.0.
+"""Forecast-anchor configuration inherited from FinCompass and governed by FinCompass.
 
 The settings are intentionally explicit because a probability forecast is only
 meaningful relative to a fixed target definition, data protocol, split policy,

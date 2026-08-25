@@ -1,4 +1,4 @@
-# FinCompass 1.0 — Realtime Event and Online-Learning Data Contract
+# FinCompass — Realtime Event and Online-Learning Data Contract
 
 This contract defines the minimum semantics for information entering the adaptive Live layer. The objective is to preserve point-in-time meaning, freshness, provenance and reproducibility while preventing unresolved future outcomes from leaking into model updates.
 

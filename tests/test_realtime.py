@@ -233,3 +233,50 @@ def test_sec_event_prefers_acceptance_timestamp(monkeypatch):
     event = providers.fetch_sec_event("AAPL")
     assert event["source_time"].startswith("2026-08-20T14:31:22")
     assert event["payload"]["acceptance_datetime"] == "2026-08-20T14:31:22.000Z"
+
+
+def test_live_condition_compare_has_no_pending_label_side_effect(monkeypatch, tmp_path):
+    import services.realtime_service as rt
+
+    db = _store(tmp_path)
+    now = datetime.now(timezone.utc).isoformat()
+    db.add_event({
+        "event_id": "m1", "source": "market", "scope_key": "AAA|SPY", "event_type": "market_snapshot",
+        "ticker": "AAA", "source_time": now, "received_at": now,
+        "payload": {"latest_price": 101.0, "benchmark_latest_price": 501.0},
+    })
+    db.record_provider_check("market", "AAA|SPY", True, checked_at=now)
+    monkeypatch.setattr(rt, "refresh_sources", lambda *args, **kwargs: {"market": "cached"})
+    monkeypatch.setattr(rt, "forecast_ticker", lambda *args, **kwargs: {
+        "available": True,
+        "ticker": "AAA",
+        "model_id": "anchor1",
+        "validation_tier": "validated_research",
+        "probability": {"probability_outperform": 0.58},
+        "target": {"benchmark": "SPY", "horizon_trading_days": 21, "excess_return_threshold": 0.0},
+    })
+
+    before = db.counts()["pending_labels"]
+    result = rt.compare_live_profiles("AAA", model_id="anchor1", db=db)
+    after = db.counts()["pending_labels"]
+
+    assert result["available"] is True
+    assert result["base_model_id"] == "anchor1"
+    assert [row["profile"] for row in result["conditions"]] == ["conservative", "balanced", "responsive"]
+    assert result["learning_side_effects"] is False
+    assert before == after == 0
+
+
+def test_v4_live_condition_compare_endpoint(monkeypatch):
+    monkeypatch.setattr(api, "compare_live_profiles", lambda *args, **kwargs: {
+        "available": True,
+        "ticker": "AAPL",
+        "conditions": [
+            {"profile": "conservative"}, {"profile": "balanced"}, {"profile": "responsive"}
+        ],
+        "learning_side_effects": False,
+    })
+    response = client.get("/api/v4/realtime/AAPL/compare")
+    assert response.status_code == 200
+    assert [x["profile"] for x in response.json()["conditions"]] == ["conservative", "balanced", "responsive"]
+    assert response.json()["learning_side_effects"] is False

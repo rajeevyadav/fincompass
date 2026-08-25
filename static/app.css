@@ -262,3 +262,19 @@ code { color: #bfe7ff; background: rgba(57,169,255,.08); padding: .08rem .25rem;
   .score-num.label-strong, .p-value, .k-value { color: #111 !important; }
   @page { margin: 14mm; }
 }
+
+/* Guided vs research experience ------------------------------------------------ */
+.experience-control { display: inline-flex; align-items: center; gap: .45rem; color: var(--muted); font-size: .78rem; }
+.experience-control select { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 999px; padding: .28rem .55rem; }
+body.mode-guided .advanced-only { display: none !important; }
+body.mode-research .guided-only { display: none !important; }
+.guided-flow { border-color: rgba(88,219,201,.38); background: linear-gradient(180deg, rgba(88,219,201,.08), rgba(20,36,58,.55)); }
+.guided-flow h1, .guided-flow h2 { margin-top: 0; }
+.guided-steps { margin: .7rem 0 1rem; padding-left: 1.35rem; }
+.guided-steps li { margin: .38rem 0; }
+.condition-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: .8rem; margin-top: .8rem; }
+.condition-card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface2); padding: .9rem; }
+.condition-card h3 { margin: 0 0 .35rem; text-transform: capitalize; }
+.condition-card .condition-prob { font-size: 1.55rem; font-weight: 850; letter-spacing: -.02em; }
+.condition-card .meta { margin: .18rem 0; }
+@media (max-width: 760px) { .condition-grid { grid-template-columns: 1fr; } .experience-control span { display: none; } }

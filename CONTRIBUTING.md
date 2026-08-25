@@ -1,4 +1,4 @@
-# Contributing to FinCompass 1.0
+# Contributing to FinCompass
 
 Contributions should preserve the project's operating model: free, transparent, privacy-minimized, statistically explicit, reproducible, and self-hostable.
 

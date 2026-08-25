@@ -1,4 +1,4 @@
-# FinCompass 4.0 — free evidence + validation-gated forecasting + adaptive research API
+# FinCompass — free evidence + validation-gated forecasting + adaptive research API
 FROM python:3.14-slim
 
 WORKDIR /app
@@ -13,6 +13,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY VERSION config.py api.py ./
 COPY services/ ./services/
 COPY forecasting/ ./forecasting/
+COPY config/ ./config/
+COPY datasets/market-seed/ ./datasets/market-seed/
 COPY realtime/ ./realtime/
 COPY models/ ./models/
 COPY adaptive_models/ ./adaptive_models/

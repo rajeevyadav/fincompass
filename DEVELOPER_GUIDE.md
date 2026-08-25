@@ -1,4 +1,4 @@
-# FinCompass 1.0 — Developer Guide
+# FinCompass — Developer Guide
 
 ## Environment
 
@@ -74,6 +74,20 @@ python tools/audit_forecast_dataset.py datasets/market --output datasets/market/
 ```
 
 The default builder uses today's curated universe and therefore does not claim survivorship control.
+
+## Model Lab offline-first workflow
+
+Rebuild the bundled research-only starter corpus deterministically:
+
+```bash
+python tools/build_builtin_seed.py
+```
+
+The builder verifies retained source hashes, recreates `datasets/market-seed/market_seed.db`, checkpoints SQLite WAL state, verifies database integrity, and writes `SEED_MANIFEST.json` plus its SHA-256 sidecar. Do not replace the bundled source originals without updating their provenance/license metadata and tests.
+
+At runtime, Model Lab copies/merges the seed into the user-writable research database. Use **Update local data** to extend the broader catalogue; the updater requests only the overlap and missing tail and retains raw response frames. `STOOQ_API_KEY` is an optional fallback credential and is never written to provenance URLs.
+
+A training build consumes local data only. Check `/api/v4/model-lab/recipes` readiness before launching a recipe, retain rejected/failed/interrupted experiment evidence, and never activate a candidate implicitly.
 
 ## Model registry
 

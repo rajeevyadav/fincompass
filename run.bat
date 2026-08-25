@@ -1,6 +1,6 @@
 @echo off
 REM ============================================================
-REM  FinCompass 1.0.0 - one-click local run (Windows)
+REM  FinCompass - one-click local run (Windows)
 REM  Double-click this file. It switches to its own folder,
 REM  sets up a virtual environment, installs dependencies,
 REM  and starts the local server, then opens your browser.

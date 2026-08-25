@@ -69,3 +69,24 @@ def test_current_fundamentals_schema_round_trip(tmp_path: Path):
     got = c.get_fundamentals("NEW")
     assert got["_data_schema_version"] == DATA_SCHEMA_VERSION
     assert got["debt_to_equity"] == 1.51
+
+
+def test_stale_model_build_claim_reports_reclaimed_experiment(tmp_path: Path):
+    c = Cache(tmp_path / "cache.db")
+    stale = {
+        "status": "running",
+        "phase": "train",
+        "experiment_id": "exp-stale",
+        "recipe_id": "core-us-6m",
+        "updated_at": "2000-01-01T00:00:00+00:00",
+    }
+    with c._get_conn() as conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO meta (key,value) VALUES ('model_build', ?)",
+            (json.dumps(stale),),
+        )
+    claimed, state = c.claim_model_build(5, stale_minutes=1)
+    assert claimed is True
+    assert state["reclaimed_experiment_id"] == "exp-stale"
+    assert state["reclaimed_recipe_id"] == "core-us-6m"
+    assert state["status"] == "running"

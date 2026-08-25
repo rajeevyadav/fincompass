@@ -16,6 +16,7 @@ echo Building FinCompass.exe (this can take a few minutes)...
 pyinstaller --noconfirm --clean --onefile --windowed --name FinCompass --version-file version_info.txt ^
   --add-data "static;static" ^
   --add-data "config;config" ^
+  --add-data "datasets\market-seed;datasets\market-seed" ^
   --add-data "models;models" ^
   --add-data "adaptive_models;adaptive_models" ^
   --add-data "legal;legal" ^

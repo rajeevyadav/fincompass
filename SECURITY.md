@@ -1,4 +1,4 @@
-# FinCompass 1.0 — Security
+# FinCompass — Security
 
 FinCompass is a public, no-auth, read-mostly research application. Its security goal is to minimize attack surface, protect optional provider credentials, avoid becoming an abuse relay, and prevent untrusted artifacts from being treated as validated models.
 

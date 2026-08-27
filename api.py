@@ -49,6 +49,7 @@ from services.research_data import start_refresh as start_research_refresh, refr
 from forecasting import FORECAST_ENGINE_VERSION
 from forecasting.config import settings_from_dict, settings_schema
 from services.forecast_service import forecast_ticker, get_forecast_status
+from services.market_catalog import COMMON_SECTORS, SUPPORTED_REGIONS, search_equities, search_symbol
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
 logger = logging.getLogger("FinCompass.API")
@@ -428,7 +429,45 @@ def history(ticker: str, request: Request, period: str = Query("5y", description
 @app.get("/api/universe")
 def universe():
     entries = [{"ticker": t, "name": TICKER_NAMES.get(t, t)} for t in DEFAULT_UNIVERSE]
-    return {"tickers": DEFAULT_UNIVERSE, "entries": entries, "count": len(DEFAULT_UNIVERSE)}
+    return {
+        "tickers": DEFAULT_UNIVERSE,
+        "entries": entries,
+        "count": len(DEFAULT_UNIVERSE),
+        "scope": "curated_starter_universe",
+        "dynamic_market_search": True,
+        "note": "This starter list powers fast local suggestions; it is not the market-access boundary.",
+    }
+
+
+@app.get("/api/market/search")
+def market_search(
+    request: Request,
+    q: Optional[str] = Query(None, max_length=120),
+    sector: Optional[str] = Query(None, max_length=80),
+    region: str = Query("us", min_length=2, max_length=2),
+    offset: int = Query(0, ge=0, le=100000),
+    limit: int = Query(100, ge=1, le=250),
+):
+    try:
+        if q and not sector:
+            result = search_symbol(q, limit=min(limit, 50))
+        else:
+            result = search_equities(sector=sector, region=region, text=q, offset=offset, limit=limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    result["request_id"] = _rid(request)
+    return result
+
+
+@app.get("/api/market/meta")
+def market_meta(request: Request):
+    return {
+        "sectors": COMMON_SECTORS,
+        "regions": sorted(SUPPORTED_REGIONS),
+        "per_request_max": 250,
+        "starter_universe_size": len(DEFAULT_UNIVERSE),
+        "request_id": _rid(request),
+    }
 
 
 @app.get("/api/methodology")
@@ -631,6 +670,8 @@ for path, endpoint, methods, response_model in [
     ("/api/v1/export/screener.csv", export_screener_csv, ["GET"], None),
     ("/api/v1/history/{ticker}", history, ["GET"], None),
     ("/api/v1/universe", universe, ["GET"], None),
+    ("/api/v1/market/search", market_search, ["GET"], None),
+    ("/api/v1/market/meta", market_meta, ["GET"], None),
     ("/api/v1/methodology", methodology, ["GET"], None),
 ]:
     app.add_api_route(path, endpoint, methods=methods, response_model=response_model, include_in_schema=True)
@@ -825,6 +866,16 @@ def model_lab_activate_v4(experiment_id: str, request: Request):
     except ValueError as exc:
         raise HTTPException(409, str(exc))
     return {"activated": True, "active": pointer, "experiment": experiment, "request_id": _rid(request)}
+
+
+@app.post("/api/v4/forecast/models/{model_id}/activate")
+def forecast_model_activate_v4(model_id: str, request: Request):
+    """Activate an installed validated model, including bundled reference models."""
+    try:
+        pointer = set_active_model(str(model_id), activated_by="local_user")
+    except ValueError as exc:
+        raise HTTPException(409, str(exc))
+    return {"activated": True, "active": pointer, "request_id": _rid(request)}
 
 
 @app.post("/api/v4/model-lab/active/deactivate")

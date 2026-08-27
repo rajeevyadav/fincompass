@@ -580,6 +580,62 @@ function populateSectorFilter(rows) {
   sel.value = current; // preserve selection (empty if it was cleared)
 }
 
+
+async function loadMarketMeta() {
+  try {
+    const meta = await api("/api/v1/market/meta");
+    const sel = $("sector-filter");
+    if (sel && Array.isArray(meta.sectors)) {
+      const current = sel.value;
+      meta.sectors.forEach((name) => { if (name) _knownSectors.add(String(name)); });
+      const opts = ['<option value="">All sectors</option>']
+        .concat([..._knownSectors].sort((a,b)=>a.localeCompare(b)).map((name)=>`<option value="${esc(name)}">${esc(name)}</option>`));
+      sel.innerHTML = opts.join("");
+      sel.value = current;
+    }
+  } catch (_) {}
+}
+
+function renderMarketBrowse(data) {
+  const out = $("market-browse-out");
+  if (!out) return;
+  out.hidden = false;
+  if (!data || data.available === false) {
+    out.innerHTML = `<div class="error"><strong>Broad market discovery is unavailable.</strong><br>${esc(data?.reason || "Market provider unavailable.")} The locally cached FinCompass screener remains available.</div>`;
+    return;
+  }
+  const rows = Array.isArray(data.results) ? data.results : [];
+  if (!rows.length) {
+    out.innerHTML = '<div class="empty-state"><strong>No companies returned for this market scope.</strong><span>Try another sector or region.</span></div>';
+    return;
+  }
+  out.innerHTML = `
+    <div class="score-top"><div><strong>${rows.length} market results</strong><div class="meta">${esc((data.region || "").toUpperCase())}${data.sector ? ` · ${esc(data.sector)}` : ""} · on-demand discovery beyond the starter universe</div></div><div class="meta">Select a ticker to run full FinCompass analysis.</div></div>
+    <div class="table-wrap"><table><thead><tr><th>Ticker</th><th>Company</th><th>Sector</th><th>Industry</th><th>Exchange</th><th>Price</th><th>Market cap</th></tr></thead><tbody>
+      ${rows.map((r)=>`<tr><td><button class="table-action" data-analyze-ticker="${esc(r.ticker)}">${esc(r.ticker)}</button></td><td>${esc(r.name || "—")}</td><td>${esc(r.sector || "—")}</td><td>${esc(r.industry || "—")}</td><td>${esc(r.exchange || "—")}</td><td>${r.price == null ? "—" : num(r.price).toLocaleString(undefined,{maximumFractionDigits:2})}</td><td>${r.market_cap == null ? "—" : formatCap(r.market_cap)}</td></tr>`).join("")}
+    </tbody></table></div>
+    <div class="button-row">
+      <button class="secondary" data-market-page="${Math.max(0,num(data.offset)-num(data.limit))}" ${num(data.offset)<=0?"disabled":""}>Previous</button>
+      <button class="secondary" data-market-page="${num(data.offset)+num(data.limit)}" ${data.has_more?"":"disabled"}>Next</button>
+    </div>
+    <p class="meta">Provider: ${esc(data.provider || "market provider")}. Showing ${num(data.offset)+1}–${num(data.offset)+rows.length}${data.provider_total != null ? ` of ${esc(data.provider_total)} matching records` : ""}. Use Previous/Next to traverse the provider result set; FinCompass does not impose the 72-name starter list as a market boundary.</p>`;
+}
+
+async function browseMarketSector(offset=0) {
+  const btn = $("btn-market-browse");
+  const out = $("market-browse-out");
+  if (!btn || !out) return;
+  btn.disabled = true; out.hidden = false; out.innerHTML = '<div class="loading">Searching the selected market scope…</div>';
+  const q = new URLSearchParams();
+  const sector = $("sector-filter")?.value?.trim();
+  const region = $("market-region")?.value?.trim() || "us";
+  if (sector) q.set("sector", sector);
+  q.set("region", region); q.set("limit", "250"); q.set("offset", String(Math.max(0, Number(offset)||0)));
+  try { renderMarketBrowse(await api(`/api/v1/market/search?${q.toString()}`)); }
+  catch (error) { out.innerHTML = `<div class="error">${esc(error.message)}</div>`; }
+  finally { btn.disabled = false; }
+}
+
 async function loadScreener() {
   $("btn-screener").disabled = true;
   $("screener-out").innerHTML = '<div class="loading">Loading cached research universe…</div>';
@@ -832,7 +888,7 @@ function populateModelSelects(status) {
     if (!select) return;
     const current = select.value;
     select.innerHTML = '<option value="">Active model (default)</option>' + models.map((m)=>{
-      const t=m.target||{}; const label=`${m.validation_tier} · ${t.horizon_trading_days||"?"}d vs ${t.benchmark||"?"} · ${String(m.model_id||"").slice(0,8)}`;
+      const t=m.target||{}; const horizon=t.horizon_months?`${t.horizon_months}M`:`${t.horizon_trading_days||"?"}d`; const label=`${m.validation_tier} · ${horizon} vs ${t.benchmark||"?"} · ${String(m.model_id||"").slice(0,8)}`;
       return `<option value="${esc(m.model_id)}">${esc(label)}</option>`;
     }).join("");
     select.value = current || getRuntimeSettings().modelId || "";
@@ -1058,6 +1114,20 @@ async function startModelBuild(){
   }
 }
 
+async function activateSelectedForecastModel(){
+  const modelId=$('forecast-model')?.value||'';
+  if(!modelId){
+    const out=$('forecast-status'); if(out)out.insertAdjacentHTML('afterbegin','<div class="notice">Select a validated model first. The default option refers to the model that is already active.</div>');
+    return;
+  }
+  const btn=$('btn-activate-selected-model'); if(btn)btn.disabled=true;
+  try{
+    await api(`/api/v4/forecast/models/${encodeURIComponent(modelId)}/activate`,{method:'POST'});
+    await Promise.all([loadForecastStatus(),loadRealtimeStatus?.()]);
+  }catch(error){const out=$('forecast-status');if(out)out.insertAdjacentHTML('afterbegin',`<div class="error">${esc(error.message)}</div>`);}
+  finally{if(btn)btn.disabled=false;}
+}
+
 async function deactivateActiveModel(){
   const btn=$("btn-deactivate-model"); if(btn)btn.disabled=true;
   try{await api("/api/v4/model-lab/active/deactivate",{method:"POST"});await Promise.all([loadForecastStatus(),loadModelLab()]);}
@@ -1092,7 +1162,7 @@ async function runForecast(){
   $("forecast-out").innerHTML='<div class="card loading">Running validated probability model…</div>'; $("btn-forecast").disabled=true;
   try{
     const d=await api(`/api/v4/forecast/${encodeURIComponent(ticker)}${q.toString()?`?${q}`:""}`); const p=d.probability||{}; const target=d.target||{}; const ci=p.uncertainty_interval||[]; const metrics=d.validation_summary?.locked_test_metrics||{};
-    $("forecast-out").innerHTML=`<article class="card score-card"><div class="score-top"><div><h1 class="company-name">${esc(d.ticker)} forward-event forecast</h1><div class="meta">As of ${esc(d.as_of)} · model ${esc(d.model_id)} · <span class="validation-tier">${esc(String(d.validation_tier||"").replaceAll("_"," "))}</span></div><div class="score-hero"><span class="forecast-probability">${probabilityText(p.probability_outperform)}</span><span class="score-denom">estimated probability</span></div></div></div><div class="notice"><strong>Defined event:</strong> outperform ${esc(target.benchmark||"benchmark")} over ${num(target.horizon_trading_days)} trading days by more than ${pct(target.excess_return_threshold||0,1)}.</div><div class="forecast-grid"><div class="kpi"><div class="k-label">Model uncertainty range</div><div class="k-value">${ci.length?`${probabilityText(ci[0])}–${probabilityText(ci[1])}`:"—"}</div><div class="k-note">posterior + inter-model dispersion</div></div><div class="kpi"><div class="k-label">Locked-test Brier skill</div><div class="k-value">${Number.isFinite(Number(metrics.brier_skill))?pct(metrics.brier_skill,1):"—"}</div></div><div class="kpi"><div class="k-label">Locked-test ROC AUC</div><div class="k-value">${Number.isFinite(Number(metrics.roc_auc))?num(metrics.roc_auc).toFixed(3):"—"}</div></div><div class="kpi"><div class="k-label">Calibration error</div><div class="k-value">${Number.isFinite(Number(metrics.ece_10))?pct(metrics.ece_10,1):"—"}</div></div></div>${p.abstain?'<div class="notice"><strong>Abstention flag:</strong> probability is too close to the configured decision-neutral region for a directional interpretation.</div>':""}<details><summary>Inspect component probabilities and validation</summary><pre class="detail">${esc(JSON.stringify({probability:p,validation:d.validation_summary,target:d.target},null,2))}</pre></details><p class="meta">${esc(d.disclaimer||"")}</p></article>`;
+    $("forecast-out").innerHTML=`<article class="card score-card"><div class="score-top"><div><h1 class="company-name">${esc(d.ticker)} forward-event forecast</h1><div class="meta">As of ${esc(d.as_of)} · model ${esc(d.model_id)} · <span class="validation-tier">${esc(String(d.validation_tier||"").replaceAll("_"," "))}</span></div><div class="score-hero"><span class="forecast-probability">${probabilityText(p.probability_outperform)}</span><span class="score-denom">estimated probability</span></div></div></div><div class="notice"><strong>Defined event:</strong> outperform ${esc(target.benchmark||"benchmark")} over ${target.horizon_months?`${num(target.horizon_months)} months`:`${num(target.horizon_trading_days)} trading days`} by more than ${pct(target.excess_return_threshold||0,1)}.</div><div class="forecast-grid"><div class="kpi"><div class="k-label">Model uncertainty range</div><div class="k-value">${ci.length?`${probabilityText(ci[0])}–${probabilityText(ci[1])}`:"—"}</div><div class="k-note">posterior + inter-model dispersion</div></div><div class="kpi"><div class="k-label">Locked-test Brier skill</div><div class="k-value">${Number.isFinite(Number(metrics.brier_skill))?pct(metrics.brier_skill,1):"—"}</div></div><div class="kpi"><div class="k-label">Locked-test ROC AUC</div><div class="k-value">${Number.isFinite(Number(metrics.roc_auc))?num(metrics.roc_auc).toFixed(3):"—"}</div></div><div class="kpi"><div class="k-label">Calibration error</div><div class="k-value">${Number.isFinite(Number(metrics.ece_10))?pct(metrics.ece_10,1):"—"}</div></div></div>${p.abstain?'<div class="notice"><strong>Abstention flag:</strong> probability is too close to the configured decision-neutral region for a directional interpretation.</div>':""}<details><summary>Inspect component probabilities and validation</summary><pre class="detail">${esc(JSON.stringify({probability:p,validation:d.validation_summary,target:d.target},null,2))}</pre></details><p class="meta">${esc(d.disclaimer||"")}</p></article>`;
   }catch(error){
     const pl=error&&error.payload;
     if(error&&(error.status===409||(pl&&pl.available===false))){
@@ -1202,6 +1272,7 @@ async function processMatured(){
 function initEvents() {
   $("btn-analyze").addEventListener("click", analyze);
   $("btn-screener").addEventListener("click", loadScreener);
+  if($("btn-market-browse"))$("btn-market-browse").addEventListener("click", browseMarketSector);
   $("btn-refresh").addEventListener("click", startRefresh);
   $("btn-export").addEventListener("click", exportScreener);
   $("btn-compare").addEventListener("click", compare);
@@ -1209,6 +1280,7 @@ function initEvents() {
   $("btn-watch-compare").addEventListener("click", compareWatchlist);
   $("btn-forecast").addEventListener("click", runForecast);
   if($("btn-forecast-compare-models"))$("btn-forecast-compare-models").addEventListener("click", runForecastModelCompare);
+  if($("btn-activate-selected-model"))$("btn-activate-selected-model").addEventListener("click", activateSelectedForecastModel);
   if($("btn-deactivate-model"))$("btn-deactivate-model").addEventListener("click", deactivateActiveModel);
   $("forecast-ticker").addEventListener("keydown", (e) => { if (e.key === "Enter") runForecast(); });
   $("btn-forecast-status").addEventListener("click", loadForecastStatus);
@@ -1241,6 +1313,7 @@ function initEvents() {
   });
   document.addEventListener("click", (event) => {
     const watch=event.target.closest("[data-watch-toggle]"); if(watch){toggleWatch(watch.dataset.watchToggle);return;}
+    const marketPageButton=event.target.closest("[data-market-page]"); if(marketPageButton && !marketPageButton.disabled){browseMarketSector(Number(marketPageButton.dataset.marketPage)||0);return;}
     const analyzeButton=event.target.closest("[data-analyze-ticker]"); if(analyzeButton){$("ticker").value=analyzeButton.dataset.analyzeTicker;showPage("analyze");analyze();return;}
     const printBtn=event.target.closest("[data-print]"); if(printBtn){window.print();}
   });
@@ -1250,7 +1323,7 @@ function initEvents() {
 
 async function bootstrap() {
   initConsent(); initTabs(); initAutocomplete(); initEvents(); updateWatchCount(); applyExperienceMode(getExperienceMode()); applyRuntimeSettings(getRuntimeSettings());
-  await Promise.all([loadUniverse(), api("/api/v1/health").then((h)=>{$("engine-badge").textContent=`Evidence ${h.engine_version} · Forecast ${h.forecast_engine_version||"—"} · Adaptive ${h.realtime_engine_version||"—"}`; if(h.forecast_registry){state.forecastRegistry=h.forecast_registry;populateModelSelects(h.forecast_registry);}}).catch(()=>{})]);
+  await Promise.all([loadUniverse(), loadMarketMeta(), api("/api/v1/health").then((h)=>{$("engine-badge").textContent=`Evidence ${h.engine_version} · Forecast ${h.forecast_engine_version||"—"} · Adaptive ${h.realtime_engine_version||"—"}`; if(h.forecast_registry){state.forecastRegistry=h.forecast_registry;populateModelSelects(h.forecast_registry);}}).catch(()=>{})]);
   renderWatchlist();
   api("/api/v1/screener/status").then((s)=>{if(String(s.status||"").toLowerCase().includes("running")){renderRefreshStatus(s);state.refreshTimer=setInterval(pollRefresh,1800);}}).catch(()=>{});
 }

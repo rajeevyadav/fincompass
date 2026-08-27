@@ -2,7 +2,7 @@
 
 **Review date:** 2026-08-23  
 **Baseline:** FinCompass validation-gated probabilistic forecasting release  
-**Release:** `1.3.0`  
+**Release:** `1.4.0`  
 **Evidence engine:** `1.0.0-evidence1`  
 **Normalized-data schema:** `1.0.0-normalized1`  
 **Forecast anchor engine:** `1.0.0-prob1`  
@@ -24,7 +24,7 @@ This prevents “realtime” from becoming uncontrolled self-training or outcome
 
 ### Release conclusion
 
-The package is suitable as a **research/freeware release candidate** from a code/regression-governance perspective. The bundled anchor and adaptive artifacts are both intentionally `fixture_only`; the package ships **zero live-eligible market models/states**. Real-market forecasting or adaptive-skill claims still require external point-in-time market validation under the supplied protocol.
+The public-source package is suitable as a **research/freeware release candidate** from a code/regression-governance perspective. Its redistributable anchor and adaptive fixtures remain `fixture_only`, and the public package ships **zero pre-activated or redistributable live market model states**. A separate private owner handover may include model `80e63fcbc21ce820`, a 12-month `validated_research` reference whose sharing status is `REVIEW_REQUIRED`; it is excluded automatically from public-source packaging and still requires explicit activation. No `validated_market` performance claim is made.
 
 ## 2. Scope reviewed
 
@@ -344,7 +344,7 @@ This namespace separation reduces the risk that an evidence posterior, frozen fo
 
 The frozen source tree passes:
 
-**160 / 160 automated tests**
+**168 / 168 automated tests**
 
 plus:
 

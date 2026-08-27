@@ -28,6 +28,39 @@ EXCLUDED_PAPER_BUILD = {
 }
 
 
+
+
+def non_public_model_files() -> set[str]:
+    """Return model-tree paths that must never enter the public source ZIP.
+
+    A trained artifact is not assumed redistributable merely because raw rows
+    are absent.  Explicit RESTRICTED/REVIEW_REQUIRED manifests bind the model,
+    manifest and same-ID evidence/summary files as private handover material.
+    """
+    blocked: set[str] = set()
+    models = ROOT / "models"
+    if not models.is_dir():
+        return blocked
+    import json
+    for manifest_path in models.glob("*.json"):
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if not isinstance(manifest, dict) or not manifest.get("model_id") or not manifest.get("model_file"):
+            continue
+        sharing = str((manifest.get("dataset_provenance") or {}).get("sharing_status") or "").upper()
+        if sharing not in {"RESTRICTED", "REVIEW_REQUIRED"}:
+            continue
+        blocked.add(manifest_path.relative_to(ROOT).as_posix())
+        blocked.add((models / str(manifest["model_file"])).relative_to(ROOT).as_posix())
+        model_id = str(manifest["model_id"])
+        profile = str(manifest.get("profile_name") or "")
+        for sibling in models.glob(f"{profile}-{model_id}-*"):
+            if sibling.is_file():
+                blocked.add(sibling.relative_to(ROOT).as_posix())
+    return blocked
+
 def is_release_file(path: Path) -> bool:
     """Return whether *path* belongs to the distributable source package."""
     if not path.is_file():
@@ -41,25 +74,15 @@ def is_release_file(path: Path) -> bool:
         return False
     if rel in EXCLUDED_PAPER_BUILD:
         return False
+    if rel in non_public_model_files():
+        return False
     # Runtime state is rebuilt in the per-user writable directory. Keep only
     # the placeholder that preserves the source directory itself.
     if rel.startswith("data/") and rel != "data/.gitkeep":
         return False
-    # PRIVATE, local-only assets (see PRIVATE-DATA-NOTICE.md and .gitignore) are
-    # never part of the PUBLIC distributable source contract. They are present in
-    # the private working tree (and bundled into the private exe/Docker image),
-    # but must not appear in the public manifest so the manifest verifies on a
-    # clean public clone. The public synthetic fixtures under models/ and
-    # adaptive_models/ (fixture-reference-* / balanced-adaptive-*) are kept.
-    import fnmatch
-    _PRIVATE_PREFIXES = (
-        "datasets/market-seed/", "handoff/", "development/",
-        "private_assets/", "testmodels/",
-    )
-    if any(rel == p.rstrip("/") or rel.startswith(p) for p in _PRIVATE_PREFIXES):
-        return False
-    _PRIVATE_GLOBS = ("models/default-*", "models/*-market-*", "adaptive_models/*-live-*")
-    if any(fnmatch.fnmatch(rel, g) for g in _PRIVATE_GLOBS):
+    # Private-handover envelope metadata is verified separately and must not
+    # become part of the public-source file contract.
+    if rel in {"PRIVATE_MODEL_MANIFEST.sha256", "PRIVATE_MODEL_NOTICE.txt"}:
         return False
     # Editor/OS leftovers are never release inputs.
     if path.name in {".DS_Store", "Thumbs.db"} or path.name.endswith("~"):
@@ -69,10 +92,10 @@ def is_release_file(path: Path) -> bool:
 
 def release_files() -> List[Path]:
     # The distributable set is exactly the git-tracked files: this excludes all
-    # gitignored assets — the PRIVATE local-only data AND build artifacts
-    # (dist/, build/, *.spec, caches) that may be present in a working tree but
-    # are never part of the public source contract. Fall back to a filesystem
-    # walk when git metadata is unavailable (e.g. an extracted source ZIP).
+    # gitignored assets — PRIVATE local-only data/models AND build artifacts
+    # (dist/, build/, *.spec, caches) — so the manifest verifies on a clean
+    # public clone. Fall back to a filesystem walk when git metadata is
+    # unavailable (e.g. an extracted source ZIP).
     import subprocess
     paths: List[Path]
     try:

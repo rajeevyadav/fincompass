@@ -66,19 +66,24 @@ adaptive_models/*-live-*
 # Local-only project docs (directives/reports/handoff) — never committed
 _docs/
 
-# --- PRIVATE LOCAL-ONLY data/model assets - NEVER publish ---
+# Models are shippable (only DATA is restricted). The public fixture and the
+# bundled reference model(s) are tracked; rejected/experiment and live-adaptive
+# artifacts stay local-only.
+models/default-*
+models/*-market-*
+
+# ============================================================
+# PRIVATE local-only assets — NEVER publish (see PRIVATE-DATA-NOTICE.md)
+# ============================================================
+datasets/market-seed/
+private_assets/
 data/*
 !data/.gitkeep
-datasets/market-seed/
-models/
-adaptive_models/
-private_assets/
-*.joblib
-*.npz
-
-# Local-only working notes (recovery/worklog/state) — never published
+# Private trained-model handover envelope
+PRIVATE_MODEL_MANIFEST.sha256
+PRIVATE_MODEL_NOTICE.txt
+# Local-only working notes
 handoff/
 development/
-
-# The private testmodels replica package — never committed (deleted after integration)
-testmodels/
+# The FinCompass-Trained integration source folder (deleted after integration)
+FinCompass-Trained/

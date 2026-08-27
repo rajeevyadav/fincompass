@@ -14,7 +14,7 @@ FinCompass is research software, not investment advice. None of these outputs is
 
 | Contract | Version |
 |---|---|
-| Application | `1.3.0` |
+| Application | `1.4.0` |
 | Evidence engine | `1.0.0-evidence1` |
 | Normalized data schema | `1.0.0-normalized1` |
 | Forecast anchor engine | `1.0.0-prob1` |
@@ -137,6 +137,41 @@ Locked synthetic test summary:
 | Calibration slope | 0.800691 |
 
 The strict moving-block bootstrap lower bounds remain positive for Brier/log-loss skill, and all four development walk-forward folds have positive Brier skill. These results establish deterministic statistical-pipeline regression behavior against a known simulated signal only; they do not establish market alpha.
+
+---
+
+## B7. Private bundled 12-month research reference
+
+The private owner handover can include one real-history reference anchor in addition to the deterministic fixture.
+It is **not part of the public-source package** because its provenance sharing state is `REVIEW_REQUIRED`.
+
+- Model ID: `80e63fcbc21ce820`
+- Validation tier: `validated_research`
+- Target: asset monthly-close return over 12 months exceeds S&P 500 monthly-close return over the same interval
+- Runtime feature contract: `monthly_relative_v1` (observed daily/live histories are aggregated to month-end; missing daily observations are not fabricated)
+- Training period recorded in manifest: 1990-01-31 through 2022-06-30
+- Upstream sample declaration recorded in manifest: Yahoo Finance via Matplotlib `sample_data/Stocks.csv`
+- Sharing status: `REVIEW_REQUIRED`
+- Activation: explicit only; no active-model pointer is shipped
+
+Locked-test evidence (100 moving-date-block bootstrap draws):
+
+| Metric | Result |
+|---|---:|
+| Test rows | 532 |
+| Distinct test dates | 76 |
+| Test span | 2,283 days |
+| ROC AUC | 0.576221 |
+| Brier skill | 0.036425 |
+| Log-loss skill | 0.026983 |
+| ECE | 0.044712 |
+| Calibration slope | 1.272327 |
+
+All 14 configured exploratory gate checks passed without changing their thresholds. This supports the
+`validated_research` designation only. It does **not** establish a `validated_market` tier, future investment
+performance, or redistribution rights for the trained artifact. The 6-month and 24-month prototypes tested during
+this checkpoint remained rejected by their configured gates; the available monthly history did not support a
+three-stage leakage-safe 36-month calibration protocol. Failed horizons were not promoted.
 
 ---
 

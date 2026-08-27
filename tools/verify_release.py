@@ -82,10 +82,9 @@ def market_seed_integrity_scan():
     db = base / "market_seed.db"
     manifest_path = base / "SEED_MANIFEST.json"
     sidecar = base / "SEED_MANIFEST.sha256"
-    # The market seed is a PRIVATE, local-only asset (see PRIVATE-DATA-NOTICE.md).
-    # It is absent from the public repository / a clean CI clone, so when it is
-    # not present we skip its integrity checks; when it IS present (private/local
-    # working tree, exe/Docker packaging) the full integrity gate is enforced.
+    # The market seed is a PRIVATE, local-only asset (see PRIVATE-DATA-NOTICE.md),
+    # absent on a clean public clone / CI. Skip its integrity checks when absent;
+    # enforce fully when present (private/local tree, exe/Docker packaging).
     if not db.exists():
         print("[verify] market seed: SKIPPED (private local-only seed absent — public/CI mode)")
         return
@@ -162,21 +161,44 @@ def adaptive_fixture_integrity_scan():
 
 
 def model_registry_scan():
-    manifests = list((ROOT / "models").glob("*.json"))
+    manifests = []
+    for manifest_path in (ROOT / "models").glob("*.json"):
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if isinstance(manifest, dict) and manifest.get("model_id") and manifest.get("model_file"):
+            manifests.append((manifest_path, manifest))
     if not manifests:
         raise SystemExit("No bundled anchor model manifest found")
-    for manifest_path in manifests:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    public_files = {path.relative_to(ROOT).as_posix() for path in release_files()}
+    usable_private = 0
+    for manifest_path, manifest in manifests:
         model_path = ROOT / "models" / manifest.get("model_file", "")
         if not model_path.exists():
             raise SystemExit(f"Missing anchor model artifact for {manifest_path.name}")
         digest = sha256(model_path.read_bytes()).hexdigest()
         if digest != manifest.get("model_sha256") or manifest.get("model_id") != digest[:16]:
             raise SystemExit(f"Anchor model identity/hash mismatch for {model_path.name}")
-    status = forecast_registry_status(ROOT / "models")
-    if status.get("usable_models") != 0:
-        raise SystemExit("Release package must not ship a live-eligible market anchor without external validation evidence")
-    print("[verify] anchor model hashes / no bundled live-eligible anchor: OK")
+
+        tier = str(manifest.get("validation_tier") or "")
+        sharing = str((manifest.get("dataset_provenance") or {}).get("sharing_status") or "").upper()
+        if tier in {"validated_research", "validated_market"}:
+            if not manifest.get("validation", {}).get("gate", {}).get("passed"):
+                raise SystemExit(f"Usable model lacks a passing gate: {manifest_path.name}")
+            if sharing in {"RESTRICTED", "REVIEW_REQUIRED"}:
+                usable_private += 1
+                rel_manifest = manifest_path.relative_to(ROOT).as_posix()
+                rel_model = model_path.relative_to(ROOT).as_posix()
+                if rel_manifest in public_files or rel_model in public_files:
+                    raise SystemExit(f"Non-public trained model would leak into public source package: {manifest_path.name}")
+            elif sharing != "PUBLIC":
+                raise SystemExit(f"Usable model must declare PUBLIC, RESTRICTED, or REVIEW_REQUIRED sharing status: {manifest_path.name}")
+
+    if (ROOT / "models" / "active_model.json").exists():
+        raise SystemExit("Release tree must not ship a pre-activated forecast model pointer")
+    print(f"[verify] anchor model hashes / public-release sharing guard: OK ({usable_private} private usable model(s) excluded)")
 
 
 def adaptive_registry_scan():
@@ -290,9 +312,9 @@ def release_manifest_scan():
         if actual != expected:
             raise SystemExit(f"Release manifest SHA-256 mismatch: {rel}")
         entries[rel] = expected
-    # Required PUBLIC source artifacts. Private local-only assets (market-seed,
-    # handoff/, development/) are intentionally excluded from the public manifest
-    # and therefore not required here (see PRIVATE-DATA-NOTICE.md).
+    # Required PUBLIC source artifacts only. Private local-only assets
+    # (market-seed, handoff/, development/, private models) are excluded from the
+    # public manifest and therefore not required here (see PRIVATE-DATA-NOTICE.md).
     required = {
         "api.py", "services/model_builder.py", "services/research_store.py",
         "forecasting/model.py", "forecasting/recipes.py", "tools/build_builtin_seed.py",

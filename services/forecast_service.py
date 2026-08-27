@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 
 import pandas as pd
 
-from forecasting.features import asof_merge_fundamentals, build_price_features
+from forecasting.features import asof_merge_fundamentals, build_price_features, build_monthly_relative_features
 from forecasting.registry import load_model, registry_status
 from forecasting.sec_fundamentals import SecClient, fetch_ticker_fundamental_history
 from services.analyzer import get_price_history_cached
@@ -45,7 +45,12 @@ def forecast_ticker(ticker: str, model_id: Optional[str] = None, profile_name: O
     bench = _get_price_history(benchmark)
     if stock is None or bench is None or stock.empty or bench.empty:
         return {"available": False, "message": "Price history unavailable for the ticker or benchmark.", "model_id": manifest.get("model_id")}
-    features = build_price_features(stock, bench)
+    provenance = manifest.get("dataset_provenance") or {}
+    feature_contract = str(provenance.get("feature_contract") or "price_relative_v1")
+    if feature_contract == "monthly_relative_v1":
+        features = build_monthly_relative_features(stock, bench)
+    else:
+        features = build_price_features(stock, bench)
     if features.empty:
         return {"available": False, "message": "Insufficient price history to construct forecasting features.", "model_id": manifest.get("model_id")}
     sample = features.tail(1).copy()

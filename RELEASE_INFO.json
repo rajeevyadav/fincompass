@@ -1,5 +1,5 @@
 {
-  "automated_tests_passed": 160,
+  "automated_tests_passed": 168,
   "bundled_adaptive": {
     "adaptive_id": "50732cca02f306ed",
     "base_model_id": "efd41fec7d9d24fd",
@@ -41,14 +41,27 @@
     "roc_auc": 0.6998013803680981,
     "samples": 2304
   },
+  "private_bundled_reference": {
+    "benchmark": "^GSPC",
+    "frequency": "monthly",
+    "horizon_months": 12,
+    "live_eligible_target": true,
+    "model_id": "80e63fcbc21ce820",
+    "public_source_included": false,
+    "requires_explicit_activation": true,
+    "sharing_status": "REVIEW_REQUIRED",
+    "validation_tier": "validated_research"
+  },
   "product": "FinCompass",
-  "release": "1.3.0",
+  "release": "1.4.0",
   "release_date": "2026-08-24",
   "release_status": "research_freeware_release_candidate",
   "validation_boundaries": {
     "adaptive_fixture_synthetic": true,
     "anchor_fixture_synthetic": true,
     "live_market_model_bundled": false,
-    "market_skill_claimed": false
+    "market_skill_claimed": false,
+    "private_validated_research_model_present": true,
+    "public_live_market_model_bundled": false
   }
 }

@@ -1,0 +1,111 @@
+{
+  "gate": {
+    "bootstrap": {
+      "_meta": {
+        "block_dates": 12,
+        "distinct_dates": 76,
+        "draws": 100,
+        "level": 0.9,
+        "method": "moving_date_block_cross_sectional_cluster"
+      },
+      "brier_skill": {
+        "high": 0.05620440424473929,
+        "low": -0.003451245490814938,
+        "median": 0.02918809754604068
+      },
+      "calibration_slope": {
+        "high": 1.8260386683333942,
+        "low": 0.2658528257452656,
+        "median": 1.0944690169781994
+      },
+      "ece_10": {
+        "high": 0.0909959065407122,
+        "low": 0.01668817872773303,
+        "median": 0.052418704953357244
+      },
+      "log_loss_skill": {
+        "high": 0.04237867306302725,
+        "low": -0.002989945679523189,
+        "median": 0.021534890282638386
+      },
+      "roc_auc": {
+        "high": 0.6015638330393247,
+        "low": 0.49770792698561345,
+        "median": 0.5556527261424568
+      }
+    },
+    "checks": {
+      "bootstrap_auc_low": true,
+      "bootstrap_brier_skill_low": true,
+      "bootstrap_ece_high": true,
+      "bootstrap_log_loss_skill_low": true,
+      "brier_skill": true,
+      "calibration_slope": true,
+      "ece": true,
+      "log_loss_skill": true,
+      "minimum_each_class": true,
+      "minimum_test_dates": true,
+      "minimum_test_samples": true,
+      "minimum_test_span_days": true,
+      "roc_auc": true,
+      "walk_forward_stability": true
+    },
+    "class_counts": {
+      "0": 183,
+      "1": 349
+    },
+    "passed": true,
+    "test_temporal_coverage": {
+      "distinct_dates": 76,
+      "span_days": 2283
+    },
+    "thresholds": {
+      "calibration_slope": [
+        0.25,
+        2.5
+      ],
+      "max_bootstrap_ece_high": 0.22,
+      "max_ece": 0.15,
+      "min_auc": 0.5,
+      "min_bootstrap_auc_low": 0.45,
+      "min_bootstrap_brier_skill_low": -0.08,
+      "min_bootstrap_log_loss_skill_low": -0.08,
+      "min_brier_skill": -0.02,
+      "min_class_count": 30,
+      "min_log_loss_skill": -0.02,
+      "min_positive_walk_forward_fraction": 0.5,
+      "min_test_dates": 9,
+      "min_test_samples": 150,
+      "min_test_span_days": 180
+    }
+  },
+  "locked_test_evidence": "bundled-monthly-12m-80e63fcbc21ce820-locked-test.csv",
+  "locked_test_metrics": {
+    "average_precision": 0.6938115716633744,
+    "baseline_brier": 0.2265007317358143,
+    "baseline_log_loss": 0.6454626025962455,
+    "brier": 0.21825040610586877,
+    "brier_skill": 0.036425161043490806,
+    "calibration_intercept": -0.0281438199833998,
+    "calibration_slope": 1.2723266659270922,
+    "ece_10": 0.04471211602337241,
+    "event_rate": 0.6560150375939849,
+    "log_loss": 0.6280460071842613,
+    "log_loss_skill": 0.02698312085305865,
+    "roc_auc": 0.5762208965506442,
+    "samples": 532
+  },
+  "model_id": "80e63fcbc21ce820",
+  "model_sha256": "80e63fcbc21ce820f36cfbe0ba6c3dc8305ba45c6c7137106757a01efe2a546a",
+  "sharing_status": "REVIEW_REQUIRED",
+  "target": {
+    "benchmark": "^GSPC",
+    "event": "asset monthly-close return over 12 months exceeds S&P 500 monthly-close return over the same interval",
+    "excess_return_threshold": 0.0,
+    "frequency": "monthly",
+    "horizon_months": 12,
+    "horizon_trading_days": 252,
+    "return_basis": "Monthly close series supplied by the declared upstream sample; no training rows are bundled."
+  },
+  "validation_tier": "validated_research"
+}

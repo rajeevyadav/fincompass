@@ -3,22 +3,33 @@
 All notable changes to FinCompass are documented here. This project follows
 Semantic Versioning.
 
+## [1.4.0] — 2026-08-26
+
+Forecast and Live are now fully functional end to end.
+
+### Working forecast + a bundled validated model
+- A real historical monthly reference model reaches **`validated_research`**
+  (passes the configured locked-test + bootstrap gates) and can be **selected and
+  activated** so Forecast and Live actually produce probabilities. The model is a
+  private, local-only artifact (`REVIEW_REQUIRED`) bundled into the exe; it is
+  never published (git-ignored + excluded from the public source manifest). No
+  model is pre-activated — the user selects and activates it.
+
+### Broader search
+- Screener adds a **market region** selector and **Browse full market sector** —
+  an on-demand search that is **not limited to the 72-name starter list**; any
+  discovered company can be analysed. Guided / Research experience modes.
+
+### Housekeeping
+- Header shows the **software version** instead of internal engine ids.
+- Public/private release gate hardened: the manifest is the git-tracked public
+  set, and the market-seed integrity scan skips when the private seed is absent
+  (public/CI), enforcing fully when present. Private trained models are excluded
+  from the public source by sharing status.
+
 ## [1.3.0] — 2026-08-25
 
-Additive, non-breaking release.
-
-### Model Lab
-- New **Model Lab** workspace to build, compare and activate forecast models from
-  a local research data store — fully in-app, no command line. Endpoints under
-  `/api/v4/model-lab/*` (data, recipes, experiments, activate/deactivate).
-- Local research data store (`services/research_store.py`, `services/research_data.py`)
-  with reproducible seed import; training reads from the local store rather than
-  re-fetching. Forecast horizon/profile **recipes** (`forecasting/recipes.py`).
-- Real historical **market seed** support (private, local-only) so a model can
-  legitimately reach `validated_research`; the public repository ships only the
-  synthetic fixtures — the private seed/model/adaptive assets are never published
-  (`.gitignore` + restricted-file hook + CI Restricted Folder Guard +
-  `tools/package_source.py` public-safe export). See `PRIVATE-DATA-NOTICE.md`.
+Model Lab + local research data store, with a public/private split. See PR #6.
 
 ## [1.2.0] — 2026-08-24
 

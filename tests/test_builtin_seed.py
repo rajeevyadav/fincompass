@@ -10,10 +10,10 @@ from tools.build_builtin_seed import _load_goog, _load_msft
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE_ROOT = ROOT / "datasets" / "market-seed" / "source-originals"
 
-# The market-seed package is a PRIVATE, local-only asset (see PRIVATE-DATA-NOTICE
-# and .gitignore) and is intentionally absent from the public repository / CI.
-# These tests validate that real seed when it is present locally; they skip on a
-# clean clone so public CI stays green without ever shipping the private data.
+# The market-seed package is a PRIVATE, local-only asset (see PRIVATE-DATA-NOTICE)
+# and is absent from the public repository / a clean CI clone. These tests
+# validate the real seed when present locally and skip otherwise so public CI
+# stays green without shipping the private data.
 pytestmark = pytest.mark.skipif(
     not (SOURCE_ROOT.exists() and (ROOT / "datasets" / "market-seed" / "market_seed.db").exists()),
     reason="requires the private market-seed data (local only; absent in public CI)",

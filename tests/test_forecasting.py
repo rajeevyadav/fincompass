@@ -212,7 +212,10 @@ def test_forecast_api_exposes_schema_and_blocks_fixture_as_live():
     assert validated.json()["settings"]["horizon_trading_days"] == 126
     status = client.get("/api/v3/forecast/status")
     assert status.status_code == 200
-    assert status.json()["usable_models"] == 0
+    assert status.json()["usable_models"] >= 1
+    assert any(m.get("validation_tier") == "validated_research" for m in status.json().get("models", []))
+    # Installation does not imply activation: the user must still explicitly
+    # choose the live anchor.
     live = client.get("/api/v3/forecast/AAPL")
     assert live.status_code == 409
     assert live.json()["available"] is False
@@ -220,12 +223,17 @@ def test_forecast_api_exposes_schema_and_blocks_fixture_as_live():
 
 def test_fixture_registry_is_not_usable_for_live_forecast():
     status = registry_status()
-    assert status["models_total"] >= 1
-    assert status["usable_models"] == 0
-    manifests = list(Path("models").glob("*.json"))
+    assert status["models_total"] >= 2
+    assert status["usable_models"] >= 1
+    manifests = [json.loads(path.read_text(encoding="utf-8")) for path in Path("models").glob("*.json") if path.name != "active_model.json" and "SUMMARY" not in path.name]
     assert manifests
-    manifest = json.loads(manifests[0].read_text(encoding="utf-8"))
-    assert manifest["model_id"] == manifest["model_sha256"][:16]
+    fixture = next(m for m in manifests if m.get("validation_tier") == "fixture_only")
+    bundled = next(m for m in manifests if m.get("profile_name") == "bundled-monthly-12m")
+    assert fixture["model_id"] == fixture["model_sha256"][:16]
+    assert bundled["validation_tier"] == "validated_research"
+    assert bundled["model_id"] == bundled["model_sha256"][:16]
+    # The bundled reference model ships publicly (only DATA is restricted).
+    assert (bundled.get("dataset_provenance") or {}).get("sharing_status") == "PUBLIC"
 
 
 def test_fixture_manifest_has_hash_sidecar():

@@ -1,0 +1,746 @@
+\documentclass[11pt]{article}
+
+\usepackage[margin=1.0in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{newtxtext,newtxmath}
+\usepackage{microtype}
+\usepackage{amsmath,mathtools,bm}
+\usepackage{booktabs,tabularx,array,longtable}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,fit,shapes.geometric}
+\usepackage{natbib}
+\usepackage{caption}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{hyperref}
+\usepackage{xurl}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+
+\titleformat{\part}[display]
+  {\centering\normalfont}
+  {\Large\bfseries Part \Roman{part}}
+  {0.35em}
+  {\LARGE\bfseries}
+  [\vspace{0.45em}\titlerule]
+\titlespacing*{\part}{0pt}{1.25em}{1.0em}
+\titleformat{\section}{\large\bfseries}{\thesection}{0.65em}{}
+\titlespacing*{\section}{0pt}{1.15em}{0.55em}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.60em}{}
+\titlespacing*{\subsection}{0pt}{0.9em}{0.35em}
+
+\hypersetup{
+  hidelinks,
+  pdfauthor={Rajeev Yadav, Ph.D.},
+  pdftitle={FinCompass: Concepts and Mathematics},
+  pdfsubject={Concepts, mathematics, validation, and live adaptation in probabilistic forecasting}
+}
+
+\setlength{\parindent}{1.15em}
+\setlength{\parskip}{0.35em}
+\linespread{1.03}\selectfont
+\setlength{\emergencystretch}{2em}
+\setlist[itemize]{leftmargin=1.6em,itemsep=0.18em,topsep=0.3em}
+\setlist[enumerate]{leftmargin=1.7em,itemsep=0.18em,topsep=0.3em}
+\captionsetup{font={small},labelfont=bf}
+\renewcommand{\arraystretch}{1.14}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{FinCompass}
+\fancyhead[R]{Concepts and Mathematics}
+\fancyfoot[C]{\thepage}
+\setlength{\headheight}{14pt}
+
+\newcommand{\Prb}{\mathbb{P}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\I}{\mathbb{I}}
+\newcommand{\sigmoid}{\operatorname{sigmoid}}
+\newcommand{\logit}{\operatorname{logit}}
+
+\title{\textbf{FinCompass: Concepts and Mathematics}}
+\author{Rajeev Yadav, Ph.D.\\\texttt{rajeevyadav@gmail.com}}
+\date{August 2026}
+
+\begin{document}
+\maketitle
+\begin{center}
+\textbf{Version 1.4.0}
+\end{center}
+
+\begin{abstract}
+FinCompass is a local-first research environment for understanding equity evidence, building validation-gated probability models, and operating a bounded live adaptive layer around an explicitly selected anchor model. This guide explains probabilistic forecasting by introducing each concept in plain language, connecting it to practical use, and then developing the mathematics and statistical assumptions behind it. The same topics can therefore be understood conceptually first and examined formally when more detail is useful. The central idea is simple but strict: a research score is not a forecast probability, a model that passes a statistical gate is not automatically activated, and a live update is not allowed to learn from an outcome before that outcome exists. The guide also explains the bundled 12-month research model, broader market discovery, model selection, live operation, calibration, proper scoring rules, temporal validation, Bayesian modeling, ensemble methods, dependence-aware uncertainty, and the limits that prevent weaker evidence from being presented as stronger evidence.
+\end{abstract}
+
+\noindent\textbf{Approach:} each topic begins with its meaning and practical interpretation, then develops the corresponding mathematics, assumptions, diagnostics, and limitations.\\
+\textbf{Scope:} educational and research use. FinCompass does not provide financial advice, guaranteed returns, or an automatic trading instruction.
+
+\tableofcontents
+\newpage
+
+\section{The one-page mental model}
+
+FinCompass separates three statistical objects that should never be collapsed into one number:
+
+\begin{enumerate}
+\item \textbf{Evidence score.} A structured 0--10 research summary of currently available company and market evidence. Its uncertainty describes uncertainty in the score.
+\item \textbf{Forecast probability.} The estimated probability of one precisely defined future event, produced by a model whose validation record is stored with the artifact.
+\item \textbf{Live probability.} A bounded candidate update around a frozen forecast anchor when fresh information arrives. It is applied only if the adaptive layer has earned control under its own prequential gates.
+\end{enumerate}
+
+These three objects answer different questions. An evidence score of 8.1 does not mean an 81\% probability of outperformance. A forecast probability of 0.61 does not mean a 61\% return. A live probability can change when new information arrives, but its learning state cannot use a forward outcome until that forward outcome has actually matured.
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[node distance=1.2cm and 1.0cm,>=Latex,
+  box/.style={draw,rounded corners,align=center,minimum width=3.35cm,minimum height=1.2cm,inner sep=7pt},
+  arrow/.style={->,thick}]
+\node[box] (e) {Evidence score\\Research summary};
+\node[box,right=of e] (a) {Forecast probability\\Fixed future event};
+\node[box,right=of a] (l) {Live probability\\Bounded update};
+\draw[arrow] (e) -- node[above,font=\small]{context} (a);
+\draw[arrow] (a) -- node[above,font=\small]{anchor} (l);
+\end{tikzpicture}
+\caption{FinCompass reports three different quantities. The evidence score summarizes current evidence, the forecast probability refers to a precisely defined future event, and the live probability is a bounded update around the activated forecast model. Keeping them separate prevents one quantity from being misread as another.}
+\end{figure}
+
+\part{Foundations}
+
+\section{Probability}
+
+A probability is a number between 0 and 1 that describes uncertainty about an event. A probability of 0.70 means the model is assigning 70\% probability to the event it has defined. It does not say the event will happen, and it does not say the investment will gain 70\%.
+
+The phrase \emph{the event it has defined} is essential. Consider three different questions:
+
+\begin{itemize}
+\item Will the stock price be higher in 12 months?
+\item Will the stock outperform the S\&P 500 in 12 months?
+\item Will the stock outperform the S\&P 500 by at least 5 percentage points in 12 months?
+\end{itemize}
+
+These are different events and can have different probabilities. FinCompass therefore stores the event definition with the model rather than showing a percentage without context.
+
+\section{Return and benchmark}
+
+If a stock starts at price $P_0$ and ends at price $P_1$, its simple return is
+\begin{equation}
+R=\frac{P_1}{P_0}-1.
+\end{equation}
+If a stock moves from 100 to 110, then $R=0.10$, or 10\%.
+
+A benchmark is a reference used to ask whether the stock did better or worse than a broader market. If the stock returned 10\% and the benchmark returned 7\%, the stock's excess return was approximately 3 percentage points.
+
+For the bundled 12-month research model, the event is whether the asset's 12-month monthly-close return exceeds the S\&P 500 monthly-close return over the same interval.
+
+\section{What does ``uncertainty'' mean?}
+
+There is more than one kind of uncertainty:
+
+\begin{itemize}
+\item \textbf{Evidence uncertainty:} some research inputs may be missing, noisy, or incomplete.
+\item \textbf{Model uncertainty:} fitted parameters or component models may disagree.
+\item \textbf{Future uncertainty:} markets contain genuinely unpredictable events.
+\item \textbf{Data uncertainty:} a provider may revise, delay, or omit observations.
+\end{itemize}
+
+No single interval captures all of these perfectly. FinCompass therefore uses uncertainty as a reason for caution, not as proof that the future lies inside a guaranteed range.
+
+\section{Reading a forecast}
+
+Suppose an eligible model reports
+\begin{equation}
+p=0.62
+\end{equation}
+for the event ``outperform the S\&P 500 over the next 12 months.'' The plain-language interpretation is:
+
+\begin{quote}
+The model assigns a 62\% probability to that specific outperformance event, given the information and feature contract used at forecast time.
+\end{quote}
+
+The following interpretations would be wrong:
+
+\begin{itemize}
+\item ``The stock will gain 62\%.''
+\item ``The stock is 62\% safe.''
+\item ``There is a 62\% chance of making money.''
+\item ``The model is 62\% accurate.''
+\end{itemize}
+
+\section{Before trusting a forecast}
+
+A responsible reading starts with five questions:
+
+\begin{enumerate}
+\item What exactly is the event?
+\item What is the forecast horizon?
+\item What benchmark is used?
+\item What validation tier does the model have?
+\item Is the model merely available, or has the user explicitly activated it for Live?
+\end{enumerate}
+
+The answer should never depend on guessing from the user interface. The model artifact records these details.
+
+\part{Workflow}
+
+\section{Workflow overview}
+
+The workflow can be followed before reading the mathematical sections. The later sections explain why each control exists and how the underlying quantities are calculated.
+
+\subsection{Analyze}
+
+Enter a ticker to inspect a structured evidence score and its component pillars. The evidence score is research triage, not a price target and not a forecast probability.
+
+\subsection{Screener and market discovery}
+
+The local starter catalogue is intentionally small for fast startup. It is not intended to define the whole market. Provider-backed discovery supports broader searches by region, sector, and query, with pagination so users can continue beyond a single provider page.
+
+This distinction matters operationally:
+
+\begin{center}
+\textbf{starter catalogue $\neq$ market universe}
+\end{center}
+
+The catalogue provides immediate local choices. Market discovery requests additional symbols from the configured provider when broader access is needed.
+
+\subsection{Forecast}
+
+A forecast requires an eligible model. A pre-trained 12-month research model is available in the private model-enabled package. It can be selected directly; the user does not need to train a model before generating a forecast with that artifact.
+
+A candidate trained inside Model Lab is treated differently. It must pass the configured gate before it can become eligible. A failed experiment remains a failed experiment; thresholds are not lowered merely to obtain a green status.
+
+\subsection{Activate}
+
+Eligibility and activation are separate decisions. Installing or creating a passing model does not silently make it the live model. The user must deliberately activate the selected eligible model.
+
+\subsection{Live}
+
+Live starts from the frozen anchor. Fresh market, filing, and macro context can create an adaptive candidate around that anchor. The applied probability changes only when the adaptive gate is active. If the gate is warming, stale, degraded, or in drift alert, the system falls back to the frozen anchor.
+
+\section{Bundled 12-month model}
+
+The included research model provides a concrete starting point for forecasting without requiring the user to successfully train a new model first. Its core contract is summarized in Table~\ref{tab:bundledplain}.
+
+\begin{table}[tbp]
+\centering
+\small
+\caption{Bundled 12-month model: purpose, event definition, validation tier, and activation status.}
+\label{tab:bundledplain}
+\begin{tabularx}{\textwidth}{@{}p{0.29\textwidth}X@{}}
+\toprule
+Item & Meaning \\
+\midrule
+Horizon & 12 months \\
+Benchmark & S\&P 500 index \\
+Event & Asset monthly-close return exceeds benchmark monthly-close return over the same 12 months \\
+Feature frequency & Monthly features reconstructed from observed price history \\
+Model family & Calibrated ensemble containing Bayesian logistic, histogram gradient boosting, and random forest components \\
+Validation status & \texttt{validated\_research} \\
+Activation & Explicit user action required \\
+Public sharing status & Rights review required before public redistribution of the trained artifact \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+The artifact passed the configured locked-test gate on real historical data, but the dataset does not establish the stronger survivorship, delisting, and corporate-action controls required for \texttt{validated\_market}. The correct conclusion is therefore modest: the model is usable as a validated research artifact, not proof of durable market alpha.
+
+\section{Why some horizons are unavailable}
+
+A horizon is not made eligible merely because users want that horizon. The model must pass the same scientific contract appropriate to its target. In the current evidence set, the 6-month and 2-year candidates did not satisfy all configured gates, and the 3-year horizon did not have adequate chronological support for promotion under the required multi-stage leakage-safe design.
+
+The correct product behavior is therefore to show only eligible horizons as selectable models. A missing horizon is more informative than a fabricated passing model.
+
+\section{Forecast checklist}
+
+Before acting on any research result, confirm:
+
+\begin{itemize}
+\item the ticker is correct;
+\item the forecast event and horizon are the ones you intended;
+\item the selected model is eligible;
+\item the probability is not being interpreted as a return;
+\item Live is using the model you explicitly activated;
+\item stale-source or degraded-state warnings are absent;
+\item you understand that model validation does not guarantee future profitability.
+\end{itemize}
+
+\part{Validation}
+
+\section{Calibration}
+
+A useful probability model should be calibrated. If we collect many genuinely comparable predictions near 0.70, then roughly 70\% of the corresponding events should occur over a sufficiently representative sample. Calibration is not the same as ranking.
+
+A model can rank stocks well but produce poor probabilities. For example, it might correctly order higher-risk and lower-risk cases yet assign 0.90 to events that occur only 65\% of the time.
+
+FinCompass therefore uses probability metrics in addition to ranking metrics.
+
+\section{Brier score}
+
+For a binary outcome $y\in\{0,1\}$ and predicted probability $p$, the Brier loss is \citep{brier1950verification}
+\begin{equation}
+\operatorname{BS}(p,y)=(p-y)^2.
+\end{equation}
+Lower is better. A probability of 0.9 followed by failure receives a large penalty because the model was confident and wrong.
+
+Brier skill compares the model with a reference forecast:
+\begin{equation}
+\operatorname{BSS}=1-\frac{\operatorname{BS}_{\text{model}}}{\operatorname{BS}_{\text{baseline}}}.
+\end{equation}
+Positive values indicate improvement over the baseline on the evaluated sample.
+
+\section{Log loss}
+
+Log loss is another strictly proper scoring rule \citep{gneiting2007proper}:
+\begin{equation}
+\operatorname{LL}(p,y)=-\left[y\log p+(1-y)\log(1-p)\right].
+\end{equation}
+It penalizes highly confident errors more strongly than the Brier score. FinCompass tracks both because each exposes different failure behavior.
+
+\section{ROC AUC}
+
+ROC AUC measures ranking discrimination. An AUC of 0.5 is roughly chance ranking; higher values indicate better separation between positive and negative cases. But AUC does not tell us whether a probability of 0.60 is calibrated as 60\%. A probability system therefore needs calibration and proper scores in addition to ranking diagnostics.
+
+\section{Expected calibration error}
+
+Expected calibration error (ECE) groups forecasts into probability bins and compares average predicted probability with observed event frequency. A lower ECE is generally preferable, but ECE depends on binning and sample structure. It is a diagnostic rather than a universal proof of calibration.
+
+\section{Why time order matters}
+
+Long-horizon financial labels overlap. A forecast made in January and another made in February can share most of the same future return window. If these rows are randomly split between training and testing, the model can indirectly see information that belongs to the test period.
+
+FinCompass uses chronological separation with purge and embargo rules inspired by the broader literature on financial-machine-learning leakage control \citep{lopezdeprado2018advances}. The guiding principle is:
+
+\begin{quote}
+If a training label depends on prices that occur inside a later validation period, that training row must not be allowed to contaminate the boundary.
+\end{quote}
+
+\section{The locked test}
+
+A locked test is useful only if it is not repeatedly used to tune the model. If a researcher tries 100 variants and keeps the one with the best locked-test result, the locked test has effectively become part of training. Repeated strategy selection creates data-snooping and backtest-overfitting risk \citep{white2000reality,harvey2016crosssection,bailey2017pbo}.
+
+FinCompass therefore separates component fitting, component calibration, ensemble stacking, final calibration, and locked-test evaluation. The intent is not to make overfitting impossible; it is to make the main leakage paths explicit and auditable.
+
+\section{Validation tiers}
+
+\begin{table}[tbp]
+\centering
+\small
+\caption{Model status should be read as an evidence statement, not a promise of future profitability.}
+\begin{tabularx}{\textwidth}{@{}p{0.23\textwidth}X@{}}
+\toprule
+Tier & Interpretation \\
+\midrule
+\texttt{fixture\_only} & Synthetic or deterministic artifact used to verify mathematics and software behavior. Never live-eligible. \\
+\texttt{rejected} & Required statistical or data-governance conditions were not met. \\
+\texttt{validated\_research} & Real historical data and the configured statistical gate support research use, but stronger market-data controls remain incomplete. \\
+\texttt{validated\_market} & Statistical gates pass and the dataset also documents stronger point-in-time, historical-universe, delisting, and corporate-action controls. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+These labels describe evidence quality. None is a promise of future profit.
+
+\part{Mathematics}
+
+\section{The forecast event}
+
+Let security $i$ be compared with benchmark $b$ at time $t$. For horizon $H$, let $R_{i,t}^{(H)}$ and $R_{b,t}^{(H)}$ be the corresponding forward returns. For threshold $\eta$,
+\begin{equation}
+Y_{i,t}^{(H,\eta)}=\I\left\{R_{i,t}^{(H)}-R_{b,t}^{(H)}>\eta\right\}.
+\end{equation}
+The target probability is
+\begin{equation}
+p_{i,t}=\Prb\left(Y_{i,t}^{(H,\eta)}=1\mid\mathcal F_t\right),
+\end{equation}
+where $\mathcal F_t$ is the information available at forecast time. The point-in-time requirement is embedded directly in the notation: a feature unavailable at $t$ does not belong in the model input for $t$.
+
+\section{Feature contract}
+
+The 12-month research artifact uses 20 monthly features drawn from own-asset return, relative return, benchmark return, volatility, drawdown, distance from a 12-month high, and a short/long moving-average ratio. Examples include
+\begin{align}
+\text{ret}_{1m},\quad \text{ret}_{3m},\quad \text{ret}_{6m},\quad \text{ret}_{12m},\\
+\text{rel\_ret}_{1m},\ldots,\text{rel\_ret}_{12m},\\
+\text{vol}_{3m},\text{vol}_{6m},\text{vol}_{12m},\quad \text{drawdown}_{6m},\text{drawdown}_{12m}.
+\end{align}
+
+For ordinary observed daily price histories, runtime feature construction aggregates the observed series to month-end and then applies the monthly feature contract. This preserves the model's training frequency instead of inventing synthetic daily observations.
+
+\section{Model components}
+
+For standardized feature vector $x$, the logistic model uses
+\begin{equation}
+\Prb(Y=1\mid x,\beta)=\sigmoid(\beta_0+x^\top\beta).
+\end{equation}
+A Gaussian prior provides regularization,
+\begin{equation}
+\beta\sim\mathcal N(0,\sigma_\beta^2 I).
+\end{equation}
+The implementation uses a Laplace approximation around the posterior mode, allowing coefficient uncertainty to be represented without requiring expensive full Markov-chain Monte Carlo during normal model construction.
+
+\subsection{Nonlinear components}
+
+The ensemble also includes histogram gradient boosting and random forest components. These learners can capture nonlinear interactions that a linear log-odds model cannot. Their flexibility is useful, but flexibility increases the importance of strict temporal validation and calibration.
+
+\subsection{Calibration and stacking}
+
+Raw component probabilities are calibrated on data not used to fit the component parameters. The calibrated components are then combined using constrained nonnegative weights that sum to one:
+\begin{equation}
+p^{\text{stack}}=\sum_{k=1}^{K}w_k p_k,\qquad w_k\ge0,\quad \sum_k w_k=1.
+\end{equation}
+A later calibration stage is separated chronologically from the stacking stage. This staged design reduces the temptation to reuse the same observations for every modeling decision.
+
+\section{12-month locked-test result}
+
+The bundled research artifact was evaluated on a locked test containing 532 samples over 76 distinct observation dates spanning 2,283 days. The observed event rate was approximately 0.6560.
+
+\begin{table}[tbp]
+\centering
+\small
+\caption{Locked-test results for the bundled 12-month research model. Each metric answers a different question: discrimination, calibration, or proper-score improvement.}
+\label{tab:realmetricsguide}
+\begin{tabular}{@{}lr@{}}
+\toprule
+Metric & Value \\
+\midrule
+ROC AUC & 0.576221 \\
+Average precision & 0.693812 \\
+Brier score & 0.218250 \\
+Brier skill & 0.036425 \\
+Log loss & 0.628046 \\
+Log-loss skill & 0.026983 \\
+ECE (10 bins) & 0.044712 \\
+Calibration slope & 1.272327 \\
+Calibration intercept & -0.028144 \\
+Locked-test samples & 532 \\
+Distinct dates & 76 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The artifact passed all configured gate checks, including temporal-coverage, class-count, proper-score, calibration, walk-forward-stability, and dependence-aware bootstrap conditions. The result supports the \texttt{validated\_research} designation. It does not establish \texttt{validated\_market}, and it does not establish guaranteed economic profitability.
+
+\section{Dependence-aware bootstrap}
+
+Financial observations are not independent draws from a simple urn. Many securities share the same market date, and adjacent dates can share overlapping forward horizons. A naive row bootstrap can therefore understate uncertainty.
+
+The model gate uses moving date blocks and cross-sectional clustering. Entire date clusters are resampled in blocks, preserving more of the temporal and same-date dependence structure. This is conceptually related to block-bootstrap methods for dependent data \citep{kunsch1989jackknife,politis1994stationary}.
+
+For the 12-month artifact, 100 bootstrap draws were used with 12-date blocks. The 90\% intervals included, among other diagnostics, a ROC-AUC interval of approximately $[0.498,0.602]$ and a Brier-skill interval of approximately $[-0.0035,0.0562]$. These wide intervals are scientifically important: they show why a statistically eligible research artifact should not be oversold as a strong market edge.
+
+\part{Live and Governance}
+
+\section{Inferential limits}
+
+The hardest problem is not fitting a powerful classifier. It is preserving the meaning of the forecast under nonstationarity, repeated experimentation, asynchronous information, overlapping labels, and online updates.
+
+Four principles govern the architecture:
+
+\begin{enumerate}
+\item \textbf{Target integrity.} The event must be defined before evaluation.
+\item \textbf{Information integrity.} Historical features must be knowable at the observation time.
+\item \textbf{Validation integrity.} Calibration, stacking, selection, and locked testing must remain separated sufficiently to support the intended claim.
+\item \textbf{Deployment integrity.} A live adaptive layer must be able to lose control and fall back to the frozen anchor.
+\end{enumerate}
+
+\section{Research tier versus market tier}
+
+The bundled 12-month artifact uses real historical monthly observations for a set of surviving equities and the S\&P 500. The manifest records that point-in-time feature construction is satisfied for the modeled price features, but historical-universe survivorship control, delisting inclusion, and documented corporate-action adjustment are not established at the stronger level.
+
+Those gaps matter. Delisting bias can materially affect historical equity studies \citep{shumway1997delisting}. A present-day surviving universe is not equivalent to the investable universe that existed at every historical date. The model can therefore pass its statistical gate while still being limited to a research designation.
+
+\section{Model-search governance}
+
+Every extra feature set, horizon, threshold, calibration method, and model class creates another opportunity to select noise. If the same holdout period is repeatedly consulted during search, its nominal independence becomes weaker. FinCompass records rejected candidates rather than erasing them, because failed experiments are part of the selection history.
+
+A stronger confirmatory study should pre-specify the target, dataset construction, feature contract, candidate family, gate thresholds, and confirmatory interval before opening a new locked test. This is the natural next step for a market-grade evidence claim.
+
+\section{Live adaptation}
+
+Let $p_t^A$ be the frozen anchor probability. Live features $z_t$ produce a log-odds residual
+\begin{equation}
+\delta_t=\operatorname{clip}(z_t^\top m_t,-d_{\max},d_{\max}).
+\end{equation}
+The adaptive candidate is
+\begin{equation}
+p_t^C=\sigmoid\left(\logit(p_t^A)+\delta_t\right).
+\end{equation}
+This construction has a useful odds interpretation:
+\begin{equation}
+\frac{p_t^C}{1-p_t^C}=\frac{p_t^A}{1-p_t^A}e^{\delta_t}.
+\end{equation}
+Bounding $\delta_t$ therefore bounds the multiplicative change in odds.
+
+\section{Predict first, update later}
+
+A forward-outcome model must not learn from a label that has not yet matured. The live workflow is therefore prequential in the sense of \citet{dawid1984prequential}:
+
+\begin{enumerate}
+\item observe the information available now;
+\item produce anchor and adaptive candidate probabilities;
+\item store a pending observation with lineage;
+\item wait until the exact forward endpoint exists;
+\item resolve the outcome;
+\item score anchor and adaptive predictions;
+\item update the adaptive posterior only for future forecasts.
+\end{enumerate}
+
+Repeated page refreshes do not create repeated matured evidence. Temporal breadth is measured using distinct observation dates, not merely row count.
+
+\section{Sequential update}
+
+Let the adaptive posterior before one matured observation be approximately
+\begin{equation}
+w\sim\mathcal N(m,P).
+\end{equation}
+For feature vector $z$ and label $y$, the predicted probability is $p=\sigmoid(z^\top m)$. A local Gaussian/Laplace update can be expressed through a rank-one precision contribution proportional to $p(1-p)zz^\top$. Forgetting and process noise permit controlled adaptation to nonstationarity \citep{mccormick2012dynamic,penny1999dynamic}.
+
+The important governance point is not the algebra alone. A more responsive forgetting factor defines a different adaptive state and must be evaluated as such. It cannot silently inherit evidence from a slower profile as though they were the same model.
+
+\section{Prequential control}
+
+The adaptive layer is not allowed to control the displayed probability merely because it can compute a candidate. It must accumulate enough matured observations, unique dates, and temporal span; it must not have worse allowed Brier or log-loss regret; its calibration must remain within bounds; required sources must be fresh; and drift protection must not be active.
+
+The balanced profile requires at least 120 matured observations, 60 unique observation dates, and 180 days of temporal span before the adaptive layer can satisfy its evidence requirements. The evaluation window is 250 observation dates, with date-balanced scoring.
+
+\section{Drift protection}
+
+A live layer can deteriorate after deployment. FinCompass therefore tracks loss behavior sequentially and can suppress the adaptive correction when drift conditions are triggered. This is a control mechanism, not a proof that the system has diagnosed the economic cause of the regime change. Sequential monitoring ideas are historically related to cumulative-sum and EWMA-style quality-control methods \citep{page1954continuous,roberts1959control}.
+
+\section{Market discovery and training universe}
+
+A broad market browser and a reproducible model dataset serve different purposes. Provider-backed discovery can search a large current symbol catalogue by sector or region. A model-training universe, however, must be frozen, provenance-controlled, and historically interpretable.
+
+Conflating these two concepts creates a subtle research error. ``The user can browse thousands of securities'' does not mean ``the model was validated on thousands of point-in-time securities.'' FinCompass therefore allows broad discovery without pretending that discovery breadth is validation breadth.
+
+\section{Data and model sharing}
+
+A trained model can encode information derived from a dataset even when the raw rows are not shipped. Therefore model redistribution should be governed by explicit provenance and rights review, not by the simplistic rule ``no CSV means no licensing issue.'' The bundled 12-month artifact is retained for private/local use while public redistribution remains subject to upstream rights review.
+
+This policy is conservative by design. It prevents the model package from making a legal conclusion that the statistical code is not qualified to make.
+
+\section{Research directions}
+
+Several extensions are scientifically useful, but each should be treated as a new contract rather than a cosmetic feature addition:
+
+\begin{itemize}
+\item historical-universe data with delistings and corporate-action controls;
+\item point-in-time fundamentals and filing-derived features;
+\item macroeconomic vintages rather than revised present-day series;
+\item sector-specific or region-specific anchor models;
+\item hierarchical Bayesian models that share strength across sectors without erasing heterogeneity;
+\item explicit regime-switching or state-space structures;
+\item survival-aware asset-universe modeling;
+\item probabilistic multi-horizon forecasting with jointly governed 6-, 12-, 24-, and 36-month targets;
+\item conformal or distribution-free uncertainty studies, with careful treatment of temporal dependence;
+\item independent confirmatory evaluation on a newly frozen period.
+\end{itemize}
+
+\part{Reference}
+
+\section{Model selection}
+
+\begin{figure}[tbp]
+\centering
+\begin{tikzpicture}[node distance=0.95cm and 1.15cm,>=Latex,
+  box/.style={draw,rounded corners,align=center,minimum width=3.7cm,minimum height=1.05cm,inner sep=6pt},
+  decision/.style={draw,diamond,aspect=2.0,align=center,inner sep=3pt},
+  arr/.style={->,thick}]
+\node[box] (discover) {Choose ticker\\and horizon};
+\node[box,below=of discover] (select) {Select installed\\or trained model};
+\node[decision,below=of select] (eligible) {Eligible?};
+\node[box,below left=1.0cm and 1.8cm of eligible] (reject) {Do not use it\\Review failed gates};
+\node[box,below right=1.0cm and 1.8cm of eligible] (forecast) {Run forecast};
+\node[decision,below=of forecast] (liveq) {Use for Live?};
+\node[box,below=of liveq] (activate) {Activate selected model};
+\draw[arr] (discover)--(select);
+\draw[arr] (select)--(eligible);
+\draw[arr] (eligible)--node[above left,font=\small]{no}(reject);
+\draw[arr] (eligible)--node[above right,font=\small]{yes}(forecast);
+\draw[arr] (forecast)--(liveq);
+\draw[arr] (liveq)--node[right,font=\small]{yes}(activate);
+\end{tikzpicture}
+\caption{Forecasting and Live use different operational steps. A model must first be eligible under the validation gates. Forecasting can then use that model directly, while Live requires a separate activation decision by the user.}
+\end{figure}
+
+\section{Core diagnostics}
+
+\begin{longtable}{@{}p{0.22\textwidth}p{0.30\textwidth}p{0.40\textwidth}@{}}
+\toprule
+Diagnostic & What it measures & What it does not prove \\
+\midrule
+\endfirsthead
+\toprule
+Diagnostic & What it measures & What it does not prove \\
+\midrule
+\endhead
+Probability & Estimated chance of the defined event & Expected percentage return \\
+Brier score & Squared probability error & Ranking quality by itself \\
+Brier skill & Improvement over reference Brier loss & Guaranteed positive returns \\
+Log loss & Proper score emphasizing confident errors & Economic utility by itself \\
+ROC AUC & Ranking discrimination & Probability calibration \\
+ECE & Approximate calibration mismatch & Universal calibration guarantee \\
+Calibration slope & Strength of probability calibration relation & Stability in a new market regime \\
+Bootstrap interval & Sampling uncertainty under the selected resampling design & Protection against all dataset biases \\
+Validation tier & Strength of statistical/data-governance evidence & Future profitability \\
+\bottomrule
+\end{longtable}
+
+\section{Scientific audit questions}
+
+A rigorous review should ask at least the following:
+
+\begin{enumerate}
+\item Was the target fixed before the confirmatory test?
+\item Are all historical features genuinely point-in-time?
+\item Are overlapping labels purged across boundaries?
+\item Is the security universe historical rather than survivor-only?
+\item Are delistings and corporate actions treated explicitly?
+\item Were calibration and model selection separated from the locked test?
+\item How many alternative models were considered before the reported one?
+\item Does the dependence-aware bootstrap reflect the actual sampling structure?
+\item Are calibration metrics stable across time, not only in aggregate?
+\item Can the live layer be automatically suppressed when its evidence degrades?
+\item Are model and data lineage sufficient to reproduce the exact forecast contract?
+\item Are sharing rights evaluated for both raw data and derived model artifacts?
+\end{enumerate}
+
+\section{What FinCompass will not claim}
+
+The system does not treat a research score as a market probability. It does not make a synthetic fixture live. It does not auto-activate the newest model. It does not lower acceptance gates merely because a horizon lacks an eligible model. It does not assume that a broad market-search catalogue is equivalent to a historically controlled training universe. It does not claim that a passing research artifact demonstrates a durable investment edge.
+
+Those refusals are part of the scientific design.
+
+\section{Concept-to-mathematics map}
+
+\begin{table}[tbp]
+\centering
+\small
+\caption{Map from practical concepts to the corresponding mathematics used in FinCompass.}
+\begin{tabularx}{\textwidth}{@{}p{0.24\textwidth}p{0.33\textwidth}X@{}}
+\toprule
+Concept & Start with & Continue into \\
+\midrule
+Probability & Meaning of an event probability & Calibration, Brier score, log loss, and calibration error \\
+Return and benchmark & Simple return and excess return & Formal target construction and benchmark alignment \\
+Forecast validation & Why a forecast can fail a gate & Temporal purging, locked testing, walk-forward stability, and bootstrap uncertainty \\
+Model construction & What an eligible model represents & Bayesian logistic modeling, nonlinear learners, calibration, and stacking \\
+Live adaptation & Frozen anchor plus bounded update & Sequential Bayesian updating, prequential control, source freshness, and drift protection \\
+Scientific evidence & What a validation tier permits us to say & Multiple testing, point-in-time data, survivorship, reproducibility, and confirmatory evaluation \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Closing perspective}
+
+The most useful question in probabilistic forecasting is not ``which algorithm is strongest?'' It is ``what exactly does this probability mean, and what evidence permits us to say that?'' FinCompass is organized around that question. The user can begin with a simple 12-month probability, but every layer below it remains inspectable: the event, features, model components, calibration, chronological split, locked test, bootstrap uncertainty, validation tier, activation state, live residual, freshness gate, and lineage.
+
+The structure is intentional: each idea can be understood first through its meaning and practical consequence, then traced into its mathematical definition, validation evidence, assumptions, and failure modes. Nothing important is hidden behind a black-box label. The concepts and the mathematics describe the same forecasting contract at different levels of detail.
+
+
+\begin{thebibliography}{99}
+\bibitem[Bailey et~al.(2017)Bailey, Borwein, L{\'o}pez de Prado, and Zhu]{bailey2017pbo}
+David H. Bailey, Jonathan M. Borwein, Marcos L{\'o}pez de Prado, and Qiji Jim Zhu.
+\newblock The probability of backtest overfitting.
+\newblock \emph{Journal of Computational Finance}, 20(4):39--69, 2017.
+
+\bibitem[Breiman(2001)]{breiman2001random}
+Leo Breiman.
+\newblock Random forests.
+\newblock \emph{Machine Learning}, 45(1):5--32, 2001.
+
+\bibitem[Brier(1950)]{brier1950verification}
+Glenn W. Brier.
+\newblock Verification of forecasts expressed in terms of probability.
+\newblock \emph{Monthly Weather Review}, 78(1):1--3, 1950.
+
+\bibitem[Dawid(1984)]{dawid1984prequential}
+A. Philip Dawid.
+\newblock Present position and potential developments: Some personal views. Statistical theory. The prequential approach.
+\newblock \emph{Journal of the Royal Statistical Society: Series A}, 147(2):278--292, 1984.
+
+\bibitem[Federal Reserve Bank of St. Louis(2026)]{fred_realtime}
+Federal Reserve Bank of St. Louis.
+\newblock FRED and ALFRED economic data services, 2026.
+
+\bibitem[Friedman(2001)]{friedman2001greedy}
+Jerome H. Friedman.
+\newblock Greedy function approximation: A gradient boosting machine.
+\newblock \emph{The Annals of Statistics}, 29(5):1189--1232, 2001.
+
+\bibitem[Gneiting and Raftery(2007)]{gneiting2007proper}
+Tilmann Gneiting and Adrian E. Raftery.
+\newblock Strictly proper scoring rules, prediction, and estimation.
+\newblock \emph{Journal of the American Statistical Association}, 102(477):359--378, 2007.
+
+\bibitem[Gneiting et~al.(2007)Gneiting, Balabdaoui, and Raftery]{gneiting2007calibration}
+Tilmann Gneiting, Fadoua Balabdaoui, and Adrian E. Raftery.
+\newblock Probabilistic forecasts, calibration and sharpness.
+\newblock \emph{Journal of the Royal Statistical Society: Series B}, 69(2):243--268, 2007.
+
+\bibitem[Harvey and Liu(2020)]{harvey2016crosssection}
+Campbell R. Harvey and Yan Liu.
+\newblock Lucky factors.
+\newblock \emph{Journal of Financial Economics}, 135(2):379--411, 2020.
+
+\bibitem[K{\"u}nsch(1989)]{kunsch1989jackknife}
+Hans R. K{\"u}nsch.
+\newblock The jackknife and the bootstrap for general stationary observations.
+\newblock \emph{The Annals of Statistics}, 17(3):1217--1241, 1989.
+
+\bibitem[L{\'o}pez de Prado(2018)]{lopezdeprado2018advances}
+Marcos L{\'o}pez de Prado.
+\newblock \emph{Advances in Financial Machine Learning}.
+\newblock Wiley, 2018.
+
+\bibitem[MacKay(1992)]{mackay1992bayesian}
+David J. C. MacKay.
+\newblock \emph{Bayesian Interpolation}.
+\newblock Cambridge University Engineering Department, 1992.
+
+\bibitem[McCormick et~al.(2012)McCormick, Raftery, Madigan, and Burd]{mccormick2012dynamic}
+Tyler H. McCormick, Adrian E. Raftery, David Madigan, and Roger S. Burd.
+\newblock Dynamic logistic regression and dynamic model averaging for binary classification.
+\newblock \emph{Biometrics}, 68(1):23--30, 2012.
+
+\bibitem[Niculescu-Mizil and Caruana(2005)]{niculescu2005predicting}
+Alexandru Niculescu-Mizil and Rich Caruana.
+\newblock Predicting good probabilities with supervised learning.
+\newblock In \emph{Proceedings of the 22nd International Conference on Machine Learning}, pages 625--632, 2005.
+
+\bibitem[Page(1954)]{page1954continuous}
+E. S. Page.
+\newblock Continuous inspection schemes.
+\newblock \emph{Biometrika}, 41(1/2):100--115, 1954.
+
+\bibitem[Penny and Roberts(1999)]{penny1999dynamic}
+William D. Penny and Stephen J. Roberts.
+\newblock Dynamic logistic regression.
+\newblock In \emph{Proceedings of the 9th International Conference on Artificial Neural Networks}, pages 310--315, 1999.
+
+\bibitem[Politis and Romano(1994)]{politis1994stationary}
+Dimitris N. Politis and Joseph P. Romano.
+\newblock The stationary bootstrap.
+\newblock \emph{Journal of the American Statistical Association}, 89(428):1303--1313, 1994.
+
+\bibitem[Roberts(1959)]{roberts1959control}
+S. W. Roberts.
+\newblock Control chart tests based on geometric moving averages.
+\newblock \emph{Technometrics}, 1(3):239--250, 1959.
+
+\bibitem[SEC(2026)]{sec_edgar_api}
+U.S. Securities and Exchange Commission.
+\newblock EDGAR filings and submission resources, 2026.
+
+\bibitem[Shumway(1997)]{shumway1997delisting}
+Tyler Shumway.
+\newblock The delisting bias in CRSP data.
+\newblock \emph{Journal of Finance}, 52(1):327--340, 1997.
+
+\bibitem[White(2000)]{white2000reality}
+Halbert White.
+\newblock A reality check for data snooping.
+\newblock \emph{Econometrica}, 68(5):1097--1126, 2000.
+\end{thebibliography}
+
+
+\end{document}

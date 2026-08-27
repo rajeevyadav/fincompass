@@ -93,6 +93,9 @@
             <label>Sector
               <select id="sector-filter"><option value="">All sectors</option></select>
             </label>
+            <label>Market region
+              <select id="market-region"><option value="us">United States</option><option value="ca">Canada</option><option value="gb">United Kingdom</option><option value="jp">Japan</option><option value="cn">China</option><option value="hk">Hong Kong</option><option value="de">Germany</option><option value="fr">France</option><option value="au">Australia</option><option value="in">India</option></select>
+            </label>
             <label>Minimum evidence
               <select id="coverage-filter">
                 <option value="0">Any</option>
@@ -111,18 +114,20 @@
             </label>
           </div>
           <div class="button-row">
-            <button class="primary" id="btn-screener">Load results</button>
-            <button class="secondary" id="btn-refresh">Refresh source data</button>
+            <button class="primary" id="btn-screener">Load scored results</button>
+            <button class="secondary" id="btn-market-browse">Browse full market sector</button>
+            <button class="secondary" id="btn-refresh">Refresh starter scores</button>
             <button class="secondary" id="btn-export">Export CSV</button>
           </div>
-          <p class="meta">How to use: pick a <strong>sector</strong> and minimum thresholds, then <strong>Load results</strong> to rank the cached universe by evidence score. The sector list fills in after the first load. Empty or stale? Use <strong>Refresh source data</strong> to repopulate from free public data. These are research rankings, not recommendations.</p>
+          <p class="meta"><strong>Two scopes:</strong> Load scored results uses the fast locally cached research universe. Browse full market sector searches the selected region/sector on demand and is <strong>not limited to the 72-name starter list</strong>; choose any discovered company to run FinCompass analysis. Provider availability and terms apply. These are research tools, not recommendations.</p>
           <div id="refresh-panel" class="refresh-panel" hidden aria-live="polite">
             <div class="refresh-line"><span id="refresh-text">Preparing refresh…</span><span id="refresh-count"></span></div>
             <progress id="refresh-progress" value="0" max="1">0%</progress>
           </div>
         </div>
+        <div id="market-browse-out" class="card" aria-live="polite" hidden></div>
         <div id="screener-out" class="card" aria-live="polite">
-          <div class="empty-state"><strong>Screen the cached universe.</strong><span>Use Refresh source data when you want to rebuild the research snapshot.</span></div>
+          <div class="empty-state"><strong>Screen the cached universe or browse the broader market.</strong><span>Use Browse full market sector for on-demand discovery beyond the starter list.</span></div>
         </div>
       </section>
 
@@ -167,7 +172,7 @@
             <label>Ticker<input type="text" id="forecast-ticker" value="AAPL" autocomplete="off"></label>
             <label>Forecast model<select id="forecast-model"><option value="">Active model (default)</option></select></label>
           </div>
-          <div class="button-row"><button class="primary" id="btn-forecast">Run forecast</button><button class="secondary advanced-only" id="btn-forecast-compare-models">Compare validated models</button><button class="secondary advanced-only" id="btn-deactivate-model">Deactivate active model</button><button class="secondary" id="btn-forecast-status">Refresh model status</button></div>
+          <div class="button-row"><button class="primary" id="btn-forecast">Run forecast</button><button class="secondary" id="btn-activate-selected-model">Activate selected for Live</button><button class="secondary advanced-only" id="btn-forecast-compare-models">Compare validated models</button><button class="secondary advanced-only" id="btn-deactivate-model">Deactivate active model</button><button class="secondary" id="btn-forecast-status">Refresh model status</button></div>
         </div>
 
         <div class="card control-card" id="model-lab-panel">

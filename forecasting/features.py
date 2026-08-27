@@ -165,3 +165,61 @@ def feature_columns(df: pd.DataFrame) -> Iterable[str]:
     for c in df.columns:
         if c not in excluded and pd.api.types.is_numeric_dtype(df[c]):
             yield c
+
+MONTHLY_RELATIVE_FEATURES = [
+    "ret_1m", "ret_3m", "ret_6m", "ret_12m",
+    "rel_ret_1m", "rel_ret_3m", "rel_ret_6m", "rel_ret_12m",
+    "benchmark_ret_1m", "benchmark_ret_3m", "benchmark_ret_6m", "benchmark_ret_12m",
+    "vol_3m", "vol_6m", "vol_12m", "benchmark_vol_6m",
+    "drawdown_6m", "drawdown_12m", "distance_12m_high", "sma_3_12",
+]
+
+
+def _month_end_close(df: pd.DataFrame) -> pd.DataFrame:
+    """Return one close observation per calendar month from any supported price frame.
+
+    The runtime data path normally provides daily bars.  Bundled monthly models
+    are intentionally frequency-aware: they aggregate observed bars to the last
+    available close in each month instead of fabricating daily observations.
+    """
+    prepared = _prepare_price_frame(df)
+    close = prepared[["Close"]].dropna().copy()
+    if close.empty:
+        return close
+    return close.resample("ME").last().dropna()
+
+
+def build_monthly_relative_features(stock: pd.DataFrame, benchmark: pd.DataFrame) -> pd.DataFrame:
+    """Build backward-looking monthly relative-price features.
+
+    This contract is used by the bundled long-horizon reference models.  It is
+    separate from ``PRICE_FEATURES`` so daily Model Lab recipes retain their
+    established feature and validation contracts.
+    """
+    s = _month_end_close(stock)
+    b = _month_end_close(benchmark)
+    aligned = pd.DataFrame(index=s.index.intersection(b.index).sort_values())
+    aligned["close"] = s.reindex(aligned.index)["Close"]
+    aligned["benchmark_close"] = b.reindex(aligned.index)["Close"]
+
+    for lag in (1, 3, 6, 12):
+        aligned[f"ret_{lag}m"] = aligned["close"].pct_change(lag, fill_method=None)
+        aligned[f"benchmark_ret_{lag}m"] = aligned["benchmark_close"].pct_change(lag, fill_method=None)
+        aligned[f"rel_ret_{lag}m"] = aligned[f"ret_{lag}m"] - aligned[f"benchmark_ret_{lag}m"]
+
+    monthly_ret = aligned["close"].pct_change(fill_method=None)
+    benchmark_ret = aligned["benchmark_close"].pct_change(fill_method=None)
+    for window in (3, 6, 12):
+        aligned[f"vol_{window}m"] = monthly_ret.rolling(window, min_periods=max(2, window // 2)).std() * np.sqrt(12.0)
+    aligned["benchmark_vol_6m"] = benchmark_ret.rolling(6, min_periods=3).std() * np.sqrt(12.0)
+
+    for window in (6, 12):
+        rolling_max = aligned["close"].rolling(window, min_periods=max(3, window // 2)).max()
+        aligned[f"drawdown_{window}m"] = aligned["close"] / rolling_max - 1.0
+    high_12m = aligned["close"].rolling(12, min_periods=6).max()
+    aligned["distance_12m_high"] = aligned["close"] / high_12m - 1.0
+    sma3 = aligned["close"].rolling(3, min_periods=3).mean()
+    sma12 = aligned["close"].rolling(12, min_periods=6).mean()
+    aligned["sma_3_12"] = sma3 / sma12 - 1.0
+
+    return aligned[MONTHLY_RELATIVE_FEATURES].replace([np.inf, -np.inf], np.nan)

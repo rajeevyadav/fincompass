@@ -1,7 +1,7 @@
 ; Inno Setup script for FinCompass (Windows installer)
 ; Build:  compile with Inno Setup (iscc installer\FinCompass.iss) AFTER build_exe.bat
 ;         has produced dist\FinCompass.exe. Output: dist\FinCompass-1.0.0-Setup.exe
-#define AppVersion "1.3.0"
+#define AppVersion "1.4.0"
 
 [Setup]
 AppName=FinCompass

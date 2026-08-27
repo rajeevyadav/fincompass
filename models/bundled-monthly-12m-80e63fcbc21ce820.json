@@ -1,0 +1,403 @@
+{
+  "created_at": "2026-08-26T15:20:56.285694+00:00",
+  "data_quality": {
+    "corporate_action_adjusted": false,
+    "delistings_included": false,
+    "note": "Current/surviving sample constituents and upstream corporate-action treatment prevent validated_market classification.",
+    "point_in_time_features": true,
+    "survivorship_control": false
+  },
+  "dataset_files": {
+    "training_source": {
+      "bundled": false,
+      "name": "matplotlib/mpl-data/sample_data/Stocks.csv",
+      "sha256": "ef6f3bf1a64d5c6c5de702ef154c3fae78fe9df83882ab6bb9c6638bec3cdf47"
+    }
+  },
+  "dataset_manifest_content_sha256": "4e0ab05637406c1136e32d9980ccea03bd586689d58a45e8dcdc6e3ed1da5e69",
+  "dataset_provenance": {
+    "benchmark": "^GSPC",
+    "feature_contract": "monthly_relative_v1",
+    "live_eligible_target": true,
+    "rebuild_script": "development/train_bundled_monthly_reference.py",
+    "sharing_note": "Model artifact may be used in the private FinCompass package. Public redistribution requires an explicit upstream-data/model-rights review.",
+    "sharing_status": "PUBLIC",
+    "source_container": "Matplotlib sample_data/Stocks.csv",
+    "source_declared_upstream": "https://finance.yahoo.com",
+    "source_sha256": "ef6f3bf1a64d5c6c5de702ef154c3fae78fe9df83882ab6bb9c6638bec3cdf47",
+    "training_assets": [
+      "IBM",
+      "AAPL",
+      "MSFT",
+      "XRX",
+      "AMZN",
+      "DELL",
+      "GOOGL",
+      "ADBE"
+    ],
+    "training_period_end": "2022-06-30",
+    "training_period_start": "1990-01-31"
+  },
+  "dataset_schema_version": "1.0.0-bundled-monthly-dataset1",
+  "dataset_split": {
+    "embargo_trading_days": 252,
+    "method": "purged_chronological",
+    "purge_rule": "Rows whose target_end_date crosses the next partition boundary are removed; an explicit business-day embargo is also applied before each downstream partition.",
+    "test": {
+      "end": "2021-06-30",
+      "rows": 532,
+      "start": "2015-03-31"
+    },
+    "test_start": "2015-03-31",
+    "train": {
+      "end": "2004-09-30",
+      "rows": 974,
+      "start": "1990-01-31"
+    },
+    "val_start": "2005-10-31",
+    "validation": {
+      "end": "2014-02-28",
+      "rows": 707,
+      "start": "2005-10-31"
+    }
+  },
+  "features": [
+    "ret_1m",
+    "ret_3m",
+    "ret_6m",
+    "ret_12m",
+    "rel_ret_1m",
+    "rel_ret_3m",
+    "rel_ret_6m",
+    "rel_ret_12m",
+    "benchmark_ret_1m",
+    "benchmark_ret_3m",
+    "benchmark_ret_6m",
+    "benchmark_ret_12m",
+    "vol_3m",
+    "vol_6m",
+    "vol_12m",
+    "benchmark_vol_6m",
+    "drawdown_6m",
+    "drawdown_12m",
+    "distance_12m_high",
+    "sma_3_12"
+  ],
+  "forecast_engine_version": "1.0.0-prob1",
+  "model_file": "bundled-monthly-12m-80e63fcbc21ce820.joblib",
+  "model_id": "80e63fcbc21ce820",
+  "model_sha256": "80e63fcbc21ce820f36cfbe0ba6c3dc8305ba45c6c7137106757a01efe2a546a",
+  "profile_name": "bundled-monthly-12m",
+  "settings": {
+    "abstain_if_interval_crosses_half": false,
+    "abstain_probability_band": 0.03,
+    "bayesian_prior_sigma": 1.5,
+    "benchmark": "^GSPC",
+    "bootstrap_block_dates": 0,
+    "bootstrap_draws": 100,
+    "calibration_method": "isotonic",
+    "embargo_trading_days": 252,
+    "excess_return_threshold": 0.0,
+    "horizon_trading_days": 252,
+    "max_bootstrap_ece_high": 0.22,
+    "max_calibration_slope": 2.5,
+    "max_ece": 0.15,
+    "min_auc": 0.5,
+    "min_bootstrap_auc_low": 0.45,
+    "min_bootstrap_brier_skill_low": -0.08,
+    "min_bootstrap_log_loss_skill_low": -0.08,
+    "min_brier_skill": -0.02,
+    "min_calibration_slope": 0.25,
+    "min_class_count": 30,
+    "min_log_loss_skill": -0.02,
+    "min_positive_walk_forward_fraction": 0.5,
+    "min_test_dates": 9,
+    "min_test_samples": 150,
+    "min_test_span_days": 180,
+    "posterior_draws": 1200,
+    "prediction_credible_level": 0.9,
+    "random_seed": 37001,
+    "sample_step_trading_days": 21,
+    "test_fraction": 0.2,
+    "train_fraction": 0.5,
+    "use_hist_gradient_boosting": true,
+    "use_random_forest": true,
+    "validation_fraction": 0.3,
+    "walk_forward_splits": 3
+  },
+  "target": {
+    "benchmark": "^GSPC",
+    "event": "asset monthly-close return over 12 months exceeds S&P 500 monthly-close return over the same interval",
+    "excess_return_threshold": 0.0,
+    "frequency": "monthly",
+    "horizon_months": 12,
+    "horizon_trading_days": 252,
+    "return_basis": "Monthly close series supplied by the declared upstream sample; no training rows are bundled."
+  },
+  "validation": {
+    "bayesian_coefficients_standardized": {
+      "benchmark_ret_12m": 0.03383331841296914,
+      "benchmark_ret_1m": -0.02305386921260784,
+      "benchmark_ret_3m": -0.07492870218726946,
+      "benchmark_ret_6m": -0.1612770953849794,
+      "benchmark_vol_6m": 0.01530897231255418,
+      "distance_12m_high": 0.13431257570765553,
+      "drawdown_12m": 0.13431257570765553,
+      "drawdown_6m": -0.40123173003111295,
+      "intercept": 0.48190492879888647,
+      "rel_ret_12m": -0.24566218895812622,
+      "rel_ret_1m": 0.06907872248579515,
+      "rel_ret_3m": 0.23530251753897238,
+      "rel_ret_6m": 0.0028546898649670265,
+      "ret_12m": -0.11876572628089922,
+      "ret_1m": 0.044404408037749594,
+      "ret_3m": 0.12201775813219254,
+      "ret_6m": 0.014791437945669185,
+      "sma_3_12": 0.1430088290365482,
+      "vol_12m": -0.08715866211836741,
+      "vol_3m": 0.035936192307611914,
+      "vol_6m": 0.11782133836974135
+    },
+    "ensemble_weights": {
+      "bayesian_logistic": 0.27988568241525585,
+      "hist_gradient_boosting": 0.2294854860887837,
+      "random_forest": 0.4906288314959605
+    },
+    "features": [
+      "ret_1m",
+      "ret_3m",
+      "ret_6m",
+      "ret_12m",
+      "rel_ret_1m",
+      "rel_ret_3m",
+      "rel_ret_6m",
+      "rel_ret_12m",
+      "benchmark_ret_1m",
+      "benchmark_ret_3m",
+      "benchmark_ret_6m",
+      "benchmark_ret_12m",
+      "vol_3m",
+      "vol_6m",
+      "vol_12m",
+      "benchmark_vol_6m",
+      "drawdown_6m",
+      "drawdown_12m",
+      "distance_12m_high",
+      "sma_3_12"
+    ],
+    "gate": {
+      "bootstrap": {
+        "_meta": {
+          "block_dates": 12,
+          "distinct_dates": 76,
+          "draws": 100,
+          "level": 0.9,
+          "method": "moving_date_block_cross_sectional_cluster"
+        },
+        "brier_skill": {
+          "high": 0.05620440424473929,
+          "low": -0.003451245490814938,
+          "median": 0.02918809754604068
+        },
+        "calibration_slope": {
+          "high": 1.8260386683333942,
+          "low": 0.2658528257452656,
+          "median": 1.0944690169781994
+        },
+        "ece_10": {
+          "high": 0.0909959065407122,
+          "low": 0.01668817872773303,
+          "median": 0.052418704953357244
+        },
+        "log_loss_skill": {
+          "high": 0.04237867306302725,
+          "low": -0.002989945679523189,
+          "median": 0.021534890282638386
+        },
+        "roc_auc": {
+          "high": 0.6015638330393247,
+          "low": 0.49770792698561345,
+          "median": 0.5556527261424568
+        }
+      },
+      "checks": {
+        "bootstrap_auc_low": true,
+        "bootstrap_brier_skill_low": true,
+        "bootstrap_ece_high": true,
+        "bootstrap_log_loss_skill_low": true,
+        "brier_skill": true,
+        "calibration_slope": true,
+        "ece": true,
+        "log_loss_skill": true,
+        "minimum_each_class": true,
+        "minimum_test_dates": true,
+        "minimum_test_samples": true,
+        "minimum_test_span_days": true,
+        "roc_auc": true,
+        "walk_forward_stability": true
+      },
+      "class_counts": {
+        "0": 183,
+        "1": 349
+      },
+      "passed": true,
+      "test_temporal_coverage": {
+        "distinct_dates": 76,
+        "span_days": 2283
+      },
+      "thresholds": {
+        "calibration_slope": [
+          0.25,
+          2.5
+        ],
+        "max_bootstrap_ece_high": 0.22,
+        "max_ece": 0.15,
+        "min_auc": 0.5,
+        "min_bootstrap_auc_low": 0.45,
+        "min_bootstrap_brier_skill_low": -0.08,
+        "min_bootstrap_log_loss_skill_low": -0.08,
+        "min_brier_skill": -0.02,
+        "min_class_count": 30,
+        "min_log_loss_skill": -0.02,
+        "min_positive_walk_forward_fraction": 0.5,
+        "min_test_dates": 9,
+        "min_test_samples": 150,
+        "min_test_span_days": 180
+      }
+    },
+    "interpretation": "A validated_* tier means the configured probability model passed the locked-test gates for this dataset. validated_research still carries dataset limitations such as current-universe survivorship risk. validated_market additionally requires point-in-time features, survivorship controls, delistings, and corporate-action-adjusted prices.",
+    "locked_test_metrics": {
+      "average_precision": 0.6938115716633744,
+      "baseline_brier": 0.2265007317358143,
+      "baseline_log_loss": 0.6454626025962455,
+      "brier": 0.21825040610586877,
+      "brier_skill": 0.036425161043490806,
+      "calibration_intercept": -0.0281438199833998,
+      "calibration_slope": 1.2723266659270922,
+      "ece_10": 0.04471211602337241,
+      "event_rate": 0.6560150375939849,
+      "log_loss": 0.6280460071842613,
+      "log_loss_skill": 0.02698312085305865,
+      "roc_auc": 0.5762208965506442,
+      "samples": 532
+    },
+    "test_event_rate": 0.6560150375939849,
+    "train_event_rate": 0.6139630390143738,
+    "validation_event_rate": 0.6449787835926449,
+    "validation_protocol": {
+      "locked_test_used_for_fitting": false,
+      "method": "purged_three_stage_validation_then_locked_embargoed_test",
+      "stages": {
+        "boundary_selection": "adaptive_maximin_temporal_support",
+        "component_calibration": {
+          "distinct_dates": 25,
+          "end": "2007-10-31",
+          "event_rate": 0.7485714285714286,
+          "rows": 175,
+          "start": "2005-10-31",
+          "target_end_max": "2008-10-31"
+        },
+        "ensemble_stacking": {
+          "distinct_dates": 26,
+          "end": "2010-12-31",
+          "event_rate": 0.6043956043956044,
+          "rows": 182,
+          "start": "2008-11-30",
+          "target_end_max": "2011-12-31"
+        },
+        "final_calibration": {
+          "distinct_dates": 26,
+          "end": "2014-02-28",
+          "event_rate": 0.6043956043956044,
+          "rows": 182,
+          "start": "2012-01-31",
+          "target_end_max": "2015-02-28"
+        },
+        "inner_observation_embargo_trading_days": 0,
+        "minimum_effective_stage_dates": 3,
+        "outer_split_embargo_trading_days": 252,
+        "purge_rule": "Earlier-stage rows are retained only when target_end_date is strictly before the next fitting stage starts.",
+        "stage2_start": "2008-11-30",
+        "stage3_start": "2012-01-31"
+      }
+    },
+    "validation_reference_event_rate": 0.627007733491969,
+    "validation_tier": "validated_research",
+    "walk_forward": {
+      "folds": [
+        {
+          "average_precision": 0.4899612394253734,
+          "baseline_brier": 0.25924179688702725,
+          "baseline_log_loss": 0.7127648243529134,
+          "brier": 0.2876354920938602,
+          "brier_skill": -0.10952591575812276,
+          "calibration_intercept": 0.4270935016886866,
+          "calibration_slope": -0.34463844546788014,
+          "ece_10": 0.13772194035962235,
+          "embargo_cutoff": "1998-04-13",
+          "event_rate": 0.5393939393939394,
+          "fold": 1,
+          "log_loss": 0.8210369599079074,
+          "log_loss_skill": -0.15190443166620815,
+          "roc_auc": 0.4601936723832052,
+          "samples": 330,
+          "test_end": "2003-09-30",
+          "test_rows": 330,
+          "test_start": "1999-03-31",
+          "train_date_max": "1998-02-28",
+          "train_rows": 499,
+          "train_target_end_max": "1999-02-28"
+        },
+        {
+          "average_precision": 0.755357180970923,
+          "baseline_brier": 0.2154267011096925,
+          "baseline_log_loss": 0.6228979190112877,
+          "brier": 0.20898496905100672,
+          "brier_skill": 0.029902198870908503,
+          "calibration_intercept": 0.4033364344405259,
+          "calibration_slope": 0.707611813003952,
+          "ece_10": 0.060083882678636805,
+          "embargo_cutoff": "2002-11-13",
+          "event_rate": 0.7032085561497327,
+          "fold": 2,
+          "log_loss": 0.6071022428609083,
+          "log_loss_skill": 0.025358370397916108,
+          "roc_auc": 0.551022505395129,
+          "samples": 374,
+          "test_end": "2009-04-30",
+          "test_rows": 374,
+          "test_start": "2003-10-31",
+          "train_date_max": "2002-09-30",
+          "train_rows": 829,
+          "train_target_end_max": "2003-09-30"
+        },
+        {
+          "average_precision": 0.5938790170593938,
+          "baseline_brier": 0.24644696704414107,
+          "baseline_log_loss": 0.6862911533579182,
+          "brier": 0.24576092348503142,
+          "brier_skill": 0.0027837370747061385,
+          "calibration_intercept": 0.2243869576922559,
+          "calibration_slope": 0.26416118694412816,
+          "ece_10": 0.06378156401216012,
+          "embargo_cutoff": "2008-06-12",
+          "event_rate": 0.5792207792207792,
+          "fold": 3,
+          "log_loss": 0.6849669905433194,
+          "log_loss_skill": 0.0019294475939546363,
+          "roc_auc": 0.5143940652161878,
+          "samples": 385,
+          "test_end": "2013-11-30",
+          "test_rows": 385,
+          "test_start": "2009-05-31",
+          "train_date_max": "2008-04-30",
+          "train_rows": 1191,
+          "train_target_end_max": "2009-04-30"
+        }
+      ],
+      "median_brier_skill": 0.0027837370747061385,
+      "positive_brier_skill_fraction": 0.6666666666666666
+    }
+  },
+  "validation_tier": "validated_research"
+}

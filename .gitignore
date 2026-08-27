@@ -87,3 +87,6 @@ handoff/
 development/
 # The FinCompass-Trained integration source folder (deleted after integration)
 FinCompass-Trained/
+
+# Revised-docs staging folder (cataloged into paper/; delete after)
+FinCompass-Revised-Production-Ready/

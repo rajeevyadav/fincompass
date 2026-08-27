@@ -180,6 +180,11 @@ packaging/ownership checks. The frozen v1.4.0 release gate passes **168 automate
 
 ## Documentation
 
+**Technical papers (v1.4.0):**
+[Technical Paper (PDF)](paper/technical-paper/FinCompass-Technical-Paper.pdf) ·
+[Concepts & Mathematics Guide (PDF)](paper/concepts-and-mathematics-guide/FinCompass-Concepts-and-Mathematics-Guide.pdf)
+— LaTeX sources under [`paper/technical-paper/`](paper/technical-paper/) and [`paper/concepts-and-mathematics-guide/`](paper/concepts-and-mathematics-guide/).
+
 [`ARCHITECTURE.md`](ARCHITECTURE.md) ·
 [`MODEL_CARD.md`](MODEL_CARD.md) ·
 [`FORECASTING.md`](FORECASTING.md) ·

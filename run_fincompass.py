@@ -33,6 +33,27 @@ if getattr(sys, "frozen", False):
     _models_dir = os.path.join(_data_dir, "models")
     os.makedirs(_models_dir, exist_ok=True)
     os.environ.setdefault("FINCOMPASS_MODELS_DIR", _models_dir)
+    # Seed the bundled shipped models (e.g. the validated_research monthly
+    # reference model) into the writable registry on first run. Without this the
+    # registry only sees the ephemeral bundle dir's models via the source path,
+    # never the per-user writable dir the frozen app actually reads — so a fresh
+    # install would show no usable forecast model. Copy per file, never
+    # overwriting a model the user has trained or already seeded.
+    try:
+        import shutil
+
+        _bundled_models = os.path.join(_resource_root(), "models")
+        if os.path.isdir(_bundled_models):
+            for _name in os.listdir(_bundled_models):
+                _src = os.path.join(_bundled_models, _name)
+                _dst = os.path.join(_models_dir, _name)
+                # active_model.json is per-user activation state, never seeded.
+                if _name == "active_model.json" or not os.path.isfile(_src):
+                    continue
+                if not os.path.exists(_dst):
+                    shutil.copy2(_src, _dst)
+    except Exception:
+        pass
     # A windowed build has no console; give stdout/stderr (and thus logging) a
     # file to write to so nothing errors on a None stream.
     try:

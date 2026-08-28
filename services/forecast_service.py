@@ -37,7 +37,12 @@ def get_forecast_status() -> Dict[str, Any]:
 
 
 def forecast_ticker(ticker: str, model_id: Optional[str] = None, profile_name: Optional[str] = None) -> Dict[str, Any]:
-    model, manifest = load_model(model_id=model_id, profile_name=profile_name, minimum_tier="validated_research")
+    try:
+        model, manifest = load_model(model_id=model_id, profile_name=profile_name, minimum_tier="validated_research")
+    except Exception as exc:
+        return {"available": False, "status": "error",
+                "reasons": [{"code": "MODEL_LOAD_ERROR", "message_data": {"detail": str(exc)}}],
+                "message": "The forecast model could not be loaded."}
     if model is None or manifest is None:
         return {"available": False, **get_forecast_status()}
     benchmark = str((manifest.get("target") or {}).get("benchmark") or model.settings.get("benchmark") or "SPY").upper()
@@ -68,7 +73,13 @@ def forecast_ticker(ticker: str, model_id: Optional[str] = None, profile_name: O
     missing = [c for c in model.feature_names if c not in sample.columns]
     if missing:
         return {"available": False, "message": f"Required model features unavailable: {', '.join(missing)}", "model_id": manifest.get("model_id")}
-    prediction = model.predict_with_uncertainty(sample)[0]
+    try:
+        prediction = model.predict_with_uncertainty(sample)[0]
+    except Exception as exc:
+        return {"available": False, "status": "error",
+                "reasons": [{"code": "INFERENCE_ERROR", "message_data": {"detail": str(exc)}}],
+                "message": "The forecast could not be computed for this stock.",
+                "model_id": manifest.get("model_id")}
     asof = pd.Timestamp(sample.index[-1]).date().isoformat()
     target = manifest.get("target") or {}
     return {

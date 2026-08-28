@@ -1,6 +1,6 @@
 """
 Tests for the Investor Posture indicators (D-001). Covers the acceptance cases
-from the directive plus two blocking guardrails:
+for the model-free investor-posture indicators, plus two blocking guardrails:
   - no action verb appears in any generated indicator copy or identifier;
   - indicator labels/values are Title Case while descriptions are sentence case.
 """

@@ -217,8 +217,11 @@ def test_forecast_api_exposes_schema_and_blocks_fixture_as_live():
     # Installation does not imply activation: the user must still explicitly
     # choose the live anchor.
     live = client.get("/api/v3/forecast/AAPL")
-    assert live.status_code == 409
-    assert live.json()["available"] is False
+    # Phase 4: predictable blocks are structured 200 responses, not error codes.
+    assert live.status_code == 200
+    body = live.json()
+    assert body["available"] is False
+    assert body.get("blocked_by_preflight") is True
 
 
 def test_fixture_registry_is_not_usable_for_live_forecast():

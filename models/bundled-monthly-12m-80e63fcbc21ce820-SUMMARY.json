@@ -97,7 +97,8 @@
   },
   "model_id": "80e63fcbc21ce820",
   "model_sha256": "80e63fcbc21ce820f36cfbe0ba6c3dc8305ba45c6c7137106757a01efe2a546a",
-  "sharing_status": "REVIEW_REQUIRED",
+  "sharing_rationale": "matplotlib sample_data/Stocks.csv is BSD-3-licensed; derived model is publicly redistributable (owner decision 2026-08-28).",
+  "sharing_status": "PUBLIC",
   "target": {
     "benchmark": "^GSPC",
     "event": "asset monthly-close return over 12 months exceeds S&P 500 monthly-close return over the same interval",

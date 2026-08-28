@@ -363,6 +363,7 @@ def main() -> int:
     run("pytest", [sys.executable, "-m", "pytest", "-q"])
     node = shutil.which("node")
     if node:
+        run("javascript syntax", [node, "--check", "static/presentation.js"])
         run("javascript syntax", [node, "--check", "static/app.js"])
     else:
         print("[verify] javascript syntax: SKIPPED (node not found)")

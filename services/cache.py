@@ -249,8 +249,11 @@ class Cache:
         updated = _parse_dt(row["updated_at"])
         if updated is None or _now() - updated > timedelta(hours=max_age_hours):
             return None
+        import io
         import pandas as pd
-        df = pd.read_json(row["data_json"])
+        # pandas 3.x no longer treats a bare JSON string as data (it's read as a
+        # path); wrap the cached JSON in a text buffer.
+        df = pd.read_json(io.StringIO(row["data_json"]))
         if "Date" in df.columns:
             df["Date"] = pd.to_datetime(df["Date"])
             df = df.set_index("Date")

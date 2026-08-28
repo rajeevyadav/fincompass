@@ -37,6 +37,14 @@ class _DummyThread:
 @pytest.fixture
 def no_thread(monkeypatch):
     monkeypatch.setattr(mb.threading, "Thread", _DummyThread)
+    # These tests validate the job state machine / HTTP contract, not data
+    # readiness. Stub the hard readiness gate as satisfied so start_model_build
+    # proceeds to the slot-claim + thread-launch path under test.
+    monkeypatch.setattr(
+        mb, "evaluate_training_readiness",
+        lambda *a, **k: {"ready": True, "status": "ready", "gates": [],
+                         "universe": {"requested": [], "usable": [], "excluded": []}},
+    )
 
 
 # --- cache job state machine ---------------------------------------------------

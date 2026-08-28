@@ -1,6 +1,7 @@
-"""FinCompass Bayesian evidence scoring engine v4.0.
+"""FinCompass Bayesian evidence scoring engine.
 
-The engine separates three things that the v1 rules mixed together:
+The engine keeps three concerns separate that a naive threshold-rule approach
+tends to conflate:
 1. metric transformation: continuous, monotonic curves (no threshold cliffs),
 2. evidence aggregation: a transparent Beta conjugate model that shrinks
    sparse evidence toward neutral,

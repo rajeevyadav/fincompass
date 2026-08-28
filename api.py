@@ -42,6 +42,20 @@ from services.guardrails import GuardrailMiddleware, effective_rate_limit_backen
 from services.scoring import generate_thesis, get_label_color
 from services.posture import build_posture
 from services.model_builder import start_model_build, get_model_build_status
+from services.training_readiness import evaluate_training_readiness
+from services.forecast_plan import build_forecast_plan
+
+
+def _parse_horizon_months(value: str) -> int:
+    v = str(value or "12m").strip().lower()
+    _map = {"6m": 6, "12m": 12, "1y": 12, "2y": 24, "3y": 36, "24m": 24, "36m": 36}
+    if v in _map:
+        return _map[v]
+    digits = "".join(ch for ch in v if ch.isdigit())
+    n = int(digits) if digits else 12
+    if v.endswith("y"):
+        n *= 12
+    return max(1, min(60, n))
 from forecasting.registry import clear_active_model, get_active_pointer, set_active_model
 from forecasting.recipes import get_recipe as get_model_lab_recipe, list_instruments as list_model_lab_instruments, list_recipes as list_model_lab_recipes
 from services.research_store import research_store
@@ -49,6 +63,7 @@ from services.research_data import start_refresh as start_research_refresh, refr
 from forecasting import FORECAST_ENGINE_VERSION
 from forecasting.config import settings_from_dict, settings_schema
 from services.forecast_service import forecast_ticker, get_forecast_status
+from services.preflight import forecast_preflight
 from services.market_catalog import COMMON_SECTORS, SUPPORTED_REGIONS, search_equities, search_symbol
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s [%(name)s] %(message)s")
@@ -511,10 +526,27 @@ def forecast(
     profile: Optional[str] = Query(None, max_length=64),
 ):
     ticker = validate_ticker(ticker)
+    # Mandatory server-side preflight (Phase 4, item 2): a forecast never runs
+    # unless data_ready AND computationally_compatible AND scientifically_supported.
+    # Bypassing the frontend cannot bypass this safety gate.
+    try:
+        pf = forecast_preflight(ticker, model_id=model_id, profile_name=profile)
+    except Exception as exc:  # preflight must never 500 the route
+        pf = {"status": "error", "data_ready": False, "computationally_compatible": False,
+              "scientifically_supported": False,
+              "reasons": [{"code": "PREFLIGHT_ERROR", "message_data": {"detail": str(exc)}}]}
+    allowed = bool(pf.get("data_ready") and pf.get("computationally_compatible")
+                   and pf.get("scientifically_supported"))
+    if not allowed:
+        return JSONResponse(status_code=200, content={
+            "available": False, "blocked_by_preflight": True,
+            "status": pf.get("status", "unsupported"), "reasons": pf.get("reasons", []),
+            "preflight": pf, "request_id": _rid(request),
+        })
     result = forecast_ticker(ticker, model_id=model_id, profile_name=profile)
     result["request_id"] = _rid(request)
     if not result.get("available"):
-        return JSONResponse(status_code=409, content=result)
+        return JSONResponse(status_code=200, content=result)
     return result
 
 
@@ -884,6 +916,16 @@ def model_lab_deactivate_v4(request: Request):
     return {"deactivated": cleared, "active": get_active_pointer(), "request_id": _rid(request)}
 
 
+@app.get("/api/v4/model-lab/recipes/{recipe_id}/readiness")
+def model_lab_readiness_v4(request: Request, recipe_id: str):
+    """Hard data-readiness result for a recipe (the 'Can FinCompass train this?' panel)."""
+    try:
+        result = evaluate_training_readiness(str(recipe_id).strip().lower())
+    except KeyError as exc:
+        raise HTTPException(404, str(exc))
+    return {**result, "request_id": _rid(request)}
+
+
 @app.post("/api/v4/forecast/build")
 def forecast_build_v4(request: Request, payload: Dict[str, Any] = Body(default={})):
     """Start an offline-only Model Lab recipe build from retained local data."""
@@ -901,6 +943,23 @@ def forecast_build_v4(request: Request, payload: Dict[str, Any] = Body(default={
 @app.get("/api/v4/forecast/build/status")
 def forecast_build_status_v4(request: Request):
     return {**get_model_build_status(), "request_id": _rid(request)}
+
+
+@app.get("/api/v4/forecast-plan/{ticker}")
+def forecast_plan_v4(ticker: str, request: Request, horizon: str = Query("12m", max_length=8)):
+    """Single orchestrating endpoint that drives the Guided workflow: identify the
+    instrument, resolve benchmark, check data, find eligible/trainable models,
+    assess model freshness, and return one recommended_action."""
+    ticker = validate_ticker(ticker)
+    plan = build_forecast_plan(ticker, _parse_horizon_months(horizon))
+    return {**plan, "request_id": _rid(request)}
+
+
+@app.get("/api/v4/forecast/{ticker}/preflight")
+def forecast_preflight_v4(ticker: str, request: Request, model_id: Optional[str] = Query(None, max_length=64), profile: Optional[str] = Query(None, max_length=64)):
+    """Applicability check before Run Forecast: is this model usable for this symbol?"""
+    result = forecast_preflight(ticker, model_id=model_id, profile_name=profile)
+    return {**result, "request_id": _rid(request)}
 
 
 @app.get("/api/v4/forecast/{ticker}")

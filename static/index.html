@@ -8,6 +8,7 @@
   <title>FinCompass — Free Systematic Stock Research</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.ico">
   <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/presentation.js" defer></script>
   <script src="/static/app.js" defer></script>
 </head>
 <body>
@@ -169,10 +170,11 @@
             <span class="badge badge-muted" id="forecast-tier-badge">No active model</span>
           </div>
           <div class="control-grid forecast-controls">
-            <label>Ticker<input type="text" id="forecast-ticker" value="AAPL" autocomplete="off"></label>
-            <label>Forecast model<select id="forecast-model"><option value="">Active model (default)</option></select></label>
+            <label>Company, ticker, ETF or asset<input type="text" id="forecast-ticker" value="AAPL" autocomplete="off" placeholder="e.g. AAPL, Shopify, SHOP.TO"></label>
+            <label>How far ahead?<select id="forecast-horizon"><option value="6m">6 months</option><option value="1y" selected>1 year</option><option value="2y">2 years</option><option value="3y">3 years</option></select></label>
+            <label class="advanced-only">Forecast model<select id="forecast-model"><option value="">Active model (default)</option></select></label>
           </div>
-          <div class="button-row"><button class="primary" id="btn-forecast">Run forecast</button><button class="secondary" id="btn-activate-selected-model">Activate selected for Live</button><button class="secondary advanced-only" id="btn-forecast-compare-models">Compare validated models</button><button class="secondary advanced-only" id="btn-deactivate-model">Deactivate active model</button><button class="secondary" id="btn-forecast-status">Refresh model status</button></div>
+          <div class="button-row"><button class="primary" id="btn-forecast">Get forecast</button><button class="secondary advanced-only" id="btn-activate-selected-model">Activate selected for Live</button><button class="secondary advanced-only" id="btn-forecast-compare-models">Compare validated models</button><button class="secondary advanced-only" id="btn-deactivate-model">Deactivate active model</button><button class="secondary advanced-only" id="btn-forecast-status">Refresh model status</button></div>
         </div>
 
         <div class="card control-card" id="model-lab-panel">
@@ -210,9 +212,9 @@
           <div class="control-grid forecast-controls">
             <label>Ticker<input type="text" id="live-ticker" value="AAPL" autocomplete="off"></label>
             <label>Validated anchor<select id="live-model"><option value="">Active model (default)</option></select></label>
-            <label>Adaptive profile<select id="live-profile"><option value="balanced">Balanced</option><option value="responsive">Responsive</option><option value="conservative">Conservative</option></select></label>
+            <label class="advanced-only">Adaptive profile<select id="live-profile"><option value="balanced">Balanced</option><option value="responsive">Responsive</option><option value="conservative">Conservative</option></select></label>
           </div>
-          <div class="button-row"><button class="primary" id="btn-live">Refresh selected condition</button><button class="secondary" id="btn-live-compare">Compare all conditions</button><button class="secondary" id="btn-live-status">System status</button><button class="secondary advanced-only" id="btn-process-matured">Process matured labels</button></div>
+          <div class="button-row"><button class="primary" id="btn-live">Refresh selected condition</button><button class="secondary advanced-only" id="btn-live-compare">Compare all conditions</button><button class="secondary" id="btn-live-status">System status</button><button class="secondary advanced-only" id="btn-process-matured">Process matured labels</button></div>
           <p class="meta">Free public providers are best-effort polling, not exchange-grade streaming. Freshness and provider verification are shown with every result. Matured outcomes are processed automatically on a manual Live refresh; Research mode also exposes the maintenance control.</p>
         </div>
         <div id="live-status" class="card" aria-live="polite"><div class="loading">Checking realtime/adaptive registry…</div></div>

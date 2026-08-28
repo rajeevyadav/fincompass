@@ -90,3 +90,14 @@ FinCompass-Trained/
 
 # Revised-docs staging folder (cataloged into paper/; delete after)
 FinCompass-Revised-Production-Ready/
+
+# Local-only director-cycle notes/reports — never committed (no AI attribution in repo)
+/DIRECTIVE-*.md
+/*-IMPLEMENTATION-REPORT.md
+/FINCOMPASS_DIRECTOR_*.md
+/ENGINEERING_CHECKPOINT.md
+/D-[0-9]*.md
+/R-[0-9]*.md
+
+# All director-cycle directives/reports/audits — local only, never committed
+/local-notes/

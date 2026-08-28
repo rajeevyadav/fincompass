@@ -20,8 +20,60 @@ from config import DATA_DIR
 from forecasting.recipes import get_recipe
 from services.cache import cache
 from services.research_store import research_store
+from services.training_readiness import evaluate_training_readiness
 
 logger = logging.getLogger(__name__)
+
+# Ordered training stages surfaced to the UI. No fake percentages — the
+# stage itself is the progress signal.
+TRAINING_STAGES = [
+    "checking_data", "building_examples", "training_models",
+    "calibrating", "locked_test", "checking_gates", "saving_candidate",
+]
+
+
+def _write_diagnostic(output_root: Path, experiment_id: str, recipe: Dict[str, Any], profile: str,
+                      *, final_state: str, readiness: Optional[Dict[str, Any]] = None,
+                      manifest: Optional[Dict[str, Any]] = None, report: Optional[Dict[str, Any]] = None,
+                      model_id: Optional[str] = None, artifact_hash: Optional[str] = None,
+                      dataset_hash: Optional[str] = None, coverage: Optional[List[Dict[str, Any]]] = None,
+                      rows: Optional[Dict[str, int]] = None, traceback_str: Optional[str] = None) -> None:
+    """Write experiments/<id>/diagnostic.json for every attempted training run."""
+    try:
+        exp_dir = output_root / experiment_id
+        exp_dir.mkdir(parents=True, exist_ok=True)
+        diag: Dict[str, Any] = {
+            "experiment_id": experiment_id,
+            "recipe_id": recipe.get("recipe_id"),
+            "recipe_name": recipe.get("name"),
+            "profile": profile,
+            "benchmark": recipe.get("benchmark"),
+            "horizon_trading_days": recipe.get("horizon_trading_days"),
+            "feature_contract": recipe.get("feature_contract"),
+            "final_state": final_state,
+            "requested_universe": (readiness or {}).get("universe", {}).get("requested") or recipe.get("tickers"),
+            "usable_universe": (readiness or {}).get("universe", {}).get("usable"),
+            "excluded_symbols": (readiness or {}).get("universe", {}).get("excluded"),
+            "readiness_gates": (readiness or {}).get("gates"),
+            "coverage": coverage,
+            "rows_per_symbol": {str(r.get("symbol")): int(r.get("rows") or 0) for r in (coverage or [])},
+            "split_rows": rows,
+            "dataset_hash": dataset_hash,
+            "locked_test_metrics": (report or {}).get("locked_test_metrics"),
+            "gate": (report or {}).get("gate"),
+            "walk_forward": (report or {}).get("walk_forward"),
+            "validation_protocol": (report or {}).get("validation_protocol"),
+            "validation_tier": (report or {}).get("validation_tier"),
+            "model_id": model_id,
+            "artifact_hash": artifact_hash,
+            "data_quality": (manifest or {}).get("data_quality"),
+            "traceback": traceback_str,
+        }
+        (exp_dir / "diagnostic.json").write_text(
+            json.dumps(diag, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8"
+        )
+    except Exception:
+        logger.exception("Could not write training diagnostic for %s", experiment_id)
 
 BUILD_OUTPUT_DIR = DATA_DIR / "forecast-build"
 VALID_PROFILES = ("strict", "standard", "exploratory")
@@ -158,12 +210,12 @@ def _worker(
             lineage_extra={"experiment_dir": str(experiment_dir), "symbols_requested": symbols},
         )
         cache.update_model_build(
-            phase="load_local",
+            phase="checking_data",
             recipe_id=recipe["recipe_id"],
             experiment_id=experiment_id,
             profile=profile,
             total=total,
-            message=f"Loading {recipe['name']} inputs from local research data",
+            message=f"Checking {recipe['name']} data in the local research store",
         )
 
         prices, benchmark, missing = _load_local_market_data(symbols, settings.benchmark)
@@ -173,10 +225,12 @@ def _worker(
                 "Run Model Lab data update/import first; training does not download data automatically."
             )
             _register(
-                experiment_id, recipe, status="failed", profile=profile, message=message,
+                experiment_id, recipe, status="not_ready", profile=profile, message=message,
                 lineage_extra={"symbols_requested": symbols, "missing_symbols": missing, "experiment_dir": str(experiment_dir)},
             )
-            cache.update_model_build(status="failed", phase="failed", failures=len(missing), message=message)
+            cache.update_model_build(status="not_ready", phase="not_ready", failures=len(missing), message=message)
+            _write_diagnostic(output_root, experiment_id, recipe, profile, final_state="not_ready",
+                              coverage=research_store.coverage([settings.benchmark, *symbols]))
             return
         if len(prices) < 1:
             message = (
@@ -184,15 +238,17 @@ def _worker(
                 "Run Model Lab data update/import first; no network fetch is performed by training."
             )
             _register(
-                experiment_id, recipe, status="failed", profile=profile, message=message,
+                experiment_id, recipe, status="not_ready", profile=profile, message=message,
                 lineage_extra={"symbols_requested": symbols, "symbols_loaded": sorted(prices), "missing_symbols": missing, "experiment_dir": str(experiment_dir)},
             )
-            cache.update_model_build(status="failed", phase="failed", failures=len(missing), message=message)
+            cache.update_model_build(status="not_ready", phase="not_ready", failures=len(missing), message=message)
+            _write_diagnostic(output_root, experiment_id, recipe, profile, final_state="not_ready",
+                              coverage=research_store.coverage([settings.benchmark, *symbols]))
             return
 
         cache.update_model_build(
-            phase="build_dataset", completed=len(prices), failures=len(missing),
-            message=f"Building dataset from {len(prices)} locally retained target series",
+            phase="building_examples", completed=len(prices), failures=len(missing),
+            message=f"Building training examples from {len(prices)} locally retained target series",
         )
         dataset = build_universe_dataset(prices, benchmark, settings)
         coverage = research_store.coverage([settings.benchmark, *sorted(prices)])
@@ -241,8 +297,8 @@ def _worker(
         )
 
         cache.update_model_build(
-            phase="train", completed=len(prices), failures=len(missing),
-            message="Training, calibrating and running the locked-test validation protocol",
+            phase="training_models", completed=len(prices), failures=len(missing),
+            message="Training component models, calibrating probabilities and running the locked test",
         )
         train, validation, test, frozen_manifest = load_dataset_bundle(experiment_dir)
         model, report, predictions = train_validate_ensemble(train, validation, test, frozen_manifest, settings)
@@ -251,12 +307,20 @@ def _worker(
             json.dumps(report, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8"
         )
 
+        cache.update_model_build(
+            phase="checking_gates", completed=len(prices), failures=len(missing),
+            message="Evaluating locked-test validation gates",
+        )
         tier = str(report.get("validation_tier") or "rejected")
         gate_passed = bool((report.get("gate") or {}).get("passed"))
         failed = _failed_gates(report)
         usable = gate_passed and tier in {"validated_research", "validated_market"}
         saved: Optional[Dict[str, Any]] = None
         if usable:
+            cache.update_model_build(
+                phase="saving_candidate", completed=len(prices), failures=len(missing),
+                message="Saving validated candidate (not activated)",
+            )
             saved = save_model(model, report, frozen_manifest, profile_name=recipe["recipe_id"])
             status = "validated"
             message = (
@@ -295,7 +359,13 @@ def _worker(
             model_id=model_id, validation_tier=tier, gate_passed=gate_passed,
             usable=usable, failed_gates=failed, message=message,
         )
+        _write_diagnostic(
+            output_root, experiment_id, recipe, profile, final_state=status,
+            manifest=manifest, report=report, model_id=model_id, artifact_hash=artifact_hash,
+            dataset_hash=dataset_hash, coverage=coverage, rows=metrics["rows"],
+        )
     except Exception as exc:
+        import traceback as _tb
         logger.exception("Model Lab build failed")
         message = f"Build failed: {type(exc).__name__}: {exc}"
         try:
@@ -306,6 +376,11 @@ def _worker(
                 )
         except Exception:
             logger.exception("Could not persist failed Model Lab experiment")
+        try:
+            _write_diagnostic(output_root, experiment_id, recipe, profile,
+                              final_state="failed", traceback_str=_tb.format_exc())
+        except Exception:
+            logger.exception("Could not write failed-build diagnostic")
         cache.update_model_build(
             status="failed", phase="failed", experiment_id=experiment_id,
             recipe_id=recipe_id, message=message,
@@ -330,6 +405,23 @@ def start_model_build(
     symbols = list(dict.fromkeys(symbols))
     if not symbols:
         raise ValueError("recipe has no target symbols")
+
+    # Hard data-readiness gates: training must not start — and the active
+    # model must not be disturbed — if a predictable data requirement fails.
+    readiness = evaluate_training_readiness(recipe["recipe_id"], tickers, profile=resolved_profile)
+    if not readiness["ready"]:
+        experiment_id = _new_experiment_id(recipe["recipe_id"])
+        actions = "; ".join(dict.fromkeys(g["action"] for g in readiness["gates"] if g.get("action")))
+        message = "Data needs attention before training. " + actions
+        try:
+            _register(experiment_id, recipe, status="not_ready", profile=resolved_profile,
+                      message=message, lineage_extra={"readiness": readiness})
+        except Exception:
+            logger.exception("Could not persist not_ready experiment")
+        _write_diagnostic(BUILD_OUTPUT_DIR, experiment_id, recipe, resolved_profile,
+                          final_state="not_ready", readiness=readiness)
+        return {"started": False, "status": "not_ready", "experiment_id": experiment_id,
+                "readiness": readiness, "message": message}
 
     claimed, state = cache.claim_model_build(len(symbols))
     if not claimed:

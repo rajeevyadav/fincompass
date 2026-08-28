@@ -1,4 +1,36 @@
 {
+  "applicability_domain": {
+    "asset_classes": [
+      "equity"
+    ],
+    "benchmark_family": "US_LARGE_CAP",
+    "feature_frequency": "monthly",
+    "markets": [
+      "US"
+    ],
+    "regions": [
+      "US"
+    ],
+    "source_note": "Reconstructed from dataset_provenance (training_assets, training_period_*, feature_contract). 8 US large-cap equities; pooled monthly relative-return model. Applicability beyond US large-cap equity is not supported by this evidence.",
+    "supports_bonds": false,
+    "supports_commodity_proxies": false,
+    "supports_crypto": false,
+    "supports_etf": false,
+    "target_horizon_months": 12,
+    "training_period_end": "2022-06-30",
+    "training_period_start": "1990-01-31",
+    "training_symbols": [
+      "IBM",
+      "AAPL",
+      "MSFT",
+      "XRX",
+      "AMZN",
+      "DELL",
+      "GOOGL",
+      "ADBE"
+    ],
+    "training_universe_type": "pooled_equities"
+  },
   "created_at": "2026-08-26T15:20:56.285694+00:00",
   "data_quality": {
     "corporate_action_adjusted": false,
@@ -20,7 +52,7 @@
     "feature_contract": "monthly_relative_v1",
     "live_eligible_target": true,
     "rebuild_script": "development/train_bundled_monthly_reference.py",
-    "sharing_note": "Model artifact may be used in the private FinCompass package. Public redistribution requires an explicit upstream-data/model-rights review.",
+    "sharing_note": "Resolved 2026-08-28 (owner decision): training data is matplotlib sample_data/Stocks.csv, which is BSD-3-licensed and publicly redistributable; the derived model is therefore cleared for public redistribution as PUBLIC.",
     "sharing_status": "PUBLIC",
     "source_container": "Matplotlib sample_data/Stocks.csv",
     "source_declared_upstream": "https://finance.yahoo.com",
@@ -125,6 +157,7 @@
     "validation_fraction": 0.3,
     "walk_forward_splits": 3
   },
+  "sharing_status": "PUBLIC",
   "target": {
     "benchmark": "^GSPC",
     "event": "asset monthly-close return over 12 months exceeds S&P 500 monthly-close return over the same interval",

@@ -641,14 +641,21 @@ class ResearchStore:
         overlap_calendar_days: int = 10,
         end: Any = None,
         price_basis: str = "adjusted",
+        progress: Optional[Callable[[int, int, str], None]] = None,
     ) -> Dict[str, Any]:
         end_ts = pd.Timestamp(end or datetime.now(timezone.utc).date()).tz_localize(None).normalize()
         normalized = [str(s).strip().upper() for s in symbols if str(s).strip()]
+        total = len(normalized)
         fetch_id = self.begin_fetch(provider, "incremental", {"symbols": normalized, "overlap_calendar_days": overlap_calendar_days})
         results: List[Dict[str, Any]] = []
         errors: Dict[str, str] = {}
         try:
-            for symbol in normalized:
+            for _idx, symbol in enumerate(normalized):
+                if progress is not None:
+                    try:
+                        progress(_idx, total, symbol)
+                    except Exception:
+                        pass
                 start = self.incremental_start(symbol, overlap_calendar_days=overlap_calendar_days)
                 try:
                     payload = fetch_range(symbol, start, end_ts)
@@ -675,16 +682,45 @@ class ResearchStore:
                             "snapshot_kind": "provider_frame_used_for_ingestion",
                         },
                     )
-                    merge = self.merge_price_frame(
-                        symbol, frame, provider=effective_provider,
-                        price_basis=str(source_meta.get("price_basis") or price_basis),
-                        raw_sha256=raw["sha256"], fetch_id=fetch_id,
-                        currency=source_meta.get("currency"), allow_revisions=True,
-                    )
-                    results.append({
-                        "status": "ok", "requested_start": start.date().isoformat(),
-                        "raw_sha256": raw["sha256"], "raw_file": raw["file_name"], **merge.to_dict(),
-                    })
+                    incoming_basis = str(source_meta.get("price_basis") or price_basis)
+                    try:
+                        merge = self.merge_price_frame(
+                            symbol, frame, provider=effective_provider,
+                            price_basis=incoming_basis,
+                            raw_sha256=raw["sha256"], fetch_id=fetch_id,
+                            currency=source_meta.get("currency"), allow_revisions=True,
+                        )
+                        results.append({
+                            "status": "ok", "requested_start": start.date().isoformat(),
+                            "raw_sha256": raw["sha256"], "raw_file": raw["file_name"], **merge.to_dict(),
+                        })
+                    except ValueError as basis_exc:
+                        if "price basis mismatch" not in str(basis_exc):
+                            raise
+                        # Documented recovery: the stored series uses a different
+                        # price basis than the provider now returns (e.g. a raw seed
+                        # vs an adjusted refresh). Re-fetch full history and rebuild
+                        # this one symbol on the new basis; other symbols are untouched.
+                        full = fetch_range(symbol, end_ts.normalize().replace(year=1990, month=1, day=1), end_ts)
+                        fframe, fmeta = (full if isinstance(full, tuple) and len(full) == 2 else (full, {}))
+                        if fframe is None or getattr(fframe, "empty", True):
+                            results.append({"symbol": symbol, "status": "basis_rebuild_no_data"})
+                            continue
+                        fprov = str(fmeta.get("provider") or provider)
+                        fraw = self.archive_frame_snapshot(
+                            fframe, symbol=symbol, fetch_id=fetch_id, provider=fprov,
+                            source_url=fmeta.get("source_url"), license_note=fmeta.get("license_note"),
+                            metadata={"snapshot_kind": "price_basis_change_rebuild"},
+                        )
+                        merge = self.repair_symbol(
+                            symbol, fframe, provider=fprov,
+                            price_basis=str(fmeta.get("price_basis") or incoming_basis),
+                            raw_sha256=fraw["sha256"], replace_existing=True,
+                        )
+                        results.append({
+                            "status": "rebuilt_price_basis", "raw_sha256": fraw["sha256"],
+                            "raw_file": fraw["file_name"], **merge.to_dict(),
+                        })
                 except Exception as exc:
                     errors[symbol] = f"{type(exc).__name__}: {exc}"
             self.end_fetch(fetch_id, status="complete" if not errors else "partial", metadata={"results": results, "errors": errors})

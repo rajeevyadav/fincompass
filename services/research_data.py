@@ -73,6 +73,7 @@ def refresh_market_data(
     store: ResearchStore = research_store,
     overlap_calendar_days: int = 10,
     end: Any = None,
+    progress=None,
 ) -> Dict[str, Any]:
     """Refresh only the local tail needed for continuity.
 
@@ -93,11 +94,25 @@ def refresh_market_data(
         overlap_calendar_days=overlap_calendar_days,
         end=end,
         price_basis="adjusted",
+        progress=progress,
     )
 
 def _refresh_worker(symbols: Optional[Sequence[str]], overlap_calendar_days: int) -> None:
     try:
-        result = refresh_market_data(symbols, overlap_calendar_days=overlap_calendar_days)
+        total = len(symbols) if symbols else len(DEFAULT_REFRESH_SYMBOLS)
+
+        def _progress(idx: int, total_count: int, symbol: str) -> None:
+            _write_state({
+                "status": "running",
+                "started_at": _read_state().get("started_at"),
+                "symbols": list(symbols) if symbols else DEFAULT_REFRESH_SYMBOLS,
+                "total": total_count,
+                "completed": idx,
+                "current_symbol": symbol,
+                "message": f"Updating local data — {idx + 1} of {total_count} ({symbol})",
+            })
+
+        result = refresh_market_data(symbols, overlap_calendar_days=overlap_calendar_days, progress=_progress)
         errors = result.get("errors") or {}
         inserted = sum(int(x.get("inserted") or 0) for x in result.get("results") or [])
         revised = sum(int(x.get("revised") or 0) for x in result.get("results") or [])
@@ -135,8 +150,10 @@ def start_refresh(symbols: Optional[Sequence[str]] = None, *, overlap_calendar_d
         "status": "running",
         "started_at": _now(),
         "symbols": requested,
+        "total": len(requested),
+        "completed": 0,
         "overlap_calendar_days": int(overlap_calendar_days),
-        "message": "Refreshing only the local tail/overlap needed for incremental continuity.",
+        "message": "Starting local data update…",
     })
     _thread = threading.Thread(
         target=_refresh_worker,

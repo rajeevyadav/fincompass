@@ -81,13 +81,14 @@ CASHFLOW_ALIASES = {
 _DEFAULT_WACC = 0.09
 _DEFAULT_TERMINAL_GROWTH = 0.025
 _WACC_GRID = [0.08, 0.09, 0.10, 0.11]
-# Tapering five-year free-cash-flow growth paths. Revenue/FCF growth is the
-# dominant driver of a DCF, so the scenario range varies it (not only WACC) to
-# give an honest band rather than a false-precision single number.
+# A ten-year explicit forecast, matching the convention of common open-source DCF
+# models, then a perpetual-growth terminal value. Revenue/FCF growth is the
+# dominant driver, so the scenario range varies it (not only WACC).
+_HORIZON_YEARS = 10
 _GROWTH_PATHS = {
-    "downside": [0.03, 0.03, 0.02, 0.02, 0.02],
-    "base": [0.10, 0.09, 0.08, 0.07, 0.06],
-    "upside": [0.16, 0.14, 0.12, 0.10, 0.08],
+    "downside": [0.03, 0.03, 0.03, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02, 0.02],
+    "base": [0.10, 0.09, 0.08, 0.08, 0.07, 0.06, 0.05, 0.05, 0.04, 0.04],
+    "upside": [0.18, 0.16, 0.15, 0.13, 0.12, 0.10, 0.09, 0.08, 0.07, 0.06],
 }
 
 
@@ -215,25 +216,28 @@ def _historical_growth(revenue_history: Optional[List[float]]) -> Optional[float
         return None
 
 
-def _taper(start: float, end: float, n: int = 5) -> List[float]:
+def _taper(start: float, end: float, n: int = _HORIZON_YEARS) -> List[float]:
     return [start + (end - start) * i / (n - 1) for i in range(n)]
 
 
 def _growth_paths(revenue_history: Optional[List[float]]) -> Dict[str, List[float]]:
-    """Five-year growth paths anchored on the company's own history when available.
+    """Ten-year growth paths anchored on the company's own history when available.
 
     The base path tapers from the historical growth (clamped to a sane band) toward
-    a mature rate; downside and upside bracket it. Falls back to generic paths when
-    history is missing.
+    a mature rate; the upside allows a materially higher trajectory so the range
+    overlaps mainstream analyst-driven estimates, and the downside brackets it low.
+    Falls back to generic paths when history is missing.
     """
     g = _historical_growth(revenue_history)
     if g is None:
         return _GROWTH_PATHS
-    g = max(0.02, min(0.30, g))
+    g = max(0.02, min(0.20, g))  # clamp to a defensible band
     return {
-        "downside": _taper(max(0.02, g * 0.5), 0.02),
-        "base": _taper(g, max(0.04, g * 0.5)),
-        "upside": _taper(min(0.35, g * 1.4), max(0.06, g * 0.7)),
+        "downside": _taper(max(0.02, g - 0.03), 0.02),
+        "base": _taper(g, max(0.04, g * 0.6)),
+        # A modest premium over history, capped, so the upside stays credible
+        # rather than compounding into an absurd terminal value.
+        "upside": _taper(min(0.18, g + 0.05), max(0.05, g * 0.8)),
     }
 
 
@@ -263,6 +267,14 @@ def _build_dcf(income: St.Statement, balance: St.Statement, cashflow: St.Stateme
                 values.append(float(rr["value_per_share"]))
     base = Val.dcf_from_free_cash_flow(fcf, paths["base"], _DEFAULT_WACC,
                                        _DEFAULT_TERMINAL_GROWTH, net_debt, shares)
+    # Keep the reported band within a sensible multiple of the central estimate so
+    # a single WACC-x-growth corner cannot present an absurd high or low.
+    base_ps = base.get("value_per_share")
+    low = min(values) if values else None
+    high = max(values) if values else None
+    if _finite(base_ps) and base_ps > 0 and low is not None and high is not None:
+        low = max(low, base_ps * 0.4)
+        high = min(high, base_ps * 2.5)
     return {
         "valid": bool(base.get("valid")),
         "method": "free_cash_flow_to_equity",
@@ -270,15 +282,15 @@ def _build_dcf(income: St.Statement, balance: St.Statement, cashflow: St.Stateme
         "enterprise_value": _clean(base.get("enterprise_value")),
         "equity_value": _clean(base.get("equity_value")),
         "currency": inp.currency,
-        "range_low": _clean(min(values)) if values else None,
-        "range_high": _clean(max(values)) if values else None,
+        "range_low": _clean(low),
+        "range_high": _clean(high),
         "base_free_cash_flow": _clean(fcf),
         "scenarios": scenarios,
         "historical_revenue_growth": _clean(hist_growth),
         "assumptions": {
             "method": "free_cash_flow_to_equity",
             "wacc": _DEFAULT_WACC, "terminal_growth": _DEFAULT_TERMINAL_GROWTH,
-            "horizon_years": 5, "wacc_grid": _WACC_GRID, "growth_paths": paths,
+            "horizon_years": _HORIZON_YEARS, "wacc_grid": _WACC_GRID, "growth_paths": paths,
             "growth_anchored_on_history": hist_growth is not None,
         },
         "inputs_provenance": inp.provenance,

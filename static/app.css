@@ -316,3 +316,16 @@ body.mode-research .guided-only { display: none !important; }
 .rate-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
 .rate-chip { padding: 3px 8px; border: 1px solid var(--border, #ccc); border-radius: 12px; background: transparent; cursor: pointer; }
 .rate-chip:hover { background: var(--border, #eee); }
+
+/* DCF fair-value gauge: cheap/pricey zones, estimate band, price triangle. */
+.zone-cheap { fill: rgba(46,158,91,0.18); }
+.zone-pricey { fill: rgba(214,69,69,0.16); }
+.gauge-estimate { fill: #6b7a90; opacity: 0.9; }
+.gauge-tri { stroke: none; }
+.gauge-tri-good { fill: #2e9e5b; }
+.gauge-tri-warn { fill: #d64545; }
+.gauge-tri-neutral { fill: #2f6fed; }
+.gauge-verdict { margin-top: 4px; font-weight: 600; font-size: 0.95em; }
+.verdict-good { color: #2e9e5b; }
+.verdict-warn { color: #d64545; }
+.verdict-neutral { color: #46506a; }

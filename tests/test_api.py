@@ -39,7 +39,8 @@ def test_frontend_is_self_contained_and_csp_compatible():
     assert "<style" not in html
     assert "style=" not in html
     assert "cdn.jsdelivr" not in html
-    assert '<script src="/static/app.js"' in html
+    # The bundle may carry a cache-busting version query (?v=<hash>).
+    assert '<script src="/static/app.js' in html
     assert "script-src 'self'" in r.headers["Content-Security-Policy"]
 
 

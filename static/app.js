@@ -536,8 +536,83 @@ function analyticsPanelHtml(o) {
       ${perfKpi("EWMA volatility", risk.ewma_volatility, true)}
       ${perfKpi("Max drawdown", risk.max_drawdown, true)}
     </div>
-    <details><summary>Inspect raw analytics</summary><pre class="detail">${esc(JSON.stringify({fundamentals: f, performance: perf, risk: risk, technicals: o.technicals}, null, 2))}</pre></details>`;
+    <details><summary>Inspect raw analytics</summary><pre class="detail">${esc(JSON.stringify({fundamentals: f, performance: perf, risk: risk, technicals: o.technicals}, null, 2))}</pre></details>
+    ${calculatorsHtml()}`;
 }
+
+// Input-driven analytics calculators (option pricing, bond analytics, portfolio
+// risk). These consume the provider-independent kernel and take explicit inputs;
+// no market data is fetched. Results are model identities, not forecasts.
+function calculatorsHtml() {
+  return `
+    <h3>Calculators</h3>
+    <div class="two-col">
+      <form class="card calc-form" data-calc="options">
+        <h4>Option (Black-Scholes)</h4>
+        <label>Type <select name="option_type"><option value="call">Call</option><option value="put">Put</option></select></label>
+        <label>Spot <input name="spot" type="number" step="any" value="100"></label>
+        <label>Strike <input name="strike" type="number" step="any" value="100"></label>
+        <label>Rate <input name="rate" type="number" step="any" value="0.05"></label>
+        <label>Volatility <input name="vol" type="number" step="any" value="0.2"></label>
+        <label>Years to expiry <input name="expiry" type="number" step="any" value="1"></label>
+        <button type="submit" class="btn">Price it</button>
+        <div class="calc-out meta"></div>
+      </form>
+      <form class="card calc-form" data-calc="bond">
+        <h4>Bond analytics</h4>
+        <label>Face <input name="face" type="number" step="any" value="1000"></label>
+        <label>Coupon rate <input name="coupon_rate" type="number" step="any" value="0.05"></label>
+        <label>Yield (YTM) <input name="ytm" type="number" step="any" value="0.05"></label>
+        <label>Years <input name="years" type="number" step="any" value="10"></label>
+        <label>Coupons / yr <input name="freq" type="number" step="1" value="2"></label>
+        <button type="submit" class="btn">Compute</button>
+        <div class="calc-out meta"></div>
+      </form>
+    </div>
+    <form class="card calc-form" data-calc="portfolio">
+      <h4>Two-asset portfolio risk</h4>
+      <label>Weight A <input name="wa" type="number" step="any" value="0.5"></label>
+      <label>Weight B <input name="wb" type="number" step="any" value="0.5"></label>
+      <label>Vol A <input name="va" type="number" step="any" value="0.2"></label>
+      <label>Vol B <input name="vb" type="number" step="any" value="0.3"></label>
+      <label>Correlation <input name="corr" type="number" step="any" value="0"></label>
+      <button type="submit" class="btn">Compute</button>
+      <div class="calc-out meta"></div>
+    </form>`;
+}
+
+async function submitCalculator(form) {
+  const kind = form.getAttribute("data-calc");
+  const out = form.querySelector(".calc-out");
+  const val = (n) => Number(form.querySelector(`[name="${n}"]`)?.value);
+  try {
+    let body, path;
+    if (kind === "options") {
+      path = "/api/v2/analytics/options";
+      body = {option_type: form.querySelector('[name="option_type"]').value, spot: val("spot"), strike: val("strike"), rate: val("rate"), vol: val("vol"), expiry: val("expiry")};
+    } else if (kind === "bond") {
+      path = "/api/v2/analytics/bond";
+      body = {face: val("face"), coupon_rate: val("coupon_rate"), ytm: val("ytm"), years: val("years"), freq: val("freq")};
+    } else {
+      const wa = val("wa"), wb = val("wb"), va = val("va"), vb = val("vb"), corr = val("corr");
+      const cov = [[va*va, corr*va*vb], [corr*va*vb, vb*vb]];
+      path = "/api/v2/analytics/portfolio";
+      body = {weights: [wa, wb], cov};
+    }
+    const r = await api(path, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
+    const res = r.results || {};
+    out.innerHTML = Object.entries(res)
+      .filter(([, v]) => typeof v === "number")
+      .map(([k, v]) => `<div><strong>${esc(k.replaceAll("_", " "))}:</strong> ${num(v).toFixed(4)}</div>`).join("") || "—";
+  } catch (error) {
+    out.innerHTML = `<span class="error">${esc(error.message)}</span>`;
+  }
+}
+
+document.addEventListener("submit", (e) => {
+  const form = e.target.closest && e.target.closest(".calc-form");
+  if (form) { e.preventDefault(); submitCalculator(form); }
+});
 
 async function analyze() {
   const ticker = $("ticker").value.trim().toUpperCase();
@@ -1217,6 +1292,16 @@ async function runForecastModelCompare(){
     }).join("");
     out.innerHTML=`<article class="card"><h2>${esc(ticker)} model comparison</h2><p class="meta">Each row keeps its own horizon, benchmark and validation record. A higher probability from a different target contract is not automatically a better model.</p><div class="table-wrap"><table><thead><tr><th>Model</th><th>Tier</th><th>Horizon</th><th>Benchmark</th><th>Probability</th><th>Brier skill</th><th>ROC AUC</th></tr></thead><tbody>${body}</tbody></table></div></article>`;
   }catch(error){out.innerHTML=`<div class="error">${esc(error.message)}</div>`;}
+}
+
+// Citizen dictionary for evidence tiers. Guided shows the plain label and the
+// allowed next step; Research keeps the internal tier name.
+function citizenEvidence(tier){
+  const t = String(tier || "").toLowerCase();
+  if (t === "validated_market") return {label:"Stronger study", step:"Actions possible, with slightly more weight."};
+  if (t === "validated_research") return {label:"Studied guess", step:"DCA, Hold or Trim are possible."};
+  if (t === "bayesian_baseline") return {label:"Rough guess", step:"Watch only. Not strong enough to act."};
+  return {label:"We don't know", step:"Don't decide."};
 }
 
 async function runForecast(){

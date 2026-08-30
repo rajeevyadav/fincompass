@@ -241,9 +241,27 @@ def _screener_rows(
     return rows[:limit]
 
 
-@app.get("/")
+def _asset_version() -> str:
+    """Short content hash of the front-end bundle. Appended to the app.js/app.css
+    URLs so a rebuilt release always invalidates a cached page instead of serving
+    the previous UI."""
+    from hashlib import sha256
+    h = sha256()
+    for name in ("static/app.js", "static/app.css", "static/index.html"):
+        try:
+            h.update(Path(name).read_bytes())
+        except OSError:
+            continue
+    return h.hexdigest()[:8]
+
+
+@app.get("/", response_class=HTMLResponse)
 def root():
-    return FileResponse("static/index.html")
+    html = Path("static/index.html").read_text(encoding="utf-8")
+    v = _asset_version()
+    html = html.replace("/static/app.js", f"/static/app.js?v={v}")
+    html = html.replace("/static/app.css", f"/static/app.css?v={v}")
+    return HTMLResponse(content=html, headers={"Cache-Control": "no-cache"})
 
 
 _FAVICON_SVG = (
@@ -561,6 +579,92 @@ def analytics_overview_v2(ticker: str, request: Request):
         "formula_transparency": {"engine": "FinCompass deterministic analytics kernel", "version": "2.0"},
         "request_id": _rid(request),
     }
+
+def _num(payload: Dict[str, Any], key: str, default=None):
+    try:
+        v = payload.get(key, default)
+        return float(v) if v is not None else default
+    except (TypeError, ValueError):
+        return default
+
+
+@app.post("/api/v2/analytics/options")
+def analytics_options_v2(request: Request, payload: Dict[str, Any] = Body(default={})):
+    """Black-Scholes-Merton price and Greeks for a European option from user inputs.
+
+    A model identity for the stated inputs, not a forecast or probability of profit.
+    """
+    from analytics import options as O
+    p = payload if isinstance(payload, dict) else {}
+    kind = str(p.get("option_type") or "call").lower()
+    spot, strike = _num(p, "spot"), _num(p, "strike")
+    rate, vol = _num(p, "rate", 0.0), _num(p, "vol")
+    expiry, q = _num(p, "expiry"), _num(p, "div_yield", 0.0)
+    out = {
+        "price": O.price(kind, spot, strike, rate, vol, expiry, q),
+        "delta": O.delta(kind, spot, strike, rate, vol, expiry, q),
+        "gamma": O.gamma(spot, strike, rate, vol, expiry, q),
+        "vega": O.vega(spot, strike, rate, vol, expiry, q),
+        "theta": O.theta(kind, spot, strike, rate, vol, expiry, q),
+        "rho": O.rho(kind, spot, strike, rate, vol, expiry, q),
+    }
+    mkt = _num(p, "market_price")
+    if mkt is not None:
+        out["implied_volatility"] = O.implied_volatility(kind, mkt, spot, strike, rate, expiry, q)
+    out = {k: (None if (v != v) else v) for k, v in out.items()}  # NaN -> null
+    return {"option_type": kind, "inputs": p, "results": out,
+            "disclaimer": "A model identity for the stated inputs; not a forecast or advice.",
+            "request_id": _rid(request)}
+
+
+@app.post("/api/v2/analytics/bond")
+def analytics_bond_v2(request: Request, payload: Dict[str, Any] = Body(default={})):
+    """Fixed-income analytics (price, YTM, duration, convexity, DV01) from user inputs."""
+    from analytics import fixed_income as FI
+    p = payload if isinstance(payload, dict) else {}
+    face = _num(p, "face", 1000.0)
+    coupon, ytm = _num(p, "coupon_rate"), _num(p, "ytm")
+    years = _num(p, "years")
+    freq = int(_num(p, "freq", 2) or 2)
+    out = {
+        "current_yield": FI.current_yield(face, coupon, _num(p, "price")) if p.get("price") is not None else None,
+    }
+    if ytm is not None:
+        out.update({
+            "price": FI.bond_price(face, coupon, ytm, years, freq),
+            "macaulay_duration": FI.macaulay_duration(face, coupon, ytm, years, freq),
+            "modified_duration": FI.modified_duration(face, coupon, ytm, years, freq),
+            "convexity": FI.convexity(face, coupon, ytm, years, freq),
+            "dv01": FI.dv01(face, coupon, ytm, years, freq),
+        })
+    if p.get("price") is not None:
+        out["yield_to_maturity"] = FI.yield_to_maturity(_num(p, "price"), face, coupon, years, freq)
+    out = {k: (None if (isinstance(v, float) and v != v) else v) for k, v in out.items()}
+    return {"inputs": p, "results": out, "request_id": _rid(request)}
+
+
+@app.post("/api/v2/analytics/portfolio")
+def analytics_portfolio_v2(request: Request, payload: Dict[str, Any] = Body(default={})):
+    """Portfolio return, volatility and Euler risk contributions from weights + covariance."""
+    from analytics import portfolio as P
+    p = payload if isinstance(payload, dict) else {}
+    weights = p.get("weights") or []
+    cov = p.get("cov")
+    if cov is None and p.get("asset_returns"):
+        cov = P.covariance_from_returns(p["asset_returns"])
+    exp = p.get("expected_returns")
+    rc = P.risk_contributions(weights, cov) if cov is not None else {"marginal": [], "component": [], "percent": []}
+    def _clean(x):
+        return None if (isinstance(x, float) and x != x) else x
+    out = {
+        "expected_return": _clean(P.portfolio_return(weights, exp)) if exp else None,
+        "volatility": _clean(P.portfolio_volatility(weights, cov)) if cov is not None else None,
+        "variance": _clean(P.portfolio_variance(weights, cov)) if cov is not None else None,
+        "risk_contributions": {k: [_clean(x) for x in v] for k, v in rc.items()},
+        "weights_normalized": [_clean(x) for x in P.normalize_weights(weights)],
+    }
+    return {"inputs": p, "results": out, "request_id": _rid(request)}
+
 
 @app.get("/api/v3/settings/schema")
 def forecast_settings_schema(request: Request):

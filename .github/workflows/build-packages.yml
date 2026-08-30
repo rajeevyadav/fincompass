@@ -1,0 +1,89 @@
+name: Build desktop packages
+
+# Produces a standalone FinCompass binary for Windows, macOS and Linux.
+# PyInstaller cannot cross-compile, so each package is built on its own OS.
+# Run manually from the Actions tab, or automatically when a version tag is pushed.
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: windows
+            sep: ";"
+          - os: macos-latest
+            label: macos
+            sep: ":"
+          - os: ubuntu-latest
+            label: linux
+            sep: ":"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-build.txt
+
+      - name: Build with PyInstaller
+        shell: bash
+        env:
+          SEP: ${{ matrix.sep }}
+        run: |
+          # The Windows version resource applies only on Windows.
+          VERSION_FLAG=""
+          if [ "${{ matrix.label }}" = "windows" ]; then VERSION_FLAG="--version-file version_info.txt"; fi
+          pyinstaller --noconfirm --clean --onefile --windowed --name FinCompass $VERSION_FLAG \
+            --add-data "static${SEP}static" \
+            --add-data "config${SEP}config" \
+            --add-data "datasets/market-seed${SEP}datasets/market-seed" \
+            --add-data "models${SEP}models" \
+            --add-data "adaptive_models${SEP}adaptive_models" \
+            --add-data "legal${SEP}legal" \
+            --add-data "docs${SEP}docs" \
+            --add-data "PRIVACY.md${SEP}." \
+            --collect-submodules uvicorn \
+            --collect-submodules sklearn \
+            --hidden-import uvicorn.logging \
+            --hidden-import uvicorn.loops.auto \
+            --hidden-import uvicorn.protocols.http.auto \
+            --hidden-import uvicorn.protocols.websockets.auto \
+            --hidden-import uvicorn.lifespan.on \
+            run_fincompass.py
+
+      - name: Package artifact
+        shell: bash
+        run: |
+          cd dist
+          case "${{ matrix.label }}" in
+            windows) 7z a "../FinCompass-windows.zip" FinCompass.exe ;;
+            macos)   zip -r "../FinCompass-macos.zip" FinCompass.app 2>/dev/null || zip "../FinCompass-macos.zip" FinCompass ;;
+            linux)   chmod +x FinCompass && tar -czf "../FinCompass-linux.tar.gz" FinCompass ;;
+          esac
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FinCompass-${{ matrix.label }}
+          if-no-files-found: error
+          path: |
+            FinCompass-windows.zip
+            FinCompass-macos.zip
+            FinCompass-linux.tar.gz

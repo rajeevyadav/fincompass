@@ -152,6 +152,14 @@
     "horizon_trading_days": 504,
     "return_basis": "Monthly close series supplied by the declared Matplotlib sample source."
   },
+  "training_contract": {
+    "benchmark_family": "US_LARGE_CAP",
+    "feature_contract": "monthly_relative_v1",
+    "horizon_months": 24,
+    "recipe_id": null,
+    "retrain_supported": false,
+    "trainer_family": "bayesian_reference"
+  },
   "validation": {
     "bayesian_coefficients_standardized": {
       "benchmark_vol_6m": -0.1829675233857212,

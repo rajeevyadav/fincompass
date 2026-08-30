@@ -257,6 +257,49 @@ def run_scenarios(inp: DCFInputs, scenarios: Dict[str, DCFAssumptions]) -> Dict[
     return {name: run_dcf(inp, a) for name, a in scenarios.items()}
 
 
+def dcf_from_free_cash_flow(base_fcf: float, growth_rates: List[float], wacc: float,
+                            terminal_growth: float, net_debt: float,
+                            shares_diluted: float) -> Dict[str, Any]:
+    """Free-cash-flow-to-equity DCF: project the reported free cash flow with a
+    per-year growth path, add a perpetual-growth terminal value, discount, bridge
+    enterprise value to equity, and divide by shares.
+
+    Unlike the unlevered EBIT reconstruction, this consumes the company's reported
+    free cash flow directly, so cash that operating cash flow captures (non-cash
+    charges, working-capital and stock-based compensation) is not lost — the EBIT
+    form materially understates cash generation for many companies. Fails safely
+    to NaN on non-positive/for non-finite WACC, terminal growth >= WACC, invalid
+    shares, or non-finite base cash flow.
+    """
+    try:
+        fcf0, w, tg = float(base_fcf), float(wacc), float(terminal_growth)
+        nd, sh = float(net_debt), float(shares_diluted)
+        gs = [float(g) for g in growth_rates]
+    except (TypeError, ValueError):
+        gs = []
+        fcf0 = w = tg = nd = sh = float("nan")
+    invalid = (not gs or not math.isfinite(fcf0) or not math.isfinite(w) or w <= 0
+               or tg >= w or not math.isfinite(sh) or sh <= 0)
+    if invalid:
+        return {"valid": False, "value_per_share": NAN, "enterprise_value": NAN,
+                "equity_value": NAN, "terminal_value": NAN, "projected_fcf": [],
+                "horizon_years": len(gs)}
+    proj: List[float] = []
+    f = fcf0
+    for g in gs:
+        f = f * (1.0 + g)
+        proj.append(f)
+    n = len(proj)
+    pv = sum(cf / (1.0 + w) ** (i + 1) for i, cf in enumerate(proj))
+    terminal = proj[-1] * (1.0 + tg) / (w - tg)
+    pv_terminal = terminal / (1.0 + w) ** n
+    ev = pv + pv_terminal
+    equity = ev - nd
+    return {"valid": True, "value_per_share": equity / sh, "enterprise_value": ev,
+            "equity_value": equity, "terminal_value": terminal,
+            "projected_fcf": proj, "horizon_years": n, "disclaimer": DISCLAIMER}
+
+
 def _register_all() -> None:
     register("valuation.dcf.fcff.v1", name="DCF (unlevered FCFF)", category="valuation",
              formula="EV = sum(FCFF_t / (1+WACC)^t) + PV(terminal); FCFF = EBIT*(1-tax) + D&A - CapEx - dNWC",

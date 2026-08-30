@@ -142,3 +142,27 @@ def test_currency_mismatch_fails_safely():
     inp = Val.build_inputs(inc, bal, cf)
     assert "currency_mismatch" in inp.issues
     assert Val.run_dcf(inp, _assumptions())["valid"] is False
+
+
+def test_dcf_from_free_cash_flow_reference_case():
+    # Standard FCF-to-equity DCF (base FCF 100, tapering growth, WACC 9%,
+    # terminal 3%, net cash 50, 15 shares) -> ~153/share.
+    r = Val.dcf_from_free_cash_flow(100.0, [0.12, 0.10, 0.09, 0.08, 0.07], 0.09, 0.03, -50.0, 15.0)
+    assert r["valid"] is True
+    assert r["value_per_share"] == pytest.approx(152.98, abs=0.5)
+    assert len(r["projected_fcf"]) == 5
+
+
+def test_dcf_from_fcf_uses_reported_fcf_not_understated_ebit():
+    # A company whose reported FCF (30) exceeds the naive EBIT proxy still values
+    # off the real cash flow; higher base FCF -> higher value.
+    low = Val.dcf_from_free_cash_flow(10.0, [0.05] * 5, 0.09, 0.025, 0.0, 10.0)["value_per_share"]
+    high = Val.dcf_from_free_cash_flow(30.0, [0.05] * 5, 0.09, 0.025, 0.0, 10.0)["value_per_share"]
+    assert high > low * 2.5
+
+
+def test_dcf_from_fcf_fails_safely():
+    import math as _m
+    assert _m.isnan(Val.dcf_from_free_cash_flow(100.0, [0.05], 0.02, 0.03, 0.0, 10.0)["value_per_share"])  # g>=wacc
+    assert _m.isnan(Val.dcf_from_free_cash_flow(100.0, [0.05], 0.09, 0.025, 0.0, 0.0)["value_per_share"])  # no shares
+    assert _m.isnan(Val.dcf_from_free_cash_flow(float("nan"), [0.05], 0.09, 0.025, 0.0, 10.0)["value_per_share"])

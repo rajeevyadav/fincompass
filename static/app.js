@@ -512,9 +512,21 @@ function dcfGaugeHtml(dcf, lastPrice, cur) {
   }
   let verdict = "within the estimate", cls = "neutral", detail = "inside the estimate range";
   if (havePrice) {
-    if (price < lo) { cls = "good"; verdict = "cheaper than the estimate"; detail = `about ${((lo - price) / price * 100).toFixed(0)}% below the low estimate`; }
-    else if (price > hi) { cls = "warn"; verdict = "more expensive than the estimate"; detail = `about ${((price - hi) / hi * 100).toFixed(0)}% above the high estimate`; }
-    else { verdict = "roughly fairly priced"; }
+    if (price > hi * 2) {
+      // Far above a conservative cash-flow model — the market is paying for growth
+      // the model does not assume, not a precise "X% overvalued" claim.
+      cls = "warn"; verdict = "priced well above its current cash flows";
+      detail = "the market is pricing in much stronger future growth than this conservative cash-flow model assumes";
+    } else if (price > hi) {
+      cls = "warn"; verdict = "more expensive than the estimate";
+      detail = `about ${((price - hi) / hi * 100).toFixed(0)}% above the high estimate`;
+    } else if (price < lo * 0.5) {
+      cls = "good"; verdict = "priced well below its current cash flows";
+      detail = "the market may expect the business to shrink, or it may be overlooked";
+    } else if (price < lo) {
+      cls = "good"; verdict = "cheaper than the estimate";
+      detail = `about ${((lo - price) / price * 100).toFixed(0)}% below the low estimate`;
+    } else { verdict = "roughly fairly priced"; }
   }
   // Anchor the scale on the estimate range with a full-range pad on each side so
   // the estimate band sits in the centre; a price far outside is clamped to the

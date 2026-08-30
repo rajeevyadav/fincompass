@@ -526,7 +526,7 @@ function dcfGaugeHtml(dcf, lastPrice, cur) {
   const off = rawX != null && (rawX < 2 || rawX > 98);
   const px = rawX == null ? null : Math.max(2, Math.min(98, rawX));
   const arrow = off ? (rawX > 98 ? " ▶" : " ◀") : "";
-  const tri = px == null ? "" : `<polygon points="${(px - 3).toFixed(1)},4 ${(px + 3).toFixed(1)},4 ${px.toFixed(1)},11" class="gauge-tri gauge-tri-${cls}"/>`;
+  const tri = px == null ? "" : `<polygon points="${(px - 1.6).toFixed(1)},6.5 ${(px + 1.6).toFixed(1)},6.5 ${px.toFixed(1)},11" class="gauge-tri gauge-tri-${cls}"/>`;
   const sentence = `Our rough model estimates this company is worth about <strong>${cur} ${_money(lo)}–${_money(hi)}</strong> a share.${havePrice ? ` It's trading near <strong>${cur} ${_money(price)}</strong> — ${detail}, so it looks <strong>${verdict}</strong>.` : ""}`;
   return `
     <p class="plain-read">${sentence}</p>
@@ -696,17 +696,30 @@ function optionPayoffHtml(type, strike, premium, spot) {
 
 // Where the portfolio's risk actually comes from — each holding's share of total
 // volatility. A holding can be a small weight but a large share of the risk.
-function portfolioRiskHtml(res) {
+function portfolioRiskHtml(res, inp) {
   const pct = (res.risk_contributions.percent || []).map((v) => Number(v) * 100);
-  const names = pct.map((_, i) => String.fromCharCode(65 + i));   // A, B, ...
+  const names = ["A", "B"];
   const bars = pct.map((v, i) =>
-    `<div class="risk-row"><span class="risk-name">${names[i]}</span>` +
+    `<div class="risk-row"><span class="risk-name">${names[i] || String.fromCharCode(65 + i)}</span>` +
     `<span class="risk-bar"><span class="risk-fill" style="width:${Math.max(0, Math.min(100, v)).toFixed(1)}%"></span></span>` +
     `<span class="risk-val">${Number.isFinite(v) ? v.toFixed(0) + "%" : "—"}</span></div>`).join("");
-  const vol = Number(res.volatility);
+  const vol = Number(res.volatility) * 100;
+  // Diversification benefit: the mix swings less than the weighted average of the
+  // two holdings' own swings, unless they move perfectly together.
+  const wa = Number(inp?.wa), wb = Number(inp?.wb), va = Number(inp?.va), vb = Number(inp?.vb);
+  let benefit = "";
+  if ([wa, wb, va, vb].every(Number.isFinite) && (wa + wb) > 0) {
+    const weightedAvg = ((wa * va + wb * vb) / (wa + wb)) * 100;
+    const cut = weightedAvg - vol;
+    if (cut > 0.05) benefit = ` On their own they would average about ±<strong>${weightedAvg.toFixed(1)}%</strong>; mixing them trims that to <strong>${vol.toFixed(1)}%</strong> — a <strong>${cut.toFixed(1)}%</strong> diversification benefit from not moving in lock-step.`;
+  }
+  const bigger = pct.length === 2 && Number.isFinite(pct[0]) && Number.isFinite(pct[1]) && Math.abs(pct[0] - pct[1]) > 8
+    ? ` Holding ${pct[1] > pct[0] ? "B" : "A"} drives more of the risk (${Math.max(pct[0], pct[1]).toFixed(0)}%) — the more volatile holding dominates even at a similar weight.` : "";
   return `
-    <p class="plain-read">Portfolio volatility is <strong>${Number.isFinite(vol) ? (vol * 100).toFixed(1) + "%" : "—"}</strong>. Share of that risk from each holding:</p>
-    <div class="risk-bars">${bars}</div>`;
+    <p class="plain-read">Together these two holdings typically swing about ±<strong>${Number.isFinite(vol) ? vol.toFixed(1) + "%" : "—"}</strong> over a year.${benefit}</p>
+    <p class="plain-read">Where the risk comes from — each holding's share of that swing:${bigger}</p>
+    <div class="risk-bars">${bars}</div>
+    <p class="meta">Volatility is how much the value bounces around, not how much it will gain or lose.</p>`;
 }
 
 async function submitCalculator(form) {
@@ -736,7 +749,7 @@ async function submitCalculator(form) {
       out.innerHTML = optionPayoffHtml(body.option_type, val("strike"), res.price, val("spot")) +
         `<details class="advanced-only"><summary>Greeks and price</summary>${numbers}</details>`;
     } else if (kind === "portfolio" && res.risk_contributions) {
-      out.innerHTML = portfolioRiskHtml(res) + `<details class="advanced-only"><summary>Figures</summary>${numbers}</details>`;
+      out.innerHTML = portfolioRiskHtml(res, { wa: val("wa"), wb: val("wb"), va: val("va"), vb: val("vb") }) + `<details class="advanced-only"><summary>Figures</summary>${numbers}</details>`;
     } else {
       out.innerHTML = numbers;
     }

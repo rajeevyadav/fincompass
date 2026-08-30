@@ -233,7 +233,7 @@ c74c39ba1f5ad9fdb018d2f7e1fa5c579b64067b0a1eab1f5f8c827f6671e3ca  ./services/rea
 eab785ca97efbf6242971f6b494af0b2f966f2b330826ca26c91cd481894b354  ./services/scoring.py
 d46d52d634de6a594c5a293d81b0ed0fe566790ea8e0ac4ed19ef6048235b849  ./services/training_readiness.py
 9189189a7f6dff0c0bd67983a59a7b043cb8db583b349e1ecb333fed2100a8a4  ./static/app.css
-522f350b40933e0ee5c6f00920a5fe1640ebae79b4ac0f8714bf0aeb4cc17501  ./static/app.js
+93cf6963753b84425fd92dcb818a62ffc75523264681e62a4a2e8092a2aac745  ./static/app.js
 b3b2760bb50488443d97273f368e4e3d7853806605d0125a9757ef5686bc2ac7  ./static/index.html
 a9f4b017fa5a7a5f6eca72ce8ff36f02d2130e333ef29e91077eae601b8d64c0  ./static/vendor/swagger-ui-bundle.js
 fb0f48c3ed5f8b978174aac9103b150ca5cacb40b637590b390794809925e4df  ./static/vendor/swagger-ui.css

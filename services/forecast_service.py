@@ -9,6 +9,7 @@ import pandas as pd
 from forecasting.features import asof_merge_fundamentals, build_price_features, build_monthly_relative_features
 from forecasting.registry import load_best_forecast_model, load_model, registry_status
 from forecasting.sec_fundamentals import SecClient, fetch_ticker_fundamental_history
+from services.action_policy import decide_action
 from services.analyzer import get_price_history_cached
 from services.research_store import research_store
 from services.instrument_classification import classify_instrument, resolve_instrument
@@ -86,14 +87,19 @@ def forecast_ticker(ticker: str, model_id: Optional[str] = None, profile_name: O
     prediction = model.predict_with_uncertainty(sample)[0]
     asof = pd.Timestamp(sample.index[-1]).date().isoformat()
     target = manifest.get("target") or {}
+    tier = manifest.get("validation_tier")
+    # The citizen action is a declared policy applied to this probability. It is
+    # not part of the model and never changes p. Limited evidence may only Watch.
+    action = decide_action(prediction.get("probability_outperform"), tier, data_ok=True)
     return {
         "available": True,
         "ticker": ticker.upper(),
         "as_of": asof,
         "model_id": manifest.get("model_id"),
-        "validation_tier": manifest.get("validation_tier"),
+        "validation_tier": tier,
         "target": target,
         "probability": prediction,
+        "action": action,
         "validation_summary": {
             "locked_test_metrics": (manifest.get("validation") or {}).get("locked_test_metrics"),
             "gate": (manifest.get("validation") or {}).get("gate"),

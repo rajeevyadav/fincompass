@@ -5,7 +5,7 @@ a5753492ee87cf052624d5607d24eb5111075e9fdfe2ec960a9a7d3500d6d7f3  ./.gitattribut
 414a93b83b9321ed94cdedac7807f09a0ac94e9d57e75052a2793b98a62af2c6  ./.github/hooks/check-no-ai-trailer.sh
 c56e268212eb00222231b39286fc046f1f0f2a58ad9f58a6d8732bf316237735  ./.github/hooks/check-restricted-files.sh
 cb1492c470d434582f48a97a9656dd11b62caeeac33a7f874fb63c57f945fc14  ./.github/workflows/ci.yml
-04c72a8644ed1e58a613042baa57ecf7762680f282f1737a0cd622a06809869f  ./.github/workflows/restricted-folders-guard.yml
+210b8f8bb3a3c61b3647d433b355a6a580d5fb69b3cb2d5c8470612f699b8988  ./.github/workflows/restricted-folders-guard.yml
 39e97424d402479619ba6c36469f308773749214f2ded16e4aad4961f4c262fe  ./.gitignore
 89ce29688e4bad6461db17297939ca4d045dbf15bb20b7518c69f7d39fd8506b  ./.pre-commit-config.yaml
 c965ddc674bb66eb0296068466ea03082944c520b51d5e1961ec07ff8b539b9b  ./ARCHITECTURE.md

@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   check-restricted:
-    name: Fail if secrets or restricted files are present
+    name: Fail if private data, models, or secrets are tracked
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

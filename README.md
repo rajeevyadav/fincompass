@@ -1,243 +1,153 @@
-<p align="center">
-  <img src="assets/banner.svg" alt="FinCompass — free systematic stock research" width="100%">
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/license-MIT-58dbc9" alt="MIT license">
-  <img src="https://img.shields.io/badge/tests-release%20verified-5fe09b" alt="release verified">
-  <img src="https://img.shields.io/badge/python-3.11%2B-2a86d6" alt="python 3.11+">
-  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-9fb0c5" alt="cross platform">
-  <img src="https://img.shields.io/badge/accounts-none-5fe09b" alt="no accounts">
-</p>
-
 # FinCompass
 
-**Free, self-hostable systematic stock research** — a FastAPI + vanilla-JavaScript workbench with three
-deliberately separated analytical layers. No accounts, no subscriptions, no advertising, no analytics, no paid
-frontend libraries, no proprietary cloud backend.
+Local research workbench for one question:
 
-1. **Evidence engine** — a transparent 0–10 Bayesian research score across Quality, Financial Durability, Safety, Valuation and Cycle, with per-pillar uncertainty.
-2. **Forecast architecture** — validity-tiered Bayesian reference models plus stronger validated models. A hard-valid baseline can remain available as Limited evidence; stronger validation tiers remain unchanged and preferred.
-3. **Adaptive live layer** — timestamped market/filing/macro context plus a bounded sequential Bayesian residual that may adjust the anchor only after a separate prequential activation gate passes.
+> Over the next year, how likely is this company to do better than the S&P 500?
 
-> **Educational research support, not financial advice.** The evidence score is not a return forecast. A forecast
-> probability, when available, applies only to the exact event definition, horizon, benchmark, hurdle, dataset and
-> model manifest that produced it. No probability is a guarantee.
+It runs on your machine. No account, no subscription, no ad network, no cloud model API.
+
+A Forecast is a probability for that exact event. It is not a target price, not expected return, and not advice to buy or sell.
 
 ---
 
-## Get started in one click
+## What it is
 
-FinCompass is designed so an end user **never needs the command line**.
+Four layers, kept apart on purpose.
+
+| Layer | Job |
+|---|---|
+| **Evidence** | 0–10 snapshot of quality, durability, safety, valuation, cycle. About *now*, not next year. |
+| **Forecast** | Calibrated probability that the name beats a stated benchmark over a stated horizon. |
+| **Live** | Watches the frozen Forecast. A Limited-evidence model is tracking only. A stronger model may apply a small residual only after delayed outcomes pass a gate. |
+| **Analytics** | Performance, risk, statements, ratios, DCF, bonds, options, portfolio, factors. Useful desks. Not Forecast features unless a versioned contract admits them. |
+
+Two screens, one number:
+
+- **Guided** — ticker in, percent out, a plain evidence label, and at most five verbs: Don't decide, Watch, DCA a little, Hold, Trim. Limited evidence may only Watch.
+- **Research** — the same percent as an equation: target, features, split, scores, tier, manifest.
+
+If Guided and Research ever disagree on *p*, the product is wrong.
+
+---
+
+## Get started
+
+The end user should not need a terminal.
 
 | Platform | How |
 |---|---|
-| **Windows (installer)** | Run the generated FinCompass Setup executable → launch from the Start menu. Windowed app, no console. |
-| **Windows (portable)** | Double-click **`run.bat`** — it creates the environment and opens the app. |
-| **macOS / Linux** | Run `./run.sh`. |
+| Windows installer | Run the Setup executable. Launch from the Start menu. Windowed, no console. |
+| Windows portable | Double-click `run.bat`. |
+| macOS / Linux | `./run.sh` |
 
-The app opens at `http://127.0.0.1:8000/`. Local data (watchlist, settings, any models you build) lives in a
-writable per-user directory and survives upgrades.
+The app opens at [http://127.0.0.1:8000/](http://127.0.0.1:8000/). Watchlist, settings, local prices, and models you build live in a per-user directory and survive upgrades.
 
-📘 **New here? Read the [User Manual (PDF)](docs/FinCompass-User-Manual.pdf)** for a guided walkthrough of every workspace. It's also linked in the app footer.
-
-FinCompass opens in **Guided mode**. For a supported ticker, the intended path is **ticker -> automatic market/benchmark resolution -> update missing local data -> strongest applicable model -> Forecast -> Start Live**. The user does not need to understand model IDs, feature contracts, locked tests, or training recipes. **Research mode** exposes model experiments, evidence tiers, regime alternatives, quantitative analytics, lineage, and validation diagnostics.
-
-Everything operational is an **in-app button**, including:
-
-- **Refresh universe** — repopulate the screener from free public data.
-- **Update local data** — incrementally extend the durable Model Lab corpus; only the overlap and missing tail are requested, and raw provider frames are retained with hashes.
-- **Update / research models** — normal Guided Forecast uses pooled model families. Model Lab remains available for research and retraining. Hard-invalid models remain unavailable; hard-valid Bayesian references can remain forecast-eligible as **Limited evidence** instead of disappearing merely because the stronger research gate is not met.
-
-<details>
-<summary><strong>Run from source (developers)</strong></summary>
+**From source**
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
 uvicorn api:app --host 127.0.0.1 --port 8000
 ```
 
-Build the desktop executable and installer:
+Desktop build (Windows):
 
-```bash
-build_exe.bat            # -> dist\FinCompass.exe  (windowed, release-stamped)
-build_installer.bat      # -> versioned Setup executable (needs Inno Setup)
-```
-</details>
-
----
-
-## Version 2.0 model ladder
-
-FinCompass v2.0 packages a conservative model ladder instead of forcing every user through a bespoke training exercise:
-
-1. unconditional reference;
-2. regularized Bayesian reference (6/12/24/36-month US-equity artifacts);
-3. experimental 3-state regime-aware Bayesian reference (Research alternative);
-4. enhanced nonlinear/ensemble model;
-5. governed adaptive Live residual for eligible validated anchors.
-
-The bundled 12-month enhanced model remains `validated_research` on its declared historical research corpus and is preferred over weaker exact-domain baselines. Regime-aware models are shipped for transparent research comparison but are not automatically preferred because their current locked-test evidence does not consistently improve the simpler architecture.
-
-The v2.0 source also includes provider-independent statement normalization, a versioned formula registry, 25+ financial ratios, performance/risk/technical analytics, DCF arithmetic, fixed-income math, options pricing/Greeks, and portfolio calculations. Analytics are kept separate from Forecast features unless explicitly registered and validated.
-
-## Current release highlights
-
-- **Offline-first Model Lab.** A durable SQLite research corpus, incremental overlap refresh, raw-frame SHA-256 provenance, declarative cross-asset recipes, experiment history, explicit activation, and a bundled real historical acceptance corpus let a fresh install exercise training without network access. Training and acquisition are separate operations.
-- **Guided and Research workflows.** Guided mode provides a safe update -> train -> inspect -> activate -> forecast path and plain-language Live condition comparison. Research mode exposes recipe selection, advanced configuration, lineage, model comparison, and maintenance controls without weakening the same validation gates.
-- **Validated in-app forecast builds.** Background training is SQLite-tracked and writes evidence bundles to a writable user directory. Passing candidates remain inactive until explicitly activated; rejected and interrupted runs stay inspectable.
-- **Windowed desktop app + Windows installer.** No console window; a small control window with Open/Quit and
-  graceful shutdown. Version-stamped `.exe` with copyright, plus an Inno Setup installer.
-- **Investor Posture indicators.** Three mechanically-derived, model-free research signals —
-  New-Position Priority, Accumulation Signal, Re-Underwrite Trigger — shown below the pillar boxes. Research
-  signals, not buy/sell recommendations; no combined verdict, no personalization.
-
-See [`CHANGELOG.md`](CHANGELOG.md) for the full history.
-
----
-
-## The three layers
-
-### 1. Evidence engine
-
-A transparent 0–10 Bayesian research score across five pillars — **Quality, Financial Durability, Safety,
-Valuation, Cycle** — each with an evidence-coverage measure and a 90% credible interval. Missing evidence shrinks
-the posterior toward neutral and widens uncertainty rather than silently guessing.
-
-### 2. Forecast anchor
-
-A calibrated forward-event probability model, kept strictly separate from the evidence score.
-
-- Bayesian logistic regression (Laplace posterior) + histogram gradient boosting + regularized random forest.
-- Purged chronological train / validation / locked-test partitions with the configured embargo on the outer split; the three internal validation roles are chronologically disjoint and use strict forward-target purging without reapplying the outer embargo.
-- Locked-test Brier/skill, log-loss/skill, ROC AUC, average precision, ECE and calibration slope/intercept, temporal-breadth gates and clustered-bootstrap bound gates.
-- Abstention near a configurable neutral band; model registry with hash verification and validation tiers.
-
-**Validation / evidence tiers**
-
-| Tier | Meaning | Guided Forecast | Adaptive Live |
-|---|---|---:|---:|
-| `invalid` / `rejected` | Hard validity failure or unusable candidate | No | No |
-| `bayesian_baseline` | Hard-valid calibrated Bayesian estimate; stronger skill not established | Yes, **Limited evidence** | No adaptive control |
-| `validated_research` | Strong configured locked-test research gate passed | Yes | Eligible after explicit activation |
-| `validated_market` | Research gate plus stronger point-in-time / historical-universe controls | Yes | Eligible after explicit activation |
-
-The stronger research/market thresholds are not weakened. The baseline tier changes how a weak-but-valid Bayesian estimate is communicated, not what counts as validated research.
-
-The app refuses to promote a synthetic fixture or a failed model into the live Forecast workspace.
-
-### Model Lab: offline-first training lifecycle
-
-Model Lab separates data acquisition, training, validation, and activation:
-
-1. A fresh install bootstraps a small **real historical, research-only** GOOG/MSFT corpus from `datasets/market-seed/`. It exists to prove the offline training path and is never live-eligible.
-2. **Update local data** requests only the configured overlap and missing tail for the cross-asset catalogue. Provider frames and SHA-256 provenance are retained locally; broad provider data are not redistributed in the source package.
-3. Recipe readiness is computed before training. The UI shows the local benchmark/target coverage and disables recipes that cannot yet be trained.
-4. Training consumes only the durable local store, freezes a dataset evidence bundle, calibrates, runs the locked test, and records the experiment.
-5. Rejected and interrupted experiments remain in history. A passing live-eligible candidate is still inactive until explicit activation writes the active-model pointer.
-6. Forecasting loads only the explicitly selected/active validated artifact and verifies its hash. There is no newest-model-wins fallback.
-
-The bundled acceptance corpus can legitimately produce a **rejected** statistical candidate; that does not make the training pipeline a failure and its gates are never weakened to force a pass.
-
-**Point-in-time data.** The SEC CompanyFacts path makes a fundamental feature available on its **filing date**, not
-the fiscal period end — preventing a common form of backtest look-ahead leakage. The bundled public-data builder
-stays conservative: today's curated universe plus free price-provider fallbacks can earn `validated_research`, but
-not `validated_market`.
-
-### 3. Adaptive live layer
-
-Source-cadence market, SEC filing and FRED macro context with explicit timestamps, freshness and staleness, plus a
-bounded sequential Bayesian log-odds residual over the validated anchor.
-
-- Strict **matured-label-only** updates; unresolved observations never train themselves.
-- Prequential predict-before-update monitoring and anchor-relative EWMA drift detection.
-- Activation requires matured-label count, observation-date/span breadth, date-balanced non-inferiority, date-balanced calibration error, and no active drift alert — otherwise it falls back to the frozen anchor.
-- Append-only local event store, privacy-safe aggregate source-health telemetry, versioned adaptive state.
-
-Built-in free market polling is **near-real-time / best-effort**, not exchange-grade streaming. See [`REALTIME.md`](REALTIME.md).
-
----
-
-## Three probabilities you must not conflate
-
-| Concept | Example | Means |
-|---|---|---|
-| **Evidence-score posterior** | `P(score ≥ 8)` | Posterior mass above an evidence-score threshold. Not about returns. |
-| **Anchor forward-event probability** | `63%` | Validated model's probability for the *exact event in its manifest* (e.g. outperform SPY by >0% over 252 trading days). |
-| **Adaptive applied probability** | anchor ± residual | Anchor adjusted by the bounded residual **only** when its separate gate is active; otherwise the frozen anchor. |
-
-None of these means a target price, an expected return, a chance of profit on every path, or a recommendation.
-
----
-
-## API
-
-Stable surface under `/api/v1/*`; forecasting/adaptive also under versioned namespaces. Swagger/OpenAPI at `/docs`.
-
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/api/v1/health` | App, engines, provider health, registry status |
-| GET | `/api/v1/analyze/{ticker}` | Five-pillar evidence analysis (incl. Investor Posture) |
-| GET | `/api/v1/screener` | Cached evidence universe |
-| GET | `/api/v1/history/{ticker}` | Price-history context |
-| GET | `/api/v4/forecast/status` | Validated anchor registry / activation status |
-| GET | `/api/v4/model-lab/data` | Durable local corpus audit / provenance |
-| POST | `/api/v4/model-lab/data/refresh` | Incrementally update the local research corpus |
-| GET | `/api/v4/model-lab/recipes` | Cross-asset recipes plus local-data readiness |
-| GET | `/api/v4/model-lab/experiments` | Candidate/rejection/interruption history |
-| GET | `/api/v4/forecast/{ticker}` | Forward-event probability from a validated anchor |
-| POST | `/api/v4/forecast/build` | Start an in-app model build (background job) |
-| GET | `/api/v4/forecast/build/status` | In-app build progress |
-| GET | `/api/v4/realtime/{ticker}` | Freshness-aware anchor + adaptive live snapshot |
-| POST | `/api/v4/adaptive/process-matured` | Process eligible delayed outcomes into adaptive state |
-| GET | `/api/v1/methodology` | Evidence + anchor + adaptive methodology |
-
----
-
-## Tests and release verification
-
-```bash
-pip install -r requirements-dev.txt
-python tools/verify_release.py
+```text
+build_exe.bat            # dist\FinCompass.exe
+build_installer.bat      # versioned Setup (Inno Setup)
 ```
 
-The verifier runs compilation, the full automated suite, JavaScript syntax validation, CSP/frontend dependency
-scanning, anchor/adaptive dataset-hash verification, fixture-tier lockout, model/adaptive-artifact hash and
-contract checks, forecast/realtime configuration drift checks, documentation consistency checks, and Docker
-packaging/ownership checks. The current release gate passes **188 automated tests** before packaging.
+---
 
-A private owner handover may additionally include a `validated_research` 12-month monthly reference model. Its
-manifest declares `REVIEW_REQUIRED`, so the public-source packager excludes the model artifact and bound evidence
-until redistribution rights are explicitly cleared. Installation never pre-activates it; Live use still requires
-explicit user activation.
+## Normal path
+
+```text
+ticker → identify market → check local data → pooled family model → Forecast → Watch / Start Live
+```
+
+You do not train a private model for every new US common stock. The ticker supplies today's features. The family model was fit on a declared universe.
+
+If prices are missing, update data and continue. If the family study is old, Forecast can stay available; refreshing the study is optional. If a refresh fails, the current Forecast stays.
+
+Default Guided horizon is **12 months versus the S&P 500 family**. Other horizons belong in Research.
 
 ---
 
-## Documentation
+## Model ladder
 
-[`ARCHITECTURE.md`](ARCHITECTURE.md) ·
-[`MODEL_CARD.md`](MODEL_CARD.md) ·
-[`FORECASTING.md`](FORECASTING.md) ·
-[`REALTIME.md`](REALTIME.md) ·
-[`VALIDATION_PROTOCOL.md`](VALIDATION_PROTOCOL.md) ·
-[`SETTINGS.md`](SETTINGS.md) ·
-[`DEVELOPER_GUIDE.md`](DEVELOPER_GUIDE.md) ·
-[`docs/DOCKER.md`](docs/DOCKER.md) ·
-[`docs/HELP.md`](docs/HELP.md) ·
-[`SECURITY.md`](SECURITY.md) ·
-[`PRIVACY.md`](PRIVACY.md)
+Validity is not the same thing as skill.
 
----
+| Tier | Meaning | Forecast | Live |
+|---|---|---|---|
+| Invalid | Broken chronology, fit, features, or domain | No | No |
+| Limited evidence (Bayesian baseline) | Coherent probability; stronger skill not shown | Yes | Tracking only |
+| Research validated | Configured locked-test gates passed on the declared corpus | Yes | Adaptive eligible, still gated |
+| Market validated | Those gates plus stronger universe and point-in-time controls | Yes | Same |
 
-## License
+Shipped 12-month US artifacts include Bayesian baselines at 6 / 12 / 24 / 36 months and one research-validated 12-month ensemble. Regime models are research alternatives, not Guided defaults.
 
-**MIT** — see [`LICENSE`](LICENSE). Copyright © 2026 Rajeev Yadav. You may use, copy, modify and redistribute
-FinCompass, including commercially, provided the MIT copyright and permission notice are retained. The software is
-provided “as is”, without warranty of any kind.
+The bundled historical sample is small and survivorship-incomplete. Locked-test skill on that sample is modest. Treat bundled percents as a demonstration of the machinery, not as proof the market is predictable. On that sample, many names print nearly the same probability — roughly the historical hit rate. Guided should say so.
 
 ---
 
-<p align="center"><sub><strong>Educational only. Not financial advice or an assurance of future performance.</strong></sub></p>
+## What a percent means
+
+**61% · next 12 months · versus the S&P 500 · studied guess**
+
+means: under this model and contract, the estimated probability of that event is 0.61.
+
+It does not mean the stock rises 61%, the model is 61% accurate, or you should buy it.
+
+Limited evidence → Watch.
+Research validated may allow DCA a little / Hold / Trim under a versioned action policy. That policy sits *on* the probability. It is not inside the trainer. There is no "buy all" and no auto position size.
+
+---
+
+## Data
+
+Forecast training uses a durable local research store. Updates fetch an overlap window and the missing tail, journal revisions, and keep source hashes. Training does not silently download a new universe.
+
+SEC-style fundamentals, when a model asks for them, join on **filing date**, not fiscal period-end.
+
+---
+
+## Develop
+
+| Path | Role |
+|---|---|
+| `forecasting/` | Features, split, Bayesian reference, ensemble, metrics, registry |
+| `services/` | Forecast plan, selection, freshness, research store, action policy |
+| `realtime/` | Live residual, gate, pending labels |
+| `analytics/` | Deterministic calculations |
+| `models/` | Bundled artifacts and manifests |
+| `tests/` | Behaviour tests |
+| `docs/` / `paper/` | User guide and manuscript sources |
+
+Run tests with `pytest`. Do not treat a green unit suite as proof that a packaged new ticker can Forecast and start Live. That path needs a packaged run.
+
+Comments explain invariants, not tickets. Process labels (tracks, phases, directive IDs) do not belong in production source.
+
+---
+
+## Limits
+
+- Not investment advice. Not a broker.
+- No universal model. Wrong asset class or region → no Forecast, analytics may still run.
+- Long-horizon labels overlap. Row count is not independent sample size.
+- Free public prices can be revised, late, or missing.
+- Live adaptation can stay frozen for a long time. That is correct when labels have not matured.
+- A high evidence score is not a high Forecast. A DCF is not a Forecast.
+
+---
+
+## License and privacy
+
+See `LICENSE`, `PRIVACY.md`, and `THIRD_PARTY_NOTICES.md`. Research data and models stay on the machine that runs the app unless you export them.
+
+---
+
+## Disclaimer
+
+Educational research software. A probability can be wrong on this name and this date. Position size, tax, and suitability are yours.

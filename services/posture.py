@@ -1,5 +1,5 @@
 """
-Investor Posture indicators (D-001) — three mechanically-derived, model-free
+Investor Posture indicators: three mechanically-derived, model-free
 signals computed from existing pillar/uncertainty data at the presentation
 layer. These do NOT touch services/scoring.py and never produce a combined
 "verdict" score. They are research signals, not buy/sell recommendations.
@@ -154,8 +154,7 @@ def re_underwrite_trigger(pillars: Dict[str, Any]) -> Dict[str, str]:
     else:
         subject = f"The {', '.join(names[:-1])} and {names[-1]} pillars have"
         hints = "; ".join(_PILLAR_HINTS[k] for k in weak)
-    # Note: the D-001 sample copy used "if you hold a position"; "hold" is a
-    # blocked verb, so the trigger is phrased without any action verb.
+    # "hold" is a blocked action verb here, so the trigger is phrased without one.
     desc = (
         f"{subject} moved into weak territory — worth a fresh look at {hints} "
         "specifically."

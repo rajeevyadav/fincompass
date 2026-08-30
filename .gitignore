@@ -108,3 +108,20 @@ FinCompass-v2.0/
 
 # local scratch build/run logs
 scratch_*.log
+
+# LaTeX build intermediates (regenerated from .tex; never tracked).
+# A self-contained arXiv submission keeps its own main.bbl under */arxiv/.
+*.aux
+*.log
+*.out
+*.toc
+*.bcf
+*.blg
+*.run.xml
+*.synctex.gz
+paper/**/*.bbl
+docs/**/*.bbl
+!**/arxiv/*.bbl
+
+# Canonical documentation source package (draw from selectively; not committed wholesale)
+FinCompass-Canonical-Documentation-Production/

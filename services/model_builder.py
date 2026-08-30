@@ -159,6 +159,32 @@ def _register(
     })
 
 
+def _stamp_training_contract(saved: Dict[str, Any], recipe: Dict[str, Any], trainer_family: str) -> None:
+    """Record how a saved model can be retrained, on its own manifest.
+
+    Runtime code retrains strictly from this contract's recipe_id — never from a
+    display name — so a model produced here is itself retrainable next time.
+    """
+    from forecasting.registry import MODEL_ROOT
+    horizon_days = int(recipe.get("horizon_trading_days") or 252)
+    contract = {
+        "trainer_family": trainer_family,
+        "recipe_id": recipe.get("recipe_id"),
+        "feature_contract": recipe.get("feature_contract"),
+        "benchmark_family": (saved.get("applicability_domain") or {}).get("benchmark_family") or "US_LARGE_CAP",
+        "horizon_months": int(round(horizon_days / 21.0)),
+        "retrain_supported": True,
+    }
+    saved["training_contract"] = contract
+    path = MODEL_ROOT / f"{saved.get('profile_name')}-{saved.get('model_id')}.json"
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+        manifest["training_contract"] = contract
+        path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    except OSError:
+        logger.warning("could not stamp training contract on %s", path.name)
+
+
 def _worker(
     recipe_id: str,
     profile_override: Optional[str],
@@ -170,6 +196,7 @@ def _worker(
     # Heavy scientific imports are deferred so API startup stays light.
     from forecasting.config import settings_from_dict
     from forecasting.dataset import build_universe_dataset, load_dataset_bundle, write_dataset_bundle
+    from forecasting.baseline import train_validate_bayesian_reference
     from forecasting.model import train_validate_ensemble
     from forecasting.registry import save_model
 
@@ -302,7 +329,15 @@ def _worker(
             message="Training component models, calibrating probabilities and running the locked test",
         )
         train, validation, test, frozen_manifest = load_dataset_bundle(experiment_dir)
-        model, report, predictions = train_validate_ensemble(train, validation, test, frozen_manifest, settings)
+        # Dispatch by the recipe's declared trainer. The Bayesian reference is a
+        # hard-valid probability model; a passing run that lacks stronger skill is
+        # retained as a Limited-evidence (bayesian_baseline) candidate rather than
+        # rejected.
+        trainer_family = str(recipe.get("trainer_family") or "enhanced_ensemble")
+        if trainer_family == "bayesian_reference":
+            model, report, predictions = train_validate_bayesian_reference(train, validation, test, frozen_manifest, settings)
+        else:
+            model, report, predictions = train_validate_ensemble(train, validation, test, frozen_manifest, settings)
         predictions.to_csv(experiment_dir / "locked_test_predictions.csv", index=False)
         (experiment_dir / "validation_report.json").write_text(
             json.dumps(report, indent=2, sort_keys=True, default=str) + "\n", encoding="utf-8"
@@ -315,23 +350,33 @@ def _worker(
         tier = str(report.get("validation_tier") or "rejected")
         gate_passed = bool((report.get("gate") or {}).get("passed"))
         failed = _failed_gates(report)
-        usable = gate_passed and tier in {"validated_research", "validated_market"}
+        # A hard-valid Bayesian baseline is a legitimate forecast-eligible candidate
+        # even without stronger skill; the validated tiers additionally require a
+        # passing locked-test gate.
+        savable = tier == "bayesian_baseline" or (gate_passed and tier in {"validated_research", "validated_market"})
         saved: Optional[Dict[str, Any]] = None
-        if usable:
+        if savable:
             cache.update_model_build(
                 phase="saving_candidate", completed=len(prices), failures=len(missing),
-                message="Saving validated candidate (not activated)",
+                message="Saving candidate (not activated)",
             )
             lineage = None
             if parent_model_id:
                 lineage = {"parent_model_id": str(parent_model_id), "update_type": "retrain",
                            "reason": "new_data_and_matured_labels", "created_at": _utc_now()}
             saved = save_model(model, report, frozen_manifest, profile_name=recipe["recipe_id"], lineage=lineage)
+            _stamp_training_contract(saved, recipe, trainer_family)
             status = "validated"
-            message = (
-                f"Validation passed at {tier.replace('_', ' ')} tier. Candidate retained but NOT active; "
-                "explicit Model Lab activation is required."
-            )
+            if tier == "bayesian_baseline":
+                message = (
+                    "Hard-valid Limited-evidence baseline retained. It is forecast-eligible and "
+                    "tracking-only for Live; it is not activated and never applies adaptive updates."
+                )
+            else:
+                message = (
+                    f"Validation passed at {tier.replace('_', ' ')} tier. Candidate retained but NOT active; "
+                    "explicit Model Lab activation is required."
+                )
         else:
             status = "rejected"
             message = (

@@ -329,3 +329,17 @@ body.mode-research .guided-only { display: none !important; }
 .verdict-good { color: #2e9e5b; }
 .verdict-warn { color: #d64545; }
 .verdict-neutral { color: #46506a; }
+
+/* Labelled option payoff chart. */
+.pf-ax, .pf-ax-zero { stroke: #8a93a6; stroke-width: 1; }
+.pf-ax-zero { stroke: #46506a; }
+.pf-strike { stroke: #8a93a6; stroke-width: 1; }
+.pf-be { stroke: #d08a1e; stroke-width: 1; }
+.pf-spot { stroke: #2f6fed; stroke-width: 1.4; }
+.pf-zone-profit { fill: rgba(46,158,91,0.10); }
+.pf-zone-loss { fill: rgba(214,69,69,0.10); }
+.pf-axlbl { fill: var(--muted, #6b7a90); font-size: 11px; }
+.pf-mklbl { fill: #46506a; font-size: 11px; }
+.pf-be-lbl { fill: #b5730f; }
+.pf-spot-lbl { fill: #2f6fed; font-weight: 600; }
+.pf-loss { color: #d64545; }

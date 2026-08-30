@@ -22,4 +22,9 @@ Decision legend: `ADOPT_CODE` (vendor MIT code, isolated + attributed) · `ADAPT
 | FinanceDatabase (symbol DB) | instrument catalog | BLOCKED_BY_LICENSE | separate license/redistribution terms unverified | verify before any copy | — | n/a until cleared |
 | Jupyter/notebook tooling | — | NOT_NEEDED | not a runtime dependency | none | — | — |
 
-**This cycle:** Track A (retrain/replacement lifecycle) is the release-critical priority; all Track B analytics are `DEFER`/`ADAPT_CONCEPT` and **not yet implemented**. When implemented, each metric gets a versioned formula-registry entry, an independent hand-calculated unit test, and an optional FinanceToolkit cross-check (never the sole oracle).
+**Implemented so far (native, provider-independent, `ADAPT_CONCEPT`):**
+- **performance** (`analytics/performance.py`) — annualized return, volatility, Sharpe, Sortino, max drawdown, Calmar, beta, tracking error, information ratio, downside deviation.
+- **risk** (`analytics/risk.py`) — volatility, EWMA volatility, historical/Gaussian VaR, CVaR (expected shortfall), max drawdown + duration. VaR is a confidence-level loss threshold, never "maximum loss".
+- Kernel: `analytics/common.py` (transforms + centralized conventions), `analytics/registry.py` (versioned formula registry + universal result contract). Docs: `docs/ANALYTICS_REFERENCE.md` (auto-derived, 16 metrics), `docs/FEATURE_REGISTRY.md`. Verified by hand-calculated tests (`tests/test_analytics.py`) — FinanceToolkit is **not** the oracle.
+
+Still `DEFER`/`ADAPT_CONCEPT` and **not yet implemented**: ratios (needs statement normalization), valuation/DCF, fixed income, options, portfolio, factors, economics, econometrics, catalog/discovery-v2. Each will follow the same pattern (registry entry + independent hand-calc test + optional cross-check). No FinanceToolkit code copied; `THIRD_PARTY_NOTICES.md` unchanged.

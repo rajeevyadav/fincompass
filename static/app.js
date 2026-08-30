@@ -584,6 +584,13 @@ function calculatorsHtml() {
     <div class="two-col">
       <form class="card calc-form" data-calc="options">
         <h4>Option (Black-Scholes)</h4>
+        <div class="live-loader">
+          <input name="chain_ticker" placeholder="Ticker (e.g. AAPL)" autocomplete="off">
+          <button type="button" class="btn-secondary" data-load-chain>Load real contracts</button>
+          <select name="chain_expiry" class="chain-select" hidden><option>Expiry…</option></select>
+          <select name="chain_contract" class="chain-select" hidden><option>Contract…</option></select>
+          <div class="chain-note meta"></div>
+        </div>
         <label>Type <select name="option_type"><option value="call">Call</option><option value="put">Put</option></select></label>
         <label>Spot <input name="spot" type="number" step="any" value="100"></label>
         <label>Strike <input name="strike" type="number" step="any" value="100"></label>
@@ -595,6 +602,10 @@ function calculatorsHtml() {
       </form>
       <form class="card calc-form" data-calc="bond">
         <h4>Bond analytics</h4>
+        <div class="live-loader">
+          <button type="button" class="btn-secondary" data-load-rates>Load current Treasury rates</button>
+          <div class="rates-out meta"></div>
+        </div>
         <label>Face <input name="face" type="number" step="any" value="1000"></label>
         <label>Coupon rate <input name="coupon_rate" type="number" step="any" value="0.05"></label>
         <label>Yield (YTM) <input name="ytm" type="number" step="any" value="0.05"></label>
@@ -699,6 +710,95 @@ async function submitCalculator(form) {
 document.addEventListener("submit", (e) => {
   const form = e.target.closest && e.target.closest(".calc-form");
   if (form) { e.preventDefault(); submitCalculator(form); }
+});
+
+// Load a real option chain and let the user pick an actual listed contract.
+async function loadOptionChain(form) {
+  const t = (form.querySelector('[name="chain_ticker"]').value || "").trim().toUpperCase();
+  const note = form.querySelector(".chain-note");
+  const expSel = form.querySelector('[name="chain_expiry"]');
+  const conSel = form.querySelector('[name="chain_contract"]');
+  if (!t) { note.textContent = "Enter a ticker first."; return; }
+  note.textContent = "Loading listed expiries…";
+  try {
+    const r = await api(`/api/v2/analytics/options/chain/${encodeURIComponent(t)}`);
+    if (!r.available) { note.textContent = r.reason || "No listed options."; return; }
+    form._chainSpot = r.spot;
+    expSel.innerHTML = `<option value="">Expiry…</option>` + r.expiries.map((e) => `<option value="${esc(e)}">${esc(e)}</option>`).join("");
+    expSel.hidden = false; conSel.hidden = true;
+    note.textContent = `${r.expiries.length} expiries · ${esc(r.source_note || "")}`;
+  } catch (error) { note.textContent = error.message; }
+}
+
+async function loadChainContracts(form) {
+  const t = (form.querySelector('[name="chain_ticker"]').value || "").trim().toUpperCase();
+  const expiry = form.querySelector('[name="chain_expiry"]').value;
+  const conSel = form.querySelector('[name="chain_contract"]');
+  const note = form.querySelector(".chain-note");
+  if (!expiry) return;
+  note.textContent = "Loading contracts…";
+  try {
+    const r = await api(`/api/v2/analytics/options/chain/${encodeURIComponent(t)}?expiry=${encodeURIComponent(expiry)}`);
+    if (!r.available) { note.textContent = r.reason || "No chain."; return; }
+    if (r.spot) form._chainSpot = r.spot;
+    const opt = (type, row) => {
+      const iv = row.implied_volatility, last = row.last;
+      return `<option value='${esc(JSON.stringify({type, strike: row.strike, iv, last, expiry}))}'>${type} · strike ${num(row.strike)} · last ${last == null ? "—" : num(last).toFixed(2)} · IV ${iv == null ? "—" : (iv * 100).toFixed(0) + "%"}</option>`;
+    };
+    conSel.innerHTML = `<option value="">Contract…</option>` +
+      (r.calls || []).map((row) => opt("call", row)).join("") +
+      (r.puts || []).map((row) => opt("put", row)).join("");
+    conSel.hidden = false;
+    note.textContent = `${(r.calls || []).length} calls · ${(r.puts || []).length} puts · ${esc(r.source_note || "")}`;
+  } catch (error) { note.textContent = error.message; }
+}
+
+// Fill the calculator from the picked contract: real strike, market implied
+// volatility, days-to-expiry as a year fraction, and the market premium.
+function applyContract(form) {
+  const raw = form.querySelector('[name="chain_contract"]').value;
+  if (!raw) return;
+  let c; try { c = JSON.parse(raw); } catch { return; }
+  const set = (n, v) => { const el = form.querySelector(`[name="${n}"]`); if (el != null && v != null && isFinite(v)) el.value = v; };
+  if (form._chainSpot) set("spot", Number(form._chainSpot).toFixed(2));
+  set("strike", c.strike);
+  if (c.iv) set("vol", Number(c.iv).toFixed(4));
+  const days = (new Date(c.expiry + "T00:00:00Z") - Date.now()) / 86400000;
+  if (days > 0) set("expiry", (days / 365.25).toFixed(4));
+  form.querySelector('[name="option_type"]').value = c.type;
+  const note = form.querySelector(".chain-note");
+  if (note) note.textContent = `Loaded ${c.type} strike ${num(c.strike)} · market last ${c.last == null ? "—" : num(c.last).toFixed(2)}. Press “Price it”.`;
+}
+
+async function loadTreasuryRates(form) {
+  const out = form.querySelector(".rates-out");
+  out.textContent = "Loading current Treasury rates…";
+  try {
+    const r = await api("/api/v2/analytics/rates/treasury");
+    if (!r.available) { out.textContent = r.reason || "Rates unavailable."; return; }
+    out.innerHTML = `<div class="rate-chips">` + r.points.map((p) =>
+      `<button type="button" class="rate-chip" data-rate="${p.yield_percent / 100}" data-years="${p.years}">${esc(p.tenor)} · ${p.yield_percent}%</button>`).join("") +
+      `</div><span class="meta">${esc(r.source_note || "")} — click a rate to use it as the yield.</span>`;
+  } catch (error) { out.textContent = error.message; }
+}
+
+document.addEventListener("click", (e) => {
+  const t = e.target;
+  if (!t || !t.closest) return;
+  if (t.matches("[data-load-chain]")) { loadOptionChain(t.closest(".calc-form")); }
+  else if (t.matches("[data-load-rates]")) { loadTreasuryRates(t.closest(".calc-form")); }
+  else if (t.matches(".rate-chip")) {
+    const form = t.closest(".calc-form");
+    const y = t.getAttribute("data-rate"), yrs = t.getAttribute("data-years");
+    if (form && y) { form.querySelector('[name="ytm"]').value = Number(y).toFixed(4); if (yrs) form.querySelector('[name="years"]').value = yrs; }
+  }
+});
+
+document.addEventListener("change", (e) => {
+  const t = e.target;
+  if (!t || !t.matches) return;
+  if (t.matches('[name="chain_expiry"]')) loadChainContracts(t.closest(".calc-form"));
+  else if (t.matches('[name="chain_contract"]')) applyContract(t.closest(".calc-form"));
 });
 
 async function analyze() {

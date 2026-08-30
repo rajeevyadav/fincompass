@@ -305,3 +305,13 @@ body.mode-research .guided-only { display: none !important; }
 .risk-bar { flex: 1; height: 12px; background: var(--border, #e3e8ef); border-radius: 6px; overflow: hidden; }
 .risk-fill { display: block; height: 100%; background: #3f7cc0; }
 .risk-val { width: 3em; text-align: right; }
+
+/* Live market-data loaders for the option chain and Treasury rates. */
+.live-loader { margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px dashed var(--border, #d8dee9); }
+.live-loader input, .chain-select { margin: 2px 0; }
+.chain-select { max-width: 100%; }
+.chain-note { margin-top: 4px; }
+.btn-secondary { padding: 3px 8px; }
+.rate-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; }
+.rate-chip { padding: 3px 8px; border: 1px solid var(--border, #ccc); border-radius: 12px; background: transparent; cursor: pointer; }
+.rate-chip:hover { background: var(--border, #eee); }

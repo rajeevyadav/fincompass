@@ -648,6 +648,26 @@ def analytics_bond_v2(request: Request, payload: Dict[str, Any] = Body(default={
     return {"inputs": p, "results": out, "request_id": _rid(request)}
 
 
+@app.get("/api/v2/analytics/options/chain/{ticker}")
+def options_chain_v2(ticker: str, request: Request, expiry: Optional[str] = Query(None, max_length=16)):
+    """Listed option expiries for a ticker, or the calls/puts for one expiry.
+
+    Real, delayed public option quotes so the calculator can price an actual
+    contract. Degrades to available:false when the instrument has no options.
+    """
+    from services.options_chain import available_expiries, chain_for
+    ticker = validate_ticker(ticker)
+    result = chain_for(ticker, expiry) if expiry else available_expiries(ticker)
+    return {**result, "request_id": _rid(request)}
+
+
+@app.get("/api/v2/analytics/rates/treasury")
+def treasury_rates_v2(request: Request):
+    """Current Treasury yield curve (delayed public indices) for the bond desk."""
+    from services.rates import treasury_curve
+    return {**treasury_curve(), "request_id": _rid(request)}
+
+
 @app.post("/api/v2/analytics/portfolio")
 def analytics_portfolio_v2(request: Request, payload: Dict[str, Any] = Body(default={})):
     """Portfolio return, volatility and Euler risk contributions from weights + covariance."""

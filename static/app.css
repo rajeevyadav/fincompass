@@ -287,7 +287,8 @@ body.mode-research .guided-only { display: none !important; }
 .gauge-band.gauge-warn { fill: #d08a1e; }
 .gauge-band.gauge-neutral { fill: #6b7a90; }
 .gauge-price { stroke: #d64545; stroke-width: 0.8; }
-.payoff-line { fill: none; stroke: #2f6fed; stroke-width: 0.8; }
+.payoff-line { fill: none; stroke: #2f6fed; stroke-width: 1.6; vector-effect: non-scaling-stroke; }
+.gauge-axis, .gauge-price, .gauge-mid { vector-effect: non-scaling-stroke; }
 .gauge-legend { display: flex; justify-content: space-between; font-size: 0.8em; }
 .plain-read { font-size: 1.02em; line-height: 1.5; margin: 0.25rem 0; }
 

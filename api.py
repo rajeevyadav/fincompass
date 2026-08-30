@@ -718,7 +718,22 @@ def methodology_v3():
     base["forecasting"] = {
         "engine_version": FORECAST_ENGINE_VERSION,
         "target": "Probability that the forward return represented by the configured dataset price series exceeds the benchmark return plus the configured hurdle over a fixed trading-day horizon.",
-        "models": ["Bayesian logistic regression with Laplace posterior", "histogram gradient boosting", "random forest"],
+        "architecture": [
+            "Unconditional reference: the base event rate on the development corpus.",
+            "Bayesian reference: a regularized Bayesian logistic model with a Laplace posterior; hard-valid but Limited-evidence unless it passes the stronger gates.",
+            "Regime-aware Bayesian research model: the reference augmented with Gaussian-HMM regime probabilities from benchmark-only, backward-looking features; a research alternative, not a Guided default.",
+            "Enhanced validated model: a calibrated ensemble that must pass the locked-test gates to earn validated_research or validated_market.",
+        ],
+        "model_ladder": {
+            "invalid": "Broken chronology, fit, features, or domain. Not usable.",
+            "bayesian_baseline": "Coherent probability; stronger out-of-sample skill not shown. Forecast-eligible, Live is tracking-only.",
+            "validated_research": "Locked-test gates passed on the declared corpus. Forecast and adaptive-eligible Live, still gated.",
+            "validated_market": "Those gates plus a stronger universe and point-in-time controls.",
+        },
+        "live": {
+            "tracking_only": "A Bayesian baseline anchors a frozen probability with no adaptive residual and no activation request.",
+            "adaptive": "A validated model may apply a small, gated residual only after the original outcome matures and the adaptive gate passes.",
+        },
         "calibration": "The chronological validation partition is split into three stages: component calibration, ensemble stacking, and final ensemble calibration. Target-end purge plus the configured embargo is applied at each internal boundary. The locked test is never used for fitting.",
         "validation": "Purged chronological train/validation/test partitions, purged/embargoed internal validation stages, locked-test probability metrics, moving date-block plus same-date cross-sectional cluster bootstrap, and purged/embargoed walk-forward stability checks.",
         "activation_gate": "Synthetic fixtures can never activate live forecasts. A real model must pass configured gates to earn validated_research or validated_market status.",

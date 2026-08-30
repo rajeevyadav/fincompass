@@ -301,19 +301,28 @@ def registry_status(root: Path = MODEL_ROOT) -> Dict[str, Any]:
     manifests = list_model_manifests(root)
     usable = [m for m in manifests if m.get("validation_tier") in _USABLE_TIERS]
     market = [m for m in usable if m.get("validation_tier") == "validated_market"]
+    research = [m for m in usable if m.get("validation_tier") == "validated_research"]
     baseline = [m for m in manifests if m.get("validation_tier") == "bayesian_baseline"]
+    forecast_eligible = [m for m in manifests if m.get("validation_tier") in _FORECAST_TIERS]
+    adaptive_live = [m for m in usable if (m.get("dataset_provenance") or {}).get("live_eligible_target") is not False]
     pointer = get_active_pointer(root)
     active = get_active_manifest(root)
     pointer_valid = bool(pointer and active)
     return {
         "forecast_engine_version": FORECAST_ENGINE_VERSION,
         "models_total": len(manifests),
+        # Tier-explicit counts. "usable_models" is retained for compatibility but
+        # excludes the Bayesian baseline, which the Forecast product does use; read
+        # "forecast_eligible_models" for what can produce a Guided forecast.
+        "forecast_eligible_models": len(forecast_eligible),
+        "baseline_models": len(baseline),
+        "validated_research_models": len(research),
+        "validated_market_models": len(market),
+        "adaptive_live_eligible_models": len(adaptive_live),
         "usable_models": len(usable),
         "market_validated_models": len(market),
         "bayesian_baseline_models": len(baseline),
-        "live_eligible_models": sum(
-            1 for m in usable if (m.get("dataset_provenance") or {}).get("live_eligible_target") is not False
-        ),
+        "live_eligible_models": len(adaptive_live),
         "active_model": active.get("model_id") if active else None,
         "active_tier": active.get("validation_tier") if active else None,
         "activation_pointer_present": bool(pointer),

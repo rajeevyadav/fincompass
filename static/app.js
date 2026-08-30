@@ -1222,14 +1222,18 @@ function populateModelSelects(status) {
 
 function renderForecastStatus(status) {
   state.forecastRegistry=status; state.forecastStatusLoaded=true; populateModelSelects(status);
-  const out=$("forecast-status"); const usable=num(status.usable_models); const market=num(status.market_validated_models);
+  const out=$("forecast-status");
+  const forecastEligible=num(status.forecast_eligible_models);
+  const baseline=num(status.baseline_models);
+  const research=num(status.validated_research_models);
+  const market=num(status.validated_market_models);
   const active=String(status.active_model||""); const tier=status.active_tier||"none";
   $("forecast-tier-badge").textContent=active?String(tier).replaceAll("_"," "):"No active model";
-  if(!usable){
-    out.innerHTML=`<div class="notice"><strong>No validated forecast candidate is installed.</strong> Train a Model Lab recipe from retained local data and inspect the locked-test gates. Candidates that fail remain rejected; the synthetic fixture is never live.</div>`; return;
+  if(!forecastEligible){
+    out.innerHTML=`<div class="notice"><strong>No forecast model is installed.</strong> Train a Model Lab recipe from retained local data and inspect the locked-test gates. A hard-valid Bayesian reference is kept as a Limited-evidence baseline; the synthetic fixture is never live.</div>`; return;
   }
-  const activationNote=active?`Active model: <strong>${esc(active)}</strong>.`:`<strong>${usable} validated candidate${usable===1?"":"s"} available, but none is active.</strong> Review an experiment and explicitly activate an eligible candidate.`;
-  out.innerHTML=`<div class="notice">${activationNote}</div><div class="forecast-grid"><div class="kpi"><div class="k-label">Validated candidates</div><div class="k-value">${usable}</div></div><div class="kpi"><div class="k-label">Market-validated</div><div class="k-value">${market}</div></div><div class="kpi"><div class="k-label">Active tier</div><div class="k-value validation-tier">${esc(active?tier.replaceAll("_"," "):"none")}</div></div><div class="kpi"><div class="k-label">Forecast engine</div><div class="k-value">${esc(status.forecast_engine_version||"—")}</div></div></div>`;
+  const activationNote=active?`Active model: <strong>${esc(active)}</strong>.`:`<strong>${forecastEligible} forecast-eligible model${forecastEligible===1?"":"s"} installed.</strong> Live tracking uses a validated anchor when one is explicitly activated; a Limited-evidence baseline tracks only.`;
+  out.innerHTML=`<div class="notice">${activationNote}</div><div class="forecast-grid"><div class="kpi"><div class="k-label">Forecast-eligible</div><div class="k-value">${forecastEligible}</div></div><div class="kpi"><div class="k-label">Limited-evidence baseline</div><div class="k-value">${baseline}</div></div><div class="kpi"><div class="k-label">Research-validated</div><div class="k-value">${research}</div></div><div class="kpi"><div class="k-label">Market-validated</div><div class="k-value">${market}</div></div><div class="kpi"><div class="k-label">Active tier</div><div class="k-value validation-tier">${esc(active?tier.replaceAll("_"," "):"none")}</div></div><div class="kpi"><div class="k-label">Forecast engine</div><div class="k-value">${esc(status.forecast_engine_version||"—")}</div></div></div>`;
 }
 
 async function loadForecastStatus(){
@@ -1329,7 +1333,7 @@ async function loadModelLab(){
     state.modelLabRecommendedReason=recipes.recommended_reason||"";
     const select=$("build-recipe"); if(select){
       const current=select.value;
-      select.innerHTML=state.modelLabRecipes.map((r)=>{const ready=r.readiness?.trainable?"ready":"needs local data";const tag=r.recipe_id===state.modelLabRecommended?" · recommended":"";return `<option value="${esc(r.recipe_id)}">${esc(r.name)} · ${num(r.horizon_trading_days)}d vs ${esc(r.benchmark)} · ${ready}${tag}</option>`;}).join('');
+      select.innerHTML=state.modelLabRecipes.map((r)=>{const ready=r.readiness?.trainable?"ready":"needs local data";const tag=r.recipe_id===state.modelLabRecommended?" · recommended":"";const fam=r.trainer_family==="bayesian_reference"?"Bayesian reference":"Enhanced ensemble";return `<option value="${esc(r.recipe_id)}">${esc(r.name)} · ${fam} · ${num(r.horizon_trading_days)}d vs ${esc(r.benchmark)} · ${ready}${tag}</option>`;}).join('');
       const keepCurrent=current&&[...select.options].some((o)=>o.value===current)&&getExperienceMode()==="research";
       if(keepCurrent)select.value=current;
       else if(state.modelLabRecommended&&[...select.options].some((o)=>o.value===state.modelLabRecommended))select.value=state.modelLabRecommended;

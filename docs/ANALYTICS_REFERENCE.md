@@ -29,6 +29,11 @@ Ratios and DCF consume ONLY canonical statement fields (see analytics/statements
 | Sortino ratio | `performance.sortino.v1` | 1 | ann_excess / downside_deviation | returns, mar | ratio | equity, etf, index | standard definition |
 | Tracking error | `performance.tracking_error.v1` | 1 | std(asset - benchmark) * sqrt(P) | asset_returns, benchmark_returns | ratio_percent | equity, etf, index | standard definition |
 | Annualized volatility | `performance.volatility.v1` | 1 | std(r, ddof=1) * sqrt(P) | returns | ratio_percent | equity, etf, index | standard definition |
+| Sample covariance matrix | `portfolio.covariance.v1` | 1 | cov(columns=assets, ddof=1) | asset_returns | ratio_squared | portfolio | standard definition |
+| Portfolio expected return | `portfolio.return.v1` | 1 | w . mu | weights, expected_returns | ratio | portfolio | aggregates asset returns, never forecast probabilities |
+| Risk contribution (Euler) | `portfolio.risk_contribution.v1` | 1 | component_i = w_i (Sigma w)_i / vol; sum_i component_i = vol | weights, cov | ratio | portfolio | Euler risk allocation |
+| Portfolio variance | `portfolio.variance.v1` | 1 | w' Sigma w | weights, cov | ratio_squared | portfolio | standard definition |
+| Portfolio volatility | `portfolio.volatility.v1` | 1 | sqrt(w' Sigma w) | weights, cov | ratio | portfolio | standard definition |
 | Asset turnover | `ratio.asset_turnover.v1` | 1 | revenue / avg(total_assets) | revenue, total_assets | ratio | equity | standard financial-statement analysis |
 | Book value per share | `ratio.book_value_per_share.v1` | 1 | total_equity / shares_diluted | total_equity, shares_diluted | currency_per_share | equity | standard financial-statement analysis |
 | Cash conversion | `ratio.cash_conversion.v1` | 1 | free_cash_flow / net_income | free_cash_flow, net_income | ratio | equity | standard financial-statement analysis |

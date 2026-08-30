@@ -484,7 +484,13 @@ async function loadAnalytics(ticker) {
   const el = () => document.getElementById("analytics-panel");
   try {
     const o = await api(`/api/v2/analytics/${encodeURIComponent(ticker)}/overview`);
-    if (el()) el().innerHTML = analyticsPanelHtml(o);
+    if (el()) {
+      el().innerHTML = analyticsPanelHtml(o);
+      // Load real listed contracts for the instrument being analysed so the
+      // option calculator prices an actual contract rather than typed numbers.
+      const optForm = el().querySelector('.calc-form[data-calc="options"]');
+      if (optForm) loadOptionChain(optForm);
+    }
   } catch (error) {
     if (el()) el().innerHTML = `<h2>Deterministic analytics</h2><div class="meta">Analytics unavailable: ${esc(error.message)}</div>`;
   }
@@ -500,30 +506,39 @@ function dcfGaugeHtml(dcf, lastPrice, cur) {
   const lo = Number(dcf.range_low), hi = Number(dcf.range_high), mid = Number(dcf.value_per_share);
   const price = Number(lastPrice);
   const havePrice = Number.isFinite(price) && price > 0;
-  let verdict = "an assumption-dependent estimate", cls = "neutral";
-  if (havePrice && Number.isFinite(lo) && Number.isFinite(hi)) {
-    if (price < lo) { verdict = "cheaper than the estimate"; cls = "good"; }
-    else if (price > hi) { verdict = "more expensive than the estimate"; cls = "warn"; }
-    else { verdict = "roughly fairly priced versus the estimate"; cls = "neutral"; }
+  const haveRange = Number.isFinite(lo) && Number.isFinite(hi) && hi > lo;
+  if (!haveRange) {
+    return `<p class="plain-read">A single estimate is not meaningful here; treat it as a scenario, not a target.</p><p class="meta">${esc(dcf.disclaimer || "")}</p>`;
   }
-  // Scale that always includes the price, even if it sits outside the range.
-  const vals = [lo, hi, mid, havePrice ? price : lo].filter(Number.isFinite);
-  const dmin = Math.min(...vals) * 0.95, dmax = Math.max(...vals) * 1.05;
-  const span = (dmax - dmin) || 1;
-  const x = (v) => Math.max(0, Math.min(100, ((v - dmin) / span) * 100));
-  const bandL = x(lo), bandR = x(hi), priceX = havePrice ? x(price) : null;
-  const sentence = (Number.isFinite(lo) && Number.isFinite(hi))
-    ? `Our rough model estimates this company is worth about <strong>${cur} ${_money(lo)}–${_money(hi)}</strong> a share.${havePrice ? ` It's trading near <strong>${cur} ${_money(price)}</strong> — so it looks <strong>${verdict}</strong>.` : ""}`
-    : "A single estimate is not meaningful here; treat it as a scenario, not a target.";
+  let verdict = "within the estimate", cls = "neutral", detail = "inside the estimate range";
+  if (havePrice) {
+    if (price < lo) { cls = "good"; verdict = "cheaper than the estimate"; detail = `about ${((lo - price) / price * 100).toFixed(0)}% below the low estimate`; }
+    else if (price > hi) { cls = "warn"; verdict = "more expensive than the estimate"; detail = `about ${((price - hi) / hi * 100).toFixed(0)}% above the high estimate`; }
+    else { verdict = "roughly fairly priced"; }
+  }
+  // Anchor the scale on the estimate range with a full-range pad on each side so
+  // the estimate band sits in the centre; a price far outside is clamped to the
+  // edge and flagged with an arrow rather than squashing the band to a sliver.
+  const range = hi - lo, dmin = lo - range, dmax = hi + range, span = dmax - dmin;
+  const x = (v) => ((v - dmin) / span) * 100;
+  const bandL = x(lo), bandR = x(hi);
+  const rawX = havePrice ? x(price) : null;
+  const off = rawX != null && (rawX < 2 || rawX > 98);
+  const px = rawX == null ? null : Math.max(2, Math.min(98, rawX));
+  const arrow = off ? (rawX > 98 ? " ▶" : " ◀") : "";
+  const tri = px == null ? "" : `<polygon points="${(px - 3).toFixed(1)},4 ${(px + 3).toFixed(1)},4 ${px.toFixed(1)},11" class="gauge-tri gauge-tri-${cls}"/>`;
+  const sentence = `Our rough model estimates this company is worth about <strong>${cur} ${_money(lo)}–${_money(hi)}</strong> a share.${havePrice ? ` It's trading near <strong>${cur} ${_money(price)}</strong> — ${detail}, so it looks <strong>${verdict}</strong>.` : ""}`;
   return `
     <p class="plain-read">${sentence}</p>
     <div class="value-gauge" role="img" aria-label="Estimated fair-value range versus current price">
-      <svg viewBox="0 0 100 26" preserveAspectRatio="none" width="100%" height="52">
-        <line x1="0" y1="16" x2="100" y2="16" class="gauge-axis"/>
-        <rect x="${bandL.toFixed(1)}" y="12" width="${Math.max(0.5, bandR - bandL).toFixed(1)}" height="8" class="gauge-band gauge-${cls}"/>
-        ${priceX != null ? `<line x1="${priceX.toFixed(1)}" y1="6" x2="${priceX.toFixed(1)}" y2="24" class="gauge-price"/>` : ""}
+      <svg viewBox="0 0 100 22" preserveAspectRatio="none" width="100%" height="46">
+        <rect x="0" y="12" width="${bandL.toFixed(1)}" height="7" class="zone-cheap"/>
+        <rect x="${bandR.toFixed(1)}" y="12" width="${(100 - bandR).toFixed(1)}" height="7" class="zone-pricey"/>
+        <rect x="${bandL.toFixed(1)}" y="12" width="${Math.max(0.6, bandR - bandL).toFixed(1)}" height="7" class="gauge-estimate"/>
+        ${tri}
       </svg>
-      <div class="gauge-legend meta"><span>◀ cheaper</span><span>estimate range</span><span>pricier ▶</span></div>
+      <div class="gauge-legend meta"><span>◀ cheaper</span><span>fair-value estimate</span><span>pricier ▶</span></div>
+      ${havePrice ? `<div class="gauge-verdict verdict-${cls}">▲ Current price ${cur} ${_money(price)}${arrow} — ${esc(verdict)}</div>` : ""}
     </div>
     <p class="meta">${esc(dcf.disclaimer || "")}</p>
     <details class="advanced-only"><summary>Assumptions and figures</summary>
@@ -572,27 +587,29 @@ function analyticsPanelHtml(o) {
       ${perfKpi("Max drawdown", risk.max_drawdown, true)}
     </div>
     <details><summary>Inspect raw analytics</summary><pre class="detail">${esc(JSON.stringify({fundamentals: f, performance: perf, risk: risk, technicals: o.technicals}, null, 2))}</pre></details>
-    ${calculatorsHtml()}`;
+    ${calculatorsHtml(o.ticker, o.last_price)}`;
 }
 
 // Input-driven analytics calculators (option pricing, bond analytics, portfolio
 // risk). These consume the provider-independent kernel and take explicit inputs;
 // no market data is fetched. Results are model identities, not forecasts.
-function calculatorsHtml() {
+function calculatorsHtml(ticker, lastPrice) {
+  const tk = ticker ? String(ticker).toUpperCase() : "";
+  const spot = (lastPrice != null && isFinite(lastPrice)) ? Number(lastPrice).toFixed(2) : "100";
   return `
     <h3>Calculators</h3>
     <div class="two-col">
       <form class="card calc-form" data-calc="options">
-        <h4>Option (Black-Scholes)</h4>
+        <h4>Option (Black-Scholes)${tk ? ` — ${esc(tk)}` : ""}</h4>
         <div class="live-loader">
-          <input name="chain_ticker" placeholder="Ticker (e.g. AAPL)" autocomplete="off">
-          <button type="button" class="btn-secondary" data-load-chain>Load real contracts</button>
+          <input name="chain_ticker" placeholder="Ticker (e.g. AAPL)" autocomplete="off" value="${esc(tk)}">
+          <button type="button" class="btn-secondary" data-load-chain>${tk ? "Reload real contracts" : "Load real contracts"}</button>
           <select name="chain_expiry" class="chain-select" hidden><option>Expiry…</option></select>
           <select name="chain_contract" class="chain-select" hidden><option>Contract…</option></select>
-          <div class="chain-note meta"></div>
+          <div class="chain-note meta">${tk ? "Loading listed contracts…" : "Enter a ticker to load real listed contracts."}</div>
         </div>
         <label>Type <select name="option_type"><option value="call">Call</option><option value="put">Put</option></select></label>
-        <label>Spot <input name="spot" type="number" step="any" value="100"></label>
+        <label>Spot <input name="spot" type="number" step="any" value="${spot}"></label>
         <label>Strike <input name="strike" type="number" step="any" value="100"></label>
         <label>Rate <input name="rate" type="number" step="any" value="0.05"></label>
         <label>Volatility <input name="vol" type="number" step="any" value="0.2"></label>
@@ -729,7 +746,17 @@ async function loadOptionChain(form) {
     expSel.innerHTML = `<option value="">Expiry…</option>` + r.expiries.map((e) => `<option value="${esc(e)}">${esc(e)}</option>`).join("");
     expSel.hidden = false; conSel.hidden = true;
     note.textContent = `${r.expiries.length} expiries · ${esc(r.source_note || "")}`;
+    // Auto-select the nearest listed expiry so real prices load without extra clicks.
+    if (r.expiries[0]) { expSel.value = r.expiries[0]; loadChainContracts(form); }
   } catch (error) { note.textContent = error.message; }
+}
+
+// In (ITM) / at (ATM) / out of the money (OTM), from the caller's perspective.
+function _moneyness(type, strike, spot) {
+  if (!Number.isFinite(spot) || !Number.isFinite(strike) || spot <= 0) return "";
+  if (Math.abs(strike - spot) / spot < 0.02) return "ATM";
+  const call = String(type).toLowerCase() === "call";
+  return call ? (strike < spot ? "ITM" : "OTM") : (strike > spot ? "ITM" : "OTM");
 }
 
 async function loadChainContracts(form) {
@@ -743,15 +770,25 @@ async function loadChainContracts(form) {
     const r = await api(`/api/v2/analytics/options/chain/${encodeURIComponent(t)}?expiry=${encodeURIComponent(expiry)}`);
     if (!r.available) { note.textContent = r.reason || "No chain."; return; }
     if (r.spot) form._chainSpot = r.spot;
+    const spot = Number(form._chainSpot);
     const opt = (type, row) => {
-      const iv = row.implied_volatility, last = row.last;
-      return `<option value='${esc(JSON.stringify({type, strike: row.strike, iv, last, expiry}))}'>${type} · strike ${num(row.strike)} · last ${last == null ? "—" : num(last).toFixed(2)} · IV ${iv == null ? "—" : (iv * 100).toFixed(0) + "%"}</option>`;
+      const iv = row.implied_volatility, last = row.last, m = _moneyness(type, Number(row.strike), spot);
+      return `<option value='${esc(JSON.stringify({type, strike: row.strike, iv, last, expiry}))}'>${type.toUpperCase()}${m ? " " + m : ""} · strike ${num(row.strike)} · last ${last == null ? "—" : num(last).toFixed(2)} · IV ${iv == null ? "—" : (iv * 100).toFixed(0) + "%"}</option>`;
     };
     conSel.innerHTML = `<option value="">Contract…</option>` +
-      (r.calls || []).map((row) => opt("call", row)).join("") +
-      (r.puts || []).map((row) => opt("put", row)).join("");
+      `<optgroup label="Calls">${(r.calls || []).map((row) => opt("call", row)).join("")}</optgroup>` +
+      `<optgroup label="Puts">${(r.puts || []).map((row) => opt("put", row)).join("")}</optgroup>`;
     conSel.hidden = false;
-    note.textContent = `${(r.calls || []).length} calls · ${(r.puts || []).length} puts · ${esc(r.source_note || "")}`;
+    note.textContent = `${(r.calls || []).length} calls · ${(r.puts || []).length} puts · spot ${Number.isFinite(spot) ? num(spot).toFixed(2) : "—"} · ${esc(r.source_note || "")}`;
+    // Auto-pick the at-the-money call so a real market price appears immediately.
+    if (Number.isFinite(spot)) {
+      let bestIdx = -1, bestD = Infinity;
+      for (let i = 0; i < conSel.options.length; i++) {
+        const v = conSel.options[i].value; if (!v) continue;
+        try { const c = JSON.parse(v); if (c.type === "call" && Number.isFinite(c.strike)) { const d = Math.abs(c.strike - spot); if (d < bestD) { bestD = d; bestIdx = i; } } } catch (e) { /* skip */ }
+      }
+      if (bestIdx >= 0) { conSel.selectedIndex = bestIdx; applyContract(form); }
+    }
   } catch (error) { note.textContent = error.message; }
 }
 

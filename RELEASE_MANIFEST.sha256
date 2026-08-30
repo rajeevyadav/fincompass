@@ -6,7 +6,7 @@ d2ccaecc2842cab9a8c2200ca4ebe8e41815482bb670628a5e69609c2d10c947  ./.dockerignor
 c56e268212eb00222231b39286fc046f1f0f2a58ad9f58a6d8732bf316237735  ./.github/hooks/check-restricted-files.sh
 cb1492c470d434582f48a97a9656dd11b62caeeac33a7f874fb63c57f945fc14  ./.github/workflows/ci.yml
 04c72a8644ed1e58a613042baa57ecf7762680f282f1737a0cd622a06809869f  ./.github/workflows/restricted-folders-guard.yml
-382481c363fc795daffd289057f80077756908aa9fd8416b54aebdd9c09db1f7  ./.gitignore
+39e97424d402479619ba6c36469f308773749214f2ded16e4aad4961f4c262fe  ./.gitignore
 89ce29688e4bad6461db17297939ca4d045dbf15bb20b7518c69f7d39fd8506b  ./.pre-commit-config.yaml
 c965ddc674bb66eb0296068466ea03082944c520b51d5e1961ec07ff8b539b9b  ./ARCHITECTURE.md
 b7f1e35b20d404166afaafc734f7e78a930f5df0f2fc510ad3e14329d8c6a26d  ./ASVS_CHECKLIST.md
@@ -75,6 +75,16 @@ c7ad80944b88dfd945687ee47a774dfa6979363d38f22e8bbdd7d4fbc07928aa  ./datasets/fix
 0cff0e735453e10761edf5db2092f39848500d694ccdeda47049878dcb5c9964  ./datasets/fixtures/train.csv
 fb71a8d63e4d2a09024dbef8e4f0f198db3c3f3fb499df4a8773f7a823568dda  ./datasets/fixtures/validation.csv
 841e390d740dea47dddd8cc673bb45de9014930b583e1dab60197ce075e9f8a1  ./datasets/fixtures/validation_report.json
+22f9875161fb7e08191585ed936ebbee5ef7adc25f2724d1e0897f72887ed24b  ./datasets/market-seed/README.md
+96b81a042d9ae116436b8a67f7565a5107f47133c620da15b38f6f0e7d3e8997  ./datasets/market-seed/SEED_MANIFEST.json
+eaf89538269d3c18edad50515d138634dd99207108d7492dbf6f9686235e87ea  ./datasets/market-seed/SEED_MANIFEST.sha256
+dbb9ad7495a83b0f2f48c94b06e23020587d82f8d1492dcb717fb1ebc2f86c18  ./datasets/market-seed/licenses/MATPLOTLIB-LICENSE.txt
+19c59cfc5fdfb383e18f9c51e025aa136647b5da61a94ebc9d93ca55752b1747  ./datasets/market-seed/licenses/PMDARIMA-PACKAGE-METADATA.txt
+79af5cb6465fdb8da326b773d4f5d367b30c563adea5ba1260746e9980f8ba33  ./datasets/market-seed/market_seed.db
+400917cf30e6b664f7b0da93d7c745860d3aa9008da8b7f160d2dd12e6a318b1  ./datasets/market-seed/raw/400917cf30e6-matplotlib-goog.npz
+667627a7e6486003788c845182aaac5f7edbf74220b500eea9a50a7e4f1c12ba  ./datasets/market-seed/raw/667627a7e648-pmdarima-msft.tar.gz
+400917cf30e6b664f7b0da93d7c745860d3aa9008da8b7f160d2dd12e6a318b1  ./datasets/market-seed/source-originals/matplotlib-goog.npz
+667627a7e6486003788c845182aaac5f7edbf74220b500eea9a50a7e4f1c12ba  ./datasets/market-seed/source-originals/pmdarima-msft.tar.gz
 4c11676b54c919270821c86b1edb115686eee5a421eb6cd684d49e507457f692  ./datasets/realtime-fixtures/adaptive_stream_manifest.json
 78c5ce044699998543fc0283b939269ebf1f6a8be957717e1cebb1d94b7172b0  ./datasets/realtime-fixtures/adaptive_validation_report.json
 3ab5d23ba976f6f605150b6cf42f4db56eaa20bbf5b48878d1306db1a992fdfe  ./datasets/realtime-fixtures/fixture_manifest.json
@@ -209,7 +219,7 @@ ab7bc2f3ab2feaa8c9f044a8f7f9dbc77494e7aa184b35373628843148ea790e  ./realtime/sto
 c19677d5acb65662a3ca353f1715ef17ff954a22179a2fb6b67c397bf6df9349  ./requirements-build.txt
 818785c9a0ab9a1becbe86c66c0ac5b81235ed65cb9e09060f42137abefb1bfc  ./requirements-dev.txt
 ec4b8b0bcb32cbebc801ea55f5540c6fd74db3cf693e1e75831a13e4376d6b3c  ./requirements-scale.txt
-08b38160c7defeecff5dc80fb14149bda0bf067185f852837b68694dcfa3453e  ./requirements.txt
+07000bd8944faa41563b9cfc5df958bc2d989cfa8f3a068b5dce4603d90af1d1  ./requirements.txt
 07bbdbcc53388d63aa59ad91727337a0c318b3ce40469e8215707c87c2ccfb88  ./run.bat
 d5f41c8ed55e948729908c5e9bd8f93c7a80e56bf1818f4895b5b9175f0a78ef  ./run.sh
 59f2b21907b8c44d57591a53c2980e49a50d2b5105c477e53d728112e86aff8e  ./run_fincompass.py

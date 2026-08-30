@@ -90,6 +90,34 @@ def max_drawdown_duration(returns: pd.Series) -> int:
     return int(longest)
 
 
+def _f(x):
+    """JSON-safe float: NaN/inf -> None."""
+    try:
+        v = float(x)
+        return v if np.isfinite(v) else None
+    except (TypeError, ValueError):
+        return None
+
+
+def risk_summary(close, confidence: float = 0.95) -> dict:
+    """Headline risk metrics from a price series; JSON-safe (NaN -> None).
+
+    VaR/CVaR are positive loss fractions at the given confidence, not a maximum
+    possible loss.
+    """
+    r = C.simple_returns(pd.Series(close))
+    return {
+        "confidence": confidence,
+        "historical_var": _f(historical_var(r, confidence)),
+        "gaussian_var": _f(gaussian_var(r, confidence)),
+        "conditional_var": _f(conditional_var(r, confidence)),
+        "ewma_volatility": _f(ewma_volatility(r)),
+        "annualized_volatility": _f(volatility(r)),
+        "max_drawdown": _f(max_drawdown(r)),
+        "max_drawdown_duration": max_drawdown_duration(r),
+    }
+
+
 def _register_all() -> None:
     register("risk.volatility.v1", name="Annualized volatility", category="risk",
              formula="std(r, ddof=1) * sqrt(P)", inputs=["returns"], units="ratio_percent",

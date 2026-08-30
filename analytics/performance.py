@@ -119,6 +119,41 @@ def information_ratio(asset_returns: pd.Series, benchmark_returns: pd.Series,
     return float(active_ann / te)
 
 
+def _f(x):
+    """JSON-safe float: NaN/inf -> None."""
+    try:
+        v = float(x)
+        return v if np.isfinite(v) else None
+    except (TypeError, ValueError):
+        return None
+
+
+def performance_summary(close, benchmark=None, frequency: str = "daily") -> dict:
+    """Headline performance metrics from a price series (optional benchmark prices).
+
+    Convenience aggregator over the individual metrics for the instrument
+    overview; every value is JSON-safe (NaN -> None).
+    """
+    r = C.simple_returns(pd.Series(close))
+    out = {
+        "annualized_return": _f(annualized_return(r, frequency)),
+        "annualized_volatility": _f(volatility(r, frequency)),
+        "sharpe": _f(sharpe_ratio(r, 0.0, frequency)),
+        "sortino": _f(sortino_ratio(r, 0.0, frequency)),
+        "max_drawdown": _f(max_drawdown(r)),
+        "calmar": _f(calmar_ratio(r, frequency)),
+    }
+    if benchmark is not None:
+        br = C.simple_returns(pd.Series(benchmark))
+        joined = pd.concat([r, br], axis=1, join="inner").dropna()
+        if len(joined) > 2:
+            a, b = joined.iloc[:, 0], joined.iloc[:, 1]
+            out["beta"] = _f(beta(a, b))
+            out["tracking_error"] = _f(tracking_error(a, b, frequency))
+            out["information_ratio"] = _f(information_ratio(a, b, frequency))
+    return out
+
+
 def _register_all() -> None:
     register("performance.annualized_return.v1", name="Annualized return", category="performance",
              formula="prod(1+r)^(P/N) - 1", inputs=["returns"], units="ratio_percent",

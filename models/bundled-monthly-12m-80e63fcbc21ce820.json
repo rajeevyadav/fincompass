@@ -167,6 +167,14 @@
     "horizon_trading_days": 252,
     "return_basis": "Monthly close series supplied by the declared upstream sample; no training rows are bundled."
   },
+  "training_contract": {
+    "benchmark_family": "US_LARGE_CAP",
+    "feature_contract": "monthly_relative_v1",
+    "horizon_months": 12,
+    "recipe_id": "core-us-12m",
+    "retrain_supported": true,
+    "trainer_family": "enhanced_ensemble"
+  },
   "validation": {
     "bayesian_coefficients_standardized": {
       "benchmark_ret_12m": 0.03383331841296914,

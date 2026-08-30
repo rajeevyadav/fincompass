@@ -39,6 +39,12 @@ def build_forecast_plan(ticker: str, horizon_months: int = 12) -> Dict[str, Any]
         action = "update_model"
     else:
         action = "unsupported"
+    # Whether an in-app model update is even possible is decided by the selected
+    # model's explicit training contract — never inferred. A stale-but-valid model
+    # keeps forecasting; an update is optional maintenance, never a prerequisite.
+    contract = (selected or {}).get("training_contract") or {}
+    stale = bool(freshness and freshness.get("status") in {"retrain_recommended", "stale"})
+    model_update_available = bool(contract.get("retrain_supported")) and stale
     return {
         "instrument": instrument,
         "horizon_months": int(horizon_months),
@@ -48,5 +54,9 @@ def build_forecast_plan(ticker: str, horizon_months: int = 12) -> Dict[str, Any]
         "model_freshness": freshness,
         "preflight": preflight,
         "recommended_action": action,
+        "can_forecast_now": action == "forecast",
+        "model_update_available": model_update_available,
+        "model_update_required": False,
+        "training_contract": contract or None,
         "eligible_model_count": len(selected_info.get("eligible") or []),
     }

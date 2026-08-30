@@ -133,6 +133,14 @@
     "horizon_trading_days": 252,
     "return_basis": "Price-series return; corporate-action treatment is declared in data_quality/provenance."
   },
+  "training_contract": {
+    "benchmark_family": "US_LARGE_CAP",
+    "feature_contract": null,
+    "horizon_months": 12,
+    "recipe_id": "core-us-12m",
+    "retrain_supported": true,
+    "trainer_family": "enhanced_ensemble"
+  },
   "validation": {
     "bayesian_coefficients_standardized": {
       "benchmark_ret_126": -0.02503853841271869,

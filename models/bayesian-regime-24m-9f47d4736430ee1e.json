@@ -152,6 +152,14 @@
     "horizon_months": 24,
     "horizon_trading_days": 504
   },
+  "training_contract": {
+    "benchmark_family": "US_LARGE_CAP",
+    "feature_contract": "monthly_relative_plus_benchmark_hmm_v1",
+    "horizon_months": 24,
+    "recipe_id": null,
+    "retrain_supported": false,
+    "trainer_family": "bayesian_regime"
+  },
   "validation": {
     "bootstrap": {
       "_meta": {

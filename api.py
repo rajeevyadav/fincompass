@@ -998,12 +998,29 @@ def model_update_v4(model_id: str, request: Request):
     manifest = next((m for m in list_model_manifests() if m.get("model_id") == mid), None)
     if not manifest:
         raise HTTPException(404, f"model not found: {mid}")
-    recipe_id = str(manifest.get("profile_name") or "core-us-6m")
+    # Dispatch strictly from the model's declared training contract — never infer
+    # a recipe from profile_name. A model that cannot be retrained in-app returns
+    # a user-safe result (not an error) so the current forecast is never lost.
+    contract = manifest.get("training_contract") or {}
+    recipe_id = contract.get("recipe_id")
+    if not contract.get("retrain_supported") or not recipe_id:
+        return {
+            "available": False, "retrain_supported": False, "keep_current": True,
+            "model_id": mid, "trainer_family": contract.get("trainer_family"),
+            "message": "This model cannot be updated in-app yet, so FinCompass kept the "
+                       "current model. Your forecast remains available.",
+            "request_id": _rid(request),
+        }
     try:
-        state = start_model_build(recipe_id=recipe_id, parent_model_id=mid)
+        state = start_model_build(recipe_id=str(recipe_id), parent_model_id=mid)
     except ValueError as exc:
-        raise HTTPException(422, str(exc))
-    return {**state, "parent_model_id": mid, "request_id": _rid(request)}
+        # A rejected/not-ready build must not disturb the current model either.
+        return {"available": False, "retrain_supported": True, "keep_current": True,
+                "model_id": mid, "message": f"Update could not start: {exc}. The current "
+                "model was kept and your forecast remains available.",
+                "request_id": _rid(request)}
+    return {**state, "available": True, "parent_model_id": mid,
+            "training_contract": contract, "request_id": _rid(request)}
 
 
 @app.get("/api/v4/forecast/{ticker}")

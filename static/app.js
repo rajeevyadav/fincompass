@@ -470,10 +470,73 @@ function renderAnalysis(d, history) {
     <div class="two-col">
       <section class="card chart-card"><h2>Evidence profile</h2><canvas id="analysis-radar" class="chart-canvas chart-sm" role="img" aria-label="Radar chart of five FinCompass evidence pillar scores"></canvas><div class="canvas-note">Durability is a financial proxy, not a direct qualitative moat measurement.</div></section>
       <section class="card chart-card"><h2>${esc(d.ticker)} price context</h2>${history?.points?.length ? '<canvas id="analysis-price" class="chart-canvas chart-sm" role="img" aria-label="Five year closing price line chart"></canvas><div class="canvas-note">Price history is context only and is not used as a return forecast.</div>' : '<div class="empty-state"><span>Price history unavailable.</span></div>'}</section>
-    </div>`;
+    </div>
+    <section class="card" id="analytics-panel"><h2>Deterministic analytics</h2><div class="meta loading">Computing valuation, ratios, performance and risk…</div></section>`;
   syncStarButtons();
   registerChart("analysis-radar", () => drawRadar("analysis-radar", d.pillars, d.composite));
   if (history?.points?.length) registerChart("analysis-price", () => drawLine("analysis-price", history.points));
+  loadAnalytics(d.ticker);
+}
+
+// Deterministic analytics panel: intrinsic-value DCF + financial ratios +
+// performance/risk, computed by the provider-independent analytics kernel.
+async function loadAnalytics(ticker) {
+  const el = () => document.getElementById("analytics-panel");
+  try {
+    const o = await api(`/api/v2/analytics/${encodeURIComponent(ticker)}/overview`);
+    if (el()) el().innerHTML = analyticsPanelHtml(o);
+  } catch (error) {
+    if (el()) el().innerHTML = `<h2>Deterministic analytics</h2><div class="meta">Analytics unavailable: ${esc(error.message)}</div>`;
+  }
+}
+
+function _fmtPct(v) { return v == null ? "—" : `${(num(v) * 100).toFixed(1)}%`; }
+function _fmtNum(v, dp = 2) { return v == null ? "—" : num(v).toFixed(dp); }
+function _money(v) { return v == null ? "—" : num(v).toLocaleString(undefined, { maximumFractionDigits: 2 }); }
+
+function analyticsPanelHtml(o) {
+  if (!o || o.available === false) {
+    return `<h2>Deterministic analytics</h2><div class="meta">${esc((o && o.message) || "Analytics unavailable for this instrument.")}</div>`;
+  }
+  const f = o.fundamentals || {};
+  const dcf = f.dcf || {};
+  const perf = o.performance || {};
+  const risk = o.risk || {};
+  const cur = f.currency || "";
+  const ratioRows = (f.ratios || []).map((r) =>
+    `<tr><td>${esc(r.label)}</td><td class="num">${r.available ? (r.metric_id.includes("margin") || r.metric_id.includes("yield") || r.metric_id.includes("return_on") ? _fmtPct(r.value) : _fmtNum(r.value)) : "—"}</td></tr>`).join("");
+  const dcfBlock = (f.available && dcf.valid) ? `
+    <div class="analytics-dcf">
+      <div class="kpi"><div class="k-label">DCF intrinsic value / share</div><div class="k-value">${cur} ${_money(dcf.value_per_share)}</div></div>
+      <div class="kpi"><div class="k-label">Scenario range (WACC × growth)</div><div class="k-value">${cur} ${_money(dcf.range_low)} – ${_money(dcf.range_high)}</div></div>
+      <div class="kpi"><div class="k-label">WACC / terminal growth</div><div class="k-value">${_fmtPct(dcf.assumptions?.wacc)} / ${_fmtPct(dcf.assumptions?.terminal_growth)}</div></div>
+    </div>
+    <p class="meta">${esc(dcf.disclaimer || "")}</p>` :
+    `<div class="meta">${esc((f.reason) || "A DCF is available only for companies with reported statements.")}</div>`;
+  const perfKpi = (label, val, pct) => `<div class="kpi"><div class="k-label">${label}</div><div class="k-value">${pct ? _fmtPct(val) : _fmtNum(val)}</div></div>`;
+  return `
+    <h2>Deterministic analytics</h2>
+    <p class="meta">Provider-independent kernel · ${esc(o.formula_transparency?.engine || "FinCompass analytics")}. Descriptive analysis of reported data — not a forecast, probability, or price target.</p>
+    <h3>Valuation (DCF)</h3>
+    ${dcfBlock}
+    ${ratioRows ? `<h3>Financial ratios</h3><div class="table-wrap"><table><tbody>${ratioRows}</tbody></table></div>` : ""}
+    <h3>Performance</h3>
+    <div class="forecast-grid">
+      ${perfKpi("Annualized return", perf.annualized_return, true)}
+      ${perfKpi("Volatility", perf.annualized_volatility, true)}
+      ${perfKpi("Sharpe", perf.sharpe, false)}
+      ${perfKpi("Sortino", perf.sortino, false)}
+      ${perfKpi("Max drawdown", perf.max_drawdown, true)}
+      ${perfKpi("Beta", perf.beta, false)}
+    </div>
+    <h3>Risk</h3>
+    <div class="forecast-grid">
+      ${perfKpi(`Historical VaR (${_fmtPct(risk.confidence)})`, risk.historical_var, true)}
+      ${perfKpi("Conditional VaR", risk.conditional_var, true)}
+      ${perfKpi("EWMA volatility", risk.ewma_volatility, true)}
+      ${perfKpi("Max drawdown", risk.max_drawdown, true)}
+    </div>
+    <details><summary>Inspect raw analytics</summary><pre class="detail">${esc(JSON.stringify({fundamentals: f, performance: perf, risk: risk, technicals: o.technicals}, null, 2))}</pre></details>`;
 }
 
 async function analyze() {

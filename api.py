@@ -531,6 +531,7 @@ def analytics_overview_v2(ticker: str, request: Request):
     from services.forecast_service import _get_price_history
     from services.instrument_classification import classify_instrument
     from services.benchmark_resolver import resolve_benchmark
+    from services.fundamentals import build_fundamentals
     ticker = validate_ticker(ticker)
     frame = _get_price_history(ticker)
     if frame is None or frame.empty:
@@ -541,9 +542,22 @@ def analytics_overview_v2(ticker: str, request: Request):
     if benchmark.get("supported"):
         bench_frame = _get_price_history(str(benchmark.get("symbol")))
     perf = performance_summary(frame["Close"], bench_frame["Close"] if bench_frame is not None and not bench_frame.empty else None)
+    # Company fundamentals (financial ratios + a scenario DCF) for equities.
+    # Degrades to {available: False, reason} for non-equities or missing statements.
+    try:
+        market_cap = None
+        try:
+            snap = fetcher.get_fundamentals(ticker) if "fetcher" in globals() else None
+            market_cap = (snap or {}).get("market_cap")
+        except Exception:
+            market_cap = None
+        fundamentals = build_fundamentals(ticker, instrument=instrument, market_cap=market_cap)
+    except Exception:
+        fundamentals = {"available": False, "reason": "Fundamentals are unavailable for this instrument."}
     return {
         "available": True, "ticker": ticker, "instrument": instrument, "benchmark": benchmark,
         "performance": perf, "risk": risk_summary(frame["Close"]), "technicals": technical_summary(frame),
+        "fundamentals": fundamentals,
         "formula_transparency": {"engine": "FinCompass deterministic analytics kernel", "version": "2.0"},
         "request_id": _rid(request),
     }

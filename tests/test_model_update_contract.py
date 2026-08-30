@@ -34,7 +34,9 @@ def test_bundled_enhanced_12m_declares_retrainable_contract():
 def test_bayesian_baseline_update_is_safe_not_an_error():
     # D8-02 / D8-08: a model with no runtime retrainer must NOT 422; it must
     # return a user-safe result that keeps the current model/forecast.
-    m = _by_profile("bayesian-reference")
+    # The regime family has no runtime trainer, so its update must stay a safe,
+    # keep-current no-op rather than an error.
+    m = _by_profile("bayesian-regime")
     assert m is not None
     r = client.post(f"/api/v4/models/{m['model_id']}/update")
     assert r.status_code == 200
@@ -44,16 +46,37 @@ def test_bayesian_baseline_update_is_safe_not_an_error():
     assert "forecast remains available" in body["message"].lower()
 
 
-def test_bayesian_manifests_declare_not_retrainable():
+def test_bayesian_reference_is_retrainable_via_a_real_recipe():
+    # The reference family now has a runtime trainer, so its contract points to a
+    # registered recipe and its update dispatches a build.
+    from forecasting.recipes import RECIPES
     for m in list_model_manifests():
-        prof = str(m.get("profile_name") or "")
-        if prof.startswith("bayesian-"):
+        if str(m.get("profile_name") or "").startswith("bayesian-reference"):
+            c = m.get("training_contract") or {}
+            assert c.get("retrain_supported") is True
+            assert c.get("trainer_family") == "bayesian_reference"
+            assert c.get("recipe_id") in RECIPES
+
+
+def test_regime_manifests_declare_not_retrainable():
+    for m in list_model_manifests():
+        if str(m.get("profile_name") or "").startswith("bayesian-regime"):
             c = m.get("training_contract") or {}
             assert c.get("retrain_supported") is False
             assert c.get("recipe_id") is None
-            assert c.get("trainer_family") in {"bayesian_reference", "bayesian_regime"}
+            assert c.get("trainer_family") == "bayesian_regime"
 
 
 def test_unknown_model_id_is_404():
     r = client.post("/api/v4/models/deadbeefdeadbeef/update")
     assert r.status_code == 404
+
+
+def test_runtime_recipes_cover_all_shipped_horizons():
+    # Block 7: every shipped horizon has a working runtime retrain recipe, both an
+    # enhanced ensemble and a Bayesian reference variant.
+    from forecasting.recipes import RECIPES
+    for months in (6, 12, 24, 36):
+        assert f"core-us-{months}m" in RECIPES
+        assert f"bayesian-reference-us-{months}m" in RECIPES
+        assert RECIPES[f"bayesian-reference-us-{months}m"]["trainer_family"] == "bayesian_reference"

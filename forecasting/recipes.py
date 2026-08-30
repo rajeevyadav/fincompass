@@ -91,6 +91,7 @@ def _recipe(
     description: str,
     feature_contract: str = "price_relative_v1",
     live_eligible_target: bool = True,
+    trainer_family: str = "enhanced_ensemble",
     settings_overrides: Dict[str, Any] | None = None,
     bundled_seed: bool = False,
 ) -> Dict[str, Any]:
@@ -103,6 +104,10 @@ def _recipe(
         "benchmark": benchmark.upper(),
         "tickers": sorted({str(x).upper() for x in tickers if str(x).strip()}),
         "feature_contract": feature_contract,
+        # Which runtime trainer builds this recipe. The Bayesian reference is a
+        # hard-valid probability model that stays Limited-evidence (never live)
+        # unless it also clears the stronger validated gates.
+        "trainer_family": trainer_family,
         "description": description,
         "live_eligible_target": bool(live_eligible_target),
         "settings_overrides": dict(settings_overrides or {}),
@@ -134,6 +139,44 @@ RECIPES: Dict[str, Dict[str, Any]] = {
         "core-us-12m", "Core US Equity - 12M", horizon=252, benchmark="SPY",
         tickers=DEFAULT_UNIVERSE, profile="standard",
         description="Curated US equities versus SPY over approximately twelve trading months.",
+    ),
+    "core-us-24m": _recipe(
+        "core-us-24m", "Core US Equity - 24M", horizon=504, benchmark="SPY",
+        tickers=DEFAULT_UNIVERSE, profile="standard",
+        description="Curated US equities versus SPY over approximately twenty-four trading months.",
+    ),
+    "core-us-36m": _recipe(
+        "core-us-36m", "Core US Equity - 36M", horizon=756, benchmark="SPY",
+        tickers=DEFAULT_UNIVERSE, profile="standard",
+        description="Curated US equities versus SPY over approximately thirty-six trading months.",
+    ),
+    # Bayesian reference recipes: a hard-valid probability model per horizon. They
+    # stay Limited-evidence (forecast-eligible, never live) unless they also clear
+    # the stronger validated gates. Used by the runtime retrain path for the
+    # shipped Bayesian baselines.
+    "bayesian-reference-us-6m": _recipe(
+        "bayesian-reference-us-6m", "Bayesian Reference US - 6M", horizon=126, benchmark="SPY",
+        tickers=DEFAULT_UNIVERSE, profile="exploratory", trainer_family="bayesian_reference",
+        live_eligible_target=False,
+        description="Regularized Bayesian reference model for US equities versus SPY over six trading months.",
+    ),
+    "bayesian-reference-us-12m": _recipe(
+        "bayesian-reference-us-12m", "Bayesian Reference US - 12M", horizon=252, benchmark="SPY",
+        tickers=DEFAULT_UNIVERSE, profile="standard", trainer_family="bayesian_reference",
+        live_eligible_target=False,
+        description="Regularized Bayesian reference model for US equities versus SPY over twelve trading months.",
+    ),
+    "bayesian-reference-us-24m": _recipe(
+        "bayesian-reference-us-24m", "Bayesian Reference US - 24M", horizon=504, benchmark="SPY",
+        tickers=DEFAULT_UNIVERSE, profile="standard", trainer_family="bayesian_reference",
+        live_eligible_target=False,
+        description="Regularized Bayesian reference model for US equities versus SPY over twenty-four trading months.",
+    ),
+    "bayesian-reference-us-36m": _recipe(
+        "bayesian-reference-us-36m", "Bayesian Reference US - 36M", horizon=756, benchmark="SPY",
+        tickers=DEFAULT_UNIVERSE, profile="standard", trainer_family="bayesian_reference",
+        live_eligible_target=False,
+        description="Regularized Bayesian reference model for US equities versus SPY over thirty-six trading months.",
     ),
     "nasdaq-growth-6m": _recipe(
         "nasdaq-growth-6m", "Nasdaq Growth - 6M", horizon=126, benchmark="QQQ",

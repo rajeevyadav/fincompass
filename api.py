@@ -563,19 +563,20 @@ def analytics_overview_v2(ticker: str, request: Request):
     # Company fundamentals (financial ratios + a scenario DCF) for equities.
     # Degrades to {available: False, reason} for non-equities or missing statements.
     try:
+        last_price = float(frame["Close"].iloc[-1])
+    except (KeyError, IndexError, ValueError):
+        last_price = None
+    try:
         market_cap = None
         try:
             snap = fetcher.get_fundamentals(ticker) if "fetcher" in globals() else None
             market_cap = (snap or {}).get("market_cap")
         except Exception:
             market_cap = None
-        fundamentals = build_fundamentals(ticker, instrument=instrument, market_cap=market_cap)
+        fundamentals = build_fundamentals(ticker, instrument=instrument, market_cap=market_cap,
+                                          market_price=last_price)
     except Exception:
         fundamentals = {"available": False, "reason": "Fundamentals are unavailable for this instrument."}
-    try:
-        last_price = float(frame["Close"].iloc[-1])
-    except (KeyError, IndexError, ValueError):
-        last_price = None
     return {
         "available": True, "ticker": ticker, "instrument": instrument, "benchmark": benchmark,
         "last_price": last_price,

@@ -142,3 +142,53 @@ def test_currency_mismatch_fails_safely():
     inp = Val.build_inputs(inc, bal, cf)
     assert "currency_mismatch" in inp.issues
     assert Val.run_dcf(inp, _assumptions())["valid"] is False
+
+
+def test_dcf_from_free_cash_flow_reference_case():
+    # Standard FCF-to-equity DCF (base FCF 100, tapering growth, WACC 9%,
+    # terminal 3%, net cash 50, 15 shares) -> ~153/share.
+    r = Val.dcf_from_free_cash_flow(100.0, [0.12, 0.10, 0.09, 0.08, 0.07], 0.09, 0.03, -50.0, 15.0)
+    assert r["valid"] is True
+    assert r["value_per_share"] == pytest.approx(152.98, abs=0.5)
+    assert len(r["projected_fcf"]) == 5
+
+
+def test_dcf_from_fcf_uses_reported_fcf_not_understated_ebit():
+    # A company whose reported FCF (30) exceeds the naive EBIT proxy still values
+    # off the real cash flow; higher base FCF -> higher value.
+    low = Val.dcf_from_free_cash_flow(10.0, [0.05] * 5, 0.09, 0.025, 0.0, 10.0)["value_per_share"]
+    high = Val.dcf_from_free_cash_flow(30.0, [0.05] * 5, 0.09, 0.025, 0.0, 10.0)["value_per_share"]
+    assert high > low * 2.5
+
+
+def test_dcf_from_fcf_fails_safely():
+    import math as _m
+    assert _m.isnan(Val.dcf_from_free_cash_flow(100.0, [0.05], 0.02, 0.03, 0.0, 10.0)["value_per_share"])  # g>=wacc
+    assert _m.isnan(Val.dcf_from_free_cash_flow(100.0, [0.05], 0.09, 0.025, 0.0, 0.0)["value_per_share"])  # no shares
+    assert _m.isnan(Val.dcf_from_free_cash_flow(float("nan"), [0.05], 0.09, 0.025, 0.0, 10.0)["value_per_share"])
+
+
+def test_three_stage_growth_path_shape():
+    # 5 constant high years, then a linear glide to the stable rate over 5 years.
+    p = Val.three_stage_growth_path(0.15, 0.03, 5, 5)
+    assert len(p) == 10
+    assert p[:5] == [0.15] * 5
+    assert p[-1] == pytest.approx(0.03)
+    # Transition is monotonically decreasing.
+    assert all(p[i] >= p[i + 1] for i in range(5, 9))
+
+
+def test_implied_growth_round_trips():
+    # Value a name at a known stage-1 growth, then recover that growth from its price.
+    args = dict(wacc=0.09, terminal_growth=0.025, net_debt=-50.0, shares_diluted=15.0)
+    path = Val.three_stage_growth_path(0.12, 0.03, 5, 5)
+    px = Val.dcf_from_free_cash_flow(100.0, path, args["wacc"], args["terminal_growth"],
+                                     args["net_debt"], args["shares_diluted"])["value_per_share"]
+    g = Val.implied_fcf_growth(px, 100.0, stable_growth=0.03, **args)
+    assert g == pytest.approx(0.12, abs=1e-3)
+
+
+def test_implied_growth_none_when_unreachable():
+    # A price no growth in the search band can produce yields None, not a bad number.
+    assert Val.implied_fcf_growth(1e12, 100.0, 0.09, 0.025, 0.0, 10.0) is None
+    assert Val.implied_fcf_growth(-5.0, 100.0, 0.09, 0.025, 0.0, 10.0) is None

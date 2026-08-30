@@ -644,34 +644,53 @@ function calculatorsHtml(ticker, lastPrice) {
     </form>`;
 }
 
-// Profit/loss at expiry versus the stock price — the one options chart a
-// beginner reads. Break-even is strike +/- the premium paid.
-function optionPayoffHtml(type, strike, premium) {
+// Profit/loss at expiry versus the stock price — a labelled chart with the
+// current price, strike and break-even marked, and profit/loss shaded.
+function optionPayoffHtml(type, strike, premium, spot) {
   const isCall = String(type).toLowerCase() === "call";
   const be = isCall ? strike + premium : strike - premium;
-  const lo = Math.max(0, strike * 0.5), hi = strike * 1.5, span = (hi - lo) || 1;
+  spot = Number(spot);
+  const haveSpot = Number.isFinite(spot) && spot > 0;
+  const anchors = [strike, be, haveSpot ? spot : strike].filter((x) => Number.isFinite(x) && x > 0);
+  const lo = Math.max(0, Math.min(...anchors) * 0.7), hi = Math.max(...anchors) * 1.3, span = (hi - lo) || 1;
   const pl = (s) => (isCall ? Math.max(s - strike, 0) : Math.max(strike - s, 0)) - premium;
-  const pts = [];
-  for (let i = 0; i <= 40; i++) { const s = lo + (span * i) / 40; pts.push([s, pl(s)]); }
-  const ymax = Math.max(...pts.map((p) => Math.abs(p[1]))) || 1;
-  const X = (s) => ((s - lo) / span) * 100;
-  // Centre P/L=0 in the 22-unit viewBox with symmetric amplitude so both the
-  // loss and profit halves stay on-canvas (the earlier mapping clipped losses).
-  const Y = (v) => 11 - (v / ymax) * 9;                 // 2 = top (max profit), 20 = bottom (max loss)
+  const N = 60, pts = [];
+  for (let i = 0; i <= N; i++) { const s = lo + (span * i) / N; pts.push([s, pl(s)]); }
+  let ymin = Math.min(-premium, ...pts.map((p) => p[1]));
+  let ymax = Math.max(premium * 0.6, ...pts.map((p) => p[1]));
+  const pad = ((ymax - ymin) * 0.12) || 1; ymin -= pad; ymax += pad;
+  const W = 360, H = 190, mL = 56, mR = 16, mT = 16, mB = 36, pw = W - mL - mR, ph = H - mT - mB;
+  const X = (s) => mL + ((s - lo) / span) * pw;
+  const Y = (v) => mT + ((ymax - v) / (ymax - ymin)) * ph;
   const path = pts.map((p, i) => `${i ? "L" : "M"}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(" ");
-  const zeroY = Y(0).toFixed(1), beX = X(be).toFixed(1);
+  const zeroY = Y(0);
+  const vline = (s, cls, dash) => (Number.isFinite(s) && s >= lo && s <= hi)
+    ? `<line x1="${X(s).toFixed(1)}" y1="${mT}" x2="${X(s).toFixed(1)}" y2="${mT + ph}" class="${cls}"${dash ? ' stroke-dasharray="4 3"' : ""}/>` : "";
+  const lbl = (s, text, cls, dy) => (Number.isFinite(s) && s >= lo && s <= hi)
+    ? `<text x="${X(s).toFixed(1)}" y="${dy}" class="pf-mklbl ${cls || ""}" text-anchor="middle">${esc(text)}</text>` : "";
+  const xticks = [lo, (lo + hi) / 2, hi].map((v) => `<text x="${X(v).toFixed(1)}" y="${H - mB + 16}" class="pf-axlbl" text-anchor="middle">${_money(v)}</text>`).join("");
   const sentence = `This ${isCall ? "call" : "put"} costs <strong>${_money(premium)}</strong>. ` +
-    `You start making money if the stock is ${isCall ? "above" : "below"} <strong>${_money(be)}</strong> at expiry; ` +
-    `the most you can lose is the <strong>${_money(premium)}</strong> you paid.`;
+    `You make money if the stock is ${isCall ? "above" : "below"} <strong>${_money(be)}</strong> at expiry; the most you can lose is the <strong>${_money(premium)}</strong> you paid.`;
   return `
     <p class="plain-read">${sentence}</p>
     <div class="payoff" role="img" aria-label="Option profit and loss at expiry versus stock price">
-      <svg viewBox="0 0 100 22" preserveAspectRatio="none" width="100%" height="88">
-        <line x1="0" y1="${zeroY}" x2="100" y2="${zeroY}" class="gauge-axis"/>
-        <line x1="${beX}" y1="2" x2="${beX}" y2="20" class="gauge-price"/>
+      <svg viewBox="0 0 ${W} ${H}" width="100%" style="max-width:440px;height:auto">
+        <rect x="${mL}" y="${mT}" width="${pw}" height="${(zeroY - mT).toFixed(1)}" class="pf-zone-profit"/>
+        <rect x="${mL}" y="${zeroY.toFixed(1)}" width="${pw}" height="${(mT + ph - zeroY).toFixed(1)}" class="pf-zone-loss"/>
+        <line x1="${mL}" y1="${mT}" x2="${mL}" y2="${mT + ph}" class="pf-ax"/>
+        <line x1="${mL}" y1="${zeroY.toFixed(1)}" x2="${mL + pw}" y2="${zeroY.toFixed(1)}" class="pf-ax-zero"/>
+        ${vline(strike, "pf-strike")}
+        ${vline(be, "pf-be", true)}
+        ${haveSpot ? vline(spot, "pf-spot") : ""}
         <path d="${path}" class="payoff-line"/>
+        <text x="${mL - 8}" y="${(zeroY + 3).toFixed(1)}" class="pf-axlbl" text-anchor="end">$0</text>
+        <text x="${mL - 8}" y="${(Y(-premium) + 3).toFixed(1)}" class="pf-axlbl" text-anchor="end">−${_money(premium)}</text>
+        ${xticks}
+        ${lbl(strike, "strike", "", mT - 5)}
+        ${lbl(be, "break-even", "pf-be-lbl", mT + ph + 26)}
+        ${haveSpot ? lbl(spot, "now " + _money(spot), "pf-spot-lbl", mT - 5) : ""}
       </svg>
-      <div class="gauge-legend meta"><span>lower price</span><span>break-even ${_money(be)}</span><span>higher price</span></div>
+      <div class="gauge-legend meta"><span class="pf-loss">▼ loss zone</span><span>profit ▲</span></div>
     </div>`;
 }
 
@@ -714,7 +733,7 @@ async function submitCalculator(form) {
       .filter(([, v]) => typeof v === "number")
       .map(([k, v]) => `<div><strong>${esc(k.replaceAll("_", " "))}:</strong> ${num(v).toFixed(4)}</div>`).join("") || "—";
     if (kind === "options" && typeof res.price === "number") {
-      out.innerHTML = optionPayoffHtml(body.option_type, val("strike"), res.price) +
+      out.innerHTML = optionPayoffHtml(body.option_type, val("strike"), res.price, val("spot")) +
         `<details class="advanced-only"><summary>Greeks and price</summary>${numbers}</details>`;
     } else if (kind === "portfolio" && res.risk_contributions) {
       out.innerHTML = portfolioRiskHtml(res) + `<details class="advanced-only"><summary>Figures</summary>${numbers}</details>`;
@@ -743,11 +762,20 @@ async function loadOptionChain(form) {
     const r = await api(`/api/v2/analytics/options/chain/${encodeURIComponent(t)}`);
     if (!r.available) { note.textContent = r.reason || "No listed options."; return; }
     form._chainSpot = r.spot;
-    expSel.innerHTML = `<option value="">Expiry…</option>` + r.expiries.map((e) => `<option value="${esc(e)}">${esc(e)}</option>`).join("");
+    // Label each expiry with days out, and tag LEAPS (over a year) so long-dated
+    // contracts are easy to find, not buried among weeklies.
+    const days = (e) => Math.round((new Date(e + "T00:00:00Z") - Date.now()) / 86400000);
+    expSel.innerHTML = `<option value="">Expiry…</option>` + r.expiries.map((e) => {
+      const d = days(e), leap = d >= 365 ? " · LEAP" : "";
+      return `<option value="${esc(e)}">${esc(e)} · ${d}d${leap}</option>`;
+    }).join("");
     expSel.hidden = false; conSel.hidden = true;
-    note.textContent = `${r.expiries.length} expiries · ${esc(r.source_note || "")}`;
-    // Auto-select the nearest listed expiry so real prices load without extra clicks.
-    if (r.expiries[0]) { expSel.value = r.expiries[0]; loadChainContracts(form); }
+    const leaps = r.expiries.filter((e) => days(e) >= 365).length;
+    note.textContent = `${r.expiries.length} expiries (${leaps} LEAPS) · ${esc(r.source_note || "")}`;
+    // Auto-select a sensible default — the first monthly at least ~25 days out,
+    // else the nearest — and load its near-the-money contracts + chart.
+    const def = r.expiries.find((e) => days(e) >= 25) || r.expiries[0];
+    if (def) { expSel.value = def; loadChainContracts(form); }
   } catch (error) { note.textContent = error.message; }
 }
 
@@ -771,15 +799,25 @@ async function loadChainContracts(form) {
     if (!r.available) { note.textContent = r.reason || "No chain."; return; }
     if (r.spot) form._chainSpot = r.spot;
     const spot = Number(form._chainSpot);
+    // Keep the tradeable near-the-money strikes (about 12 each side of spot);
+    // the far wings are rarely useful and make the list unreadable.
+    const nearMoney = (rows) => {
+      const clean = (rows || []).filter((x) => Number.isFinite(Number(x.strike))).sort((a, b) => a.strike - b.strike);
+      if (!Number.isFinite(spot) || !clean.length) return clean.slice(0, 24);
+      let iAtm = 0, best = Infinity;
+      clean.forEach((x, i) => { const d = Math.abs(x.strike - spot); if (d < best) { best = d; iAtm = i; } });
+      return clean.slice(Math.max(0, iAtm - 12), iAtm + 13);
+    };
+    const calls = nearMoney(r.calls), puts = nearMoney(r.puts);
     const opt = (type, row) => {
       const iv = row.implied_volatility, last = row.last, m = _moneyness(type, Number(row.strike), spot);
       return `<option value='${esc(JSON.stringify({type, strike: row.strike, iv, last, expiry}))}'>${type.toUpperCase()}${m ? " " + m : ""} · strike ${num(row.strike)} · last ${last == null ? "—" : num(last).toFixed(2)} · IV ${iv == null ? "—" : (iv * 100).toFixed(0) + "%"}</option>`;
     };
     conSel.innerHTML = `<option value="">Contract…</option>` +
-      `<optgroup label="Calls">${(r.calls || []).map((row) => opt("call", row)).join("")}</optgroup>` +
-      `<optgroup label="Puts">${(r.puts || []).map((row) => opt("put", row)).join("")}</optgroup>`;
+      `<optgroup label="Calls (near the money)">${calls.map((row) => opt("call", row)).join("")}</optgroup>` +
+      `<optgroup label="Puts (near the money)">${puts.map((row) => opt("put", row)).join("")}</optgroup>`;
     conSel.hidden = false;
-    note.textContent = `${(r.calls || []).length} calls · ${(r.puts || []).length} puts · spot ${Number.isFinite(spot) ? num(spot).toFixed(2) : "—"} · ${esc(r.source_note || "")}`;
+    note.textContent = `${calls.length} calls · ${puts.length} puts near spot ${Number.isFinite(spot) ? num(spot).toFixed(2) : "—"} · ${esc(r.source_note || "")}`;
     // Auto-pick the at-the-money call so a real market price appears immediately.
     if (Number.isFinite(spot)) {
       let bestIdx = -1, bestD = Infinity;
@@ -806,7 +844,9 @@ function applyContract(form) {
   if (days > 0) set("expiry", (days / 365.25).toFixed(4));
   form.querySelector('[name="option_type"]').value = c.type;
   const note = form.querySelector(".chain-note");
-  if (note) note.textContent = `Loaded ${c.type} strike ${num(c.strike)} · market last ${c.last == null ? "—" : num(c.last).toFixed(2)}. Press “Price it”.`;
+  if (note) note.textContent = `${c.type.toUpperCase()} · strike ${num(c.strike)} · market last ${c.last == null ? "—" : num(c.last).toFixed(2)} · priced below.`;
+  // Price and draw the payoff immediately — the user should not have to click.
+  submitCalculator(form);
 }
 
 async function loadTreasuryRates(form) {

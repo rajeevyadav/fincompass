@@ -1,3 +1,15 @@
+<p align="center">
+  <img src="assets/banner.svg" alt="FinCompass — free systematic stock research" width="100%">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/license-MIT-58dbc9" alt="MIT license">
+  <img src="https://img.shields.io/badge/tests-release%20verified-5fe09b" alt="release verified">
+  <img src="https://img.shields.io/badge/python-3.11%2B-2a86d6" alt="python 3.11+">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-9fb0c5" alt="cross platform">
+  <img src="https://img.shields.io/badge/accounts-none-5fe09b" alt="no accounts">
+</p>
+
 # FinCompass
 
 Local research workbench for one question:

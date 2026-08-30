@@ -106,7 +106,7 @@ def _refresh_screener_worker() -> None:
     work_total = total * 2  # fetch phase + score phase
     failures = 0
     try:
-        # First, populate a coherent, fresh peer universe.
+        # Phase 1: populate a coherent, fresh peer universe first.
         for idx, ticker in enumerate(DEFAULT_UNIVERSE, start=1):
             try:
                 fund = fetcher.get_fundamentals(ticker)
@@ -131,7 +131,7 @@ def _refresh_screener_worker() -> None:
             message="Scoring against frozen sector peer references",
         )
 
-        # Then score every company against the same peer reference.
+        # Phase 2: every company is scored against the same peer reference.
         scored = 0
         for idx, ticker in enumerate(DEFAULT_UNIVERSE, start=1):
             try:

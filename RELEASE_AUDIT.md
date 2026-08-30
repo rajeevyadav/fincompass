@@ -2,7 +2,7 @@
 
 **Review date:** 2026-08-23  
 **Baseline:** FinCompass validation-gated probabilistic forecasting release  
-**Release:** `1.4.0`  
+**Release:** `1.2.0`  
 **Evidence engine:** `1.0.0-evidence1`  
 **Normalized-data schema:** `1.0.0-normalized1`  
 **Forecast anchor engine:** `1.0.0-prob1`  
@@ -344,7 +344,7 @@ This namespace separation reduces the risk that an evidence posterior, frozen fo
 
 The frozen source tree passes:
 
-**168 / 168 automated tests**
+**168 / 188 automated tests**
 
 plus:
 

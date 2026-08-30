@@ -1,35 +1,16 @@
 # Changelog
 
+## 2.0.0
+
+- Added a first-class Bayesian reference forecast tier (`bayesian_baseline`). Hard model-validity checks are separated from the stronger `validated_research` / `validated_market` evidence gates; those stronger gates are unchanged.
+- Added four bundled Bayesian reference horizons (6, 12, 24 and 36 months) for the explicitly declared US common-equity / S&P 500 domain. These are labeled Limited evidence and are not adaptive-Live eligible.
+- Added deterministic Guided model planning: conservative instrument classification, benchmark-family resolution, model-domain matching, horizon selection and model freshness.
+- Added a transparent quantitative analytics kernel covering performance, risk, technical indicators, valuation, fixed-income mathematics, option pricing/Greeks, financial ratios and portfolio calculations.
+- Kept unsupported asset classes/regions blocked from Forecast even when analytics can be computed.
+- Added formula and evidence documentation plus new regression tests.
+
 All notable changes to FinCompass are documented here. This project follows
 Semantic Versioning.
-
-## [1.4.0] — 2026-08-26
-
-Forecast and Live are now fully functional end to end.
-
-### Working forecast + a bundled validated model
-- A real historical monthly reference model reaches **`validated_research`**
-  (passes the configured locked-test + bootstrap gates) and can be **selected and
-  activated** so Forecast and Live actually produce probabilities. The model is a
-  private, local-only artifact (`REVIEW_REQUIRED`) bundled into the exe; it is
-  never published (git-ignored + excluded from the public source manifest). No
-  model is pre-activated — the user selects and activates it.
-
-### Broader search
-- Screener adds a **market region** selector and **Browse full market sector** —
-  an on-demand search that is **not limited to the 72-name starter list**; any
-  discovered company can be analysed. Guided / Research experience modes.
-
-### Housekeeping
-- Header shows the **software version** instead of internal engine ids.
-- Public/private release gate hardened: the manifest is the git-tracked public
-  set, and the market-seed integrity scan skips when the private seed is absent
-  (public/CI), enforcing fully when present. Private trained models are excluded
-  from the public source by sharing status.
-
-## [1.3.0] — 2026-08-25
-
-Model Lab + local research data store, with a public/private split. See PR #6.
 
 ## [1.2.0] — 2026-08-24
 

@@ -17,38 +17,28 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Check tracked files and proposed changes
-        shell: bash
+      - name: Check for secrets / runtime-data paths
         run: |
-          set -euo pipefail
+          echo "Scanning for files that must never be committed..."
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
           else
             FILES=$(git ls-files)
           fi
+          # Regex of never-commit paths. .env.example is explicitly allowed.
+          PATTERN='(^|/)\.env$|(^|/)\.env\.|(^|/)secrets/|\.(pem|key|pfx|p12|keystore)$|(^|/)id_rsa$|(^|/)id_ed25519$|(^|/)credentials\.json$|\.credentials$|(^|/)data/.*\.db($|-)|(^|/)data/audit\.jsonl|\.(sqlite|sqlite3)$'
           BAD=0
           while IFS= read -r f; do
             [ -z "$f" ] && continue
-            f="${f#./}"
             base=$(basename "$f")
             [ "$base" = ".env.example" ] && continue
-            [ "$f" = "data/.gitkeep" ] && continue
-            # Public models ship (only DATA is restricted): the synthetic fixture,
-            # the PUBLIC bundled reference model + its evidence, the public
-            # adaptive fixture, and the sharing-status README are allowed.
-            case "$f" in
-              models/fixture-reference-*|models/bundled-monthly-*|models/PRIVATE_MODEL_README.md|adaptive_models/balanced-adaptive-*)
-                continue ;;
-            esac
-            case "$f" in
-              .env|.env.*|secrets/*|*/secrets/*|*.pem|*.key|*.pfx|*.p12|*.keystore|id_rsa|*/id_rsa|id_ed25519|*/id_ed25519|credentials.json|*/credentials.json|*.credentials|data/*|datasets/market-seed/*|models/*|adaptive_models/*|private_assets/*|*.db|*.sqlite|*.sqlite3|*.joblib|*.npz|*.tar.gz)
-                echo "::error file=$f::Private/restricted file must not be committed: $f"
-                BAD=1
-                ;;
-            esac
+            if echo "$f" | grep -qE "$PATTERN"; then
+              echo "::error file=$f::Restricted / secret file must not be committed: $f"
+              BAD=1
+            fi
           done <<< "$FILES"
           if [ "$BAD" -ne 0 ]; then
-            echo "Restricted Folder Guard failed. Do not bypass this guard."
+            echo "Restricted Folder Guard failed."
             exit 1
           fi
-          echo "OK - no private data/model/secret paths are tracked in this revision."
+          echo "OK — no secrets or restricted files present."

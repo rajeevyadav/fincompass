@@ -64,13 +64,18 @@ def test_bundled_reference_model_can_be_explicitly_activated_in_isolated_registr
     assert clear_active_model(root=tmp_path) is True
 
 
-def test_public_reference_model_ships_and_no_private_model_leaks():
+def test_review_required_reference_model_is_excluded_from_public_release_set():
+    blocked = non_public_model_files()
     public = {path.relative_to(Path.cwd()).as_posix() for path in release_files()}
-    # Defence in depth: any RESTRICTED/REVIEW_REQUIRED model must never enter the
-    # public release set (there are none by default — models ship, only DATA is
-    # restricted — but the guard must still hold if one is added).
-    for rel in non_public_model_files():
+    private_manifests = [rel for rel in blocked if rel.startswith("models/") and rel.endswith(".json") and not rel.endswith("-SUMMARY.json")]
+    # In a private working tree the model must be blocked from public packaging.
+    # In a public extraction there may be no non-public artifact at all.
+    for rel in blocked:
         assert rel not in public
-    # The bundled reference model is PUBLIC, so it IS part of the public release.
     if _bundled_manifest() is not None:
-        assert any("bundled-monthly-12m-" in rel and rel.endswith(".joblib") for rel in public)
+        manifest = _bundled_manifest()
+        sharing = (manifest.get("dataset_provenance") or {}).get("sharing_status")
+        if sharing == "PUBLIC":
+            assert not any("bundled-monthly-12m-" in rel for rel in private_manifests)
+        else:
+            assert any("bundled-monthly-12m-" in rel for rel in private_manifests)

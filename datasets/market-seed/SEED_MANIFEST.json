@@ -1,0 +1,111 @@
+{
+  "audit": {
+    "coverage": [
+      {
+        "asset_class": "equity",
+        "benchmark": "MSFT",
+        "earliest": "2004-08-19",
+        "last_verified_at": "2026-08-25T00:36:49.546717+00:00",
+        "latest": "2008-10-14",
+        "name": "Alphabet Class C",
+        "price_basis": "adjusted",
+        "providers": "matplotlib-sample-data",
+        "region": "US",
+        "role": "bootstrap_research_target",
+        "rows": 1047,
+        "symbol": "GOOG",
+        "tradable": 1
+      },
+      {
+        "asset_class": "equity",
+        "benchmark": "SPY",
+        "earliest": "1986-03-13",
+        "last_verified_at": "2026-08-25T00:36:49.580130+00:00",
+        "latest": "2017-11-10",
+        "name": "MSFT",
+        "price_basis": "raw",
+        "providers": "pmdarima-sample-data",
+        "region": "US",
+        "role": "training_target",
+        "rows": 7983,
+        "symbol": "MSFT",
+        "tradable": 1
+      }
+    ],
+    "database": "market_seed.db",
+    "quality_issue_count": 0,
+    "quality_issues": [],
+    "revisions": 0,
+    "rows": 9030,
+    "schema_version": "1.0.0-research-store1",
+    "symbols_catalogued": 2,
+    "symbols_with_data": 2
+  },
+  "bootstrap_recipe": "bootstrap-real-1m",
+  "created_at": "2026-08-25T00:36:49.694061+00:00",
+  "database": "market_seed.db",
+  "database_sha256": "79af5cb6465fdb8da326b773d4f5d367b30c563adea5ba1260746e9980f8ba33",
+  "imports": [
+    {
+      "merge": {
+        "earliest": "2004-08-19",
+        "inserted": 1047,
+        "latest": "2008-10-14",
+        "revised": 0,
+        "skipped": 0,
+        "symbol": "GOOG",
+        "unchanged": 0
+      },
+      "raw": {
+        "file_name": "400917cf30e6-matplotlib-goog.npz",
+        "sha256": "400917cf30e6b664f7b0da93d7c745860d3aa9008da8b7f160d2dd12e6a318b1"
+      },
+      "symbol": "GOOG"
+    },
+    {
+      "merge": {
+        "earliest": "1986-03-13",
+        "inserted": 7983,
+        "latest": "2017-11-10",
+        "revised": 0,
+        "skipped": 0,
+        "symbol": "MSFT",
+        "unchanged": 0
+      },
+      "raw": {
+        "file_name": "667627a7e648-pmdarima-msft.tar.gz",
+        "sha256": "667627a7e6486003788c845182aaac5f7edbf74220b500eea9a50a7e4f1c12ba"
+      },
+      "symbol": "MSFT"
+    }
+  ],
+  "limitations": [
+    "The bootstrap corpus is intentionally small and historical.",
+    "It exists to verify offline training, validation, persistence and restart behavior.",
+    "It must not be represented as evidence of current or cross-asset market skill.",
+    "Live-eligible recipes require operator-acquired local market history and independent validation gates."
+  ],
+  "live_eligible": false,
+  "purpose": "offline Model Lab acceptance bootstrap; not a live-market model dataset",
+  "schema_version": "market-seed-bootstrap1",
+  "sources": [
+    {
+      "file": "source-originals/matplotlib-goog.npz",
+      "license_file": "licenses/MATPLOTLIB-LICENSE.txt",
+      "license_sha256": "dbb9ad7495a83b0f2f48c94b06e23020587d82f8d1492dcb717fb1ebc2f86c18",
+      "notes": "GOOG daily OHLCV/adjusted-close sample, 2004-08-19 through 2008-10-14.",
+      "provider": "matplotlib-sample-data",
+      "sha256": "400917cf30e6b664f7b0da93d7c745860d3aa9008da8b7f160d2dd12e6a318b1",
+      "source_url": "https://github.com/matplotlib/matplotlib/tree/main/lib/matplotlib/mpl-data/sample_data"
+    },
+    {
+      "file": "source-originals/pmdarima-msft.tar.gz",
+      "license_file": "licenses/PMDARIMA-PACKAGE-METADATA.txt",
+      "license_sha256": "19c59cfc5fdfb383e18f9c51e025aa136647b5da61a94ebc9d93ca55752b1747",
+      "notes": "MSFT daily OHLCV sample distributed by pmdarima; raw close basis retained.",
+      "provider": "pmdarima-sample-data",
+      "sha256": "667627a7e6486003788c845182aaac5f7edbf74220b500eea9a50a7e4f1c12ba",
+      "source_url": "https://alkaline-ml.com/pmdarima/modules/generated/pmdarima.datasets.load_msft.html"
+    }
+  ]
+}

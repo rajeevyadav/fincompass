@@ -94,8 +94,22 @@ def live_snapshot(
     ticker=ticker.upper(); settings=(realtime_settings or PROFILES["balanced"]).validate(); now=_now()
     anchor=forecast_ticker(ticker,model_id=model_id,profile_name=profile_name)
     if not anchor.get("available"):
-        return {"available":False,"ticker":ticker,"realtime_engine_version":REALTIME_ENGINE_VERSION,"anchor":anchor,"message":"Live probability requires a live-eligible validated anchor model. Synthetic fixture anchors remain blocked.","adaptive_registry":registry_status()}
+        return {"available":False,"ticker":ticker,"realtime_engine_version":REALTIME_ENGINE_VERSION,"anchor":anchor,"message":anchor.get("message") or "No scientifically applicable Forecast anchor is available for Live tracking.","adaptive_registry":registry_status()}
     model_id=str(anchor["model_id"]); target=anchor.get("target") or {}; benchmark=str(target.get("benchmark") or "SPY").upper()
+    if not bool(anchor.get("live_eligible")):
+        anchor_prob=float((anchor.get("probability") or {}).get("probability_outperform"))
+        return {
+            "available":True,"ticker":ticker,"benchmark":benchmark,"as_of":now.isoformat(),"base_model_id":model_id,
+            "anchor_validation_tier":anchor.get("validation_tier"),"settings_fingerprint":settings.fingerprint(),
+            "realtime_engine_version":REALTIME_ENGINE_VERSION,"state_key":None,"state_source":"anchor_only",
+            "anchor_probability":anchor_prob,"adaptive_candidate_probability":anchor_prob,"adaptive_applied_probability":anchor_prob,
+            "adaptive_shift_applied":False,"candidate_logit_shift":0.0,"posterior_shift_sd":0.0,"top_contributions":[],
+            "features":{},"gate":{"status":"anchor_only","active":False,"metrics":{"unique_dates":0,"span_days":0}},
+            "drift":{},"source_health":{},"source_refresh":{},
+            "pending_label":{"created":False,"reason":"Limited-evidence Bayesian baseline is tracked without adaptive learning."},
+            "target":target,"tracking_only":True,
+            "disclaimer":"Live tracking is using the frozen Limited-evidence Bayesian baseline. Adaptive updates are disabled until a stronger validated model is available."
+        }
     source_refresh=refresh_sources(ticker,benchmark,settings,db=db,force=force_sources)
     market_scope=f"{ticker}|{benchmark}"
     market=db.latest_event("market",market_scope); sec=db.latest_event("sec",ticker); macro=db.latest_event("macro","global")

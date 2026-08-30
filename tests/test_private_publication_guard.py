@@ -15,8 +15,11 @@ from tools.package_source import package
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# As of v2.0 the bundled Bayesian models and the licensed market-seed datasets
+# ship publicly on purpose (see restricted-folders-guard.yml). The truly private
+# artifacts remain the internal handoff/development notes, per-user research data,
+# and any RESTRICTED private-model envelope.
 PRIVATE_MARKERS = (
-    "datasets/market-seed/",
     "handoff/",
     "development/",
     "private_assets/",
@@ -41,11 +44,14 @@ def test_public_source_package_contains_no_private_assets(tmp_path):
             f"private asset leaked into public package: {name}"
         )
 
-    # Public models ship (the synthetic fixture + the PUBLIC bundled reference
-    # model); private/rejected trained artifacts must not.
+    # Public models ship (the synthetic fixture, the PUBLIC bundled reference
+    # model, and the v2.0 Bayesian reference/regime baselines); private/rejected
+    # trained artifacts must not.
+    _PUBLIC_MODEL_PREFIXES = ("fixture-reference", "bundled-monthly",
+                              "bayesian-reference", "bayesian-regime")
     leaked_models = [
         n for n in names
-        if n.endswith(".joblib") and "fixture-reference" not in n and "bundled-monthly" not in n
+        if n.endswith(".joblib") and not any(p in n for p in _PUBLIC_MODEL_PREFIXES)
     ]
     assert not leaked_models, f"private model artifact leaked: {leaked_models}"
 

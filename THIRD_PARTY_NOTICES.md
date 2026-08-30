@@ -1,13 +1,22 @@
-# Third-Party Notices
+# Third-Party Notices - FinCompass v2.0
 
-FinCompass is MIT-licensed. This file records third-party code that is copied or substantially derived into the FinCompass source tree, with attribution as required by the upstream license.
+FinCompass remains MIT licensed. The v2.0 source package includes native implementations of standard published mathematical formulas. No code from the repositories below is vendored in this package unless a future file-specific notice explicitly says otherwise.
 
 ## FinanceToolkit
 
-- Project: FinanceToolkit — <https://github.com/JerBouma/FinanceToolkit>
+- Project: FinanceToolkit
+- Repository: https://github.com/JerBouma/FinanceToolkit
 - License: MIT
-- **Current status: NO CODE COPIED OR VENDORED.** FinanceToolkit is used only as an external technical reference (see `FINANCETOOLKIT_ADOPTION_MATRIX.md`). FinCompass analytics, when implemented, are native reimplementations from public formulas and do not require FinanceToolkit at runtime.
+- Use in FinCompass v2.0: architectural/formula reference and independent cross-check target only; no FinanceToolkit runtime dependency and no FinanceToolkit source vendored in this package.
 
-If, in a future cycle, any FinanceToolkit source is vendored (`ADOPT_CODE` in the adoption matrix), this section will be updated with: the original copyright notice, the MIT license text, the exact files reused, and the nature of any modification, kept in an isolated namespace decoupled from providers.
+## Bayesian / market-model research references reviewed during v2.0 design
 
-> Note: FinanceDatabase (a separate project) is **not** used; its symbol data has a distinct license and would require separate verification before any use.
+- `luisdamiano/gsoc17-hhmm` - CC-BY-SA 4.0 project; used as a conceptual reference for regime-state/HMM research and simulation-based validation. No code or restricted market data copied.
+- `sydney-machine-learning/Bayesianneuralnet_stockmarket` - no repository license identified during review; concepts only, no code copied.
+- `AaryanAnand10/Inference-learning` - MIT; reviewed as a general Bayesian-inference example, no code copied.
+- `0xpranjal/Stock-Prediction-using-different-models` - MIT; reviewed for the simple-model-vs-complex-model benchmarking principle, no code copied.
+- `shaunak-batra/BasketTradingBO` - no repository license identified during review; concepts only, no code copied.
+
+## Data rights
+
+Model artifacts and raw market data are different assets. The public/source package must not redistribute market datasets unless the relevant upstream data terms permit redistribution. Bundled model artifacts therefore retain their provenance and evidence manifests while raw training rows are not included merely because a model artifact is distributable.

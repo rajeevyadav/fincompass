@@ -1,0 +1,44 @@
+{
+  "hard_validity": {
+    "checks": {
+      "features_present": true,
+      "minimum_test_rows": true,
+      "minimum_training_rows": true,
+      "minimum_validation_rows": true,
+      "test_forward_endpoint_after_observation": true,
+      "test_target_end_present": true,
+      "test_target_matured": true,
+      "train_forward_endpoint_after_observation": true,
+      "train_target_end_present": true,
+      "train_target_matured": true,
+      "training_has_both_classes": true,
+      "validation_forward_endpoint_after_observation": true,
+      "validation_has_both_classes": true,
+      "validation_target_end_present": true,
+      "validation_target_matured": true
+    },
+    "meaning": "Hard validity checks model estimability and temporal integrity; it does not assert predictive skill.",
+    "passed": true
+  },
+  "horizon_months": 6,
+  "locked_test_evidence": "bayesian-reference-6m-fc7cb4f63cfa3e39-locked-test.csv",
+  "locked_test_metrics": {
+    "average_precision": 0.5716678494757971,
+    "baseline_brier": 0.23631616619711854,
+    "baseline_log_loss": 0.6655560788202719,
+    "brier": 0.24179517553412375,
+    "brier_skill": -0.023185080501157973,
+    "calibration_intercept": 2.0296672651837007,
+    "calibration_slope": -3.3764867529623084,
+    "ece_10": 0.056079957503392126,
+    "event_rate": 0.6196660482374768,
+    "log_loss": 0.7628486548089928,
+    "log_loss_skill": -0.14618238655588023,
+    "roc_auc": 0.4190375346867241,
+    "samples": 539
+  },
+  "model_id": "fc7cb4f63cfa3e39",
+  "model_sha256": "fc7cb4f63cfa3e391acdff885da18966838156135f1f78b5400028de77d40d33",
+  "profile_name": "bayesian-reference-6m",
+  "validation_tier": "bayesian_baseline"
+}

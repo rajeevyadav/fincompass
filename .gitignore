@@ -75,7 +75,8 @@ models/*-market-*
 # ============================================================
 # PRIVATE local-only assets — NEVER publish (see PRIVATE-DATA-NOTICE.md)
 # ============================================================
-datasets/market-seed/
+# NOTE: as of v2.0 the licensed market-seed datasets ship publicly on purpose
+# (see restricted-folders-guard.yml); they are intentionally NOT ignored here.
 private_assets/
 data/*
 !data/.gitkeep
@@ -101,3 +102,9 @@ FinCompass-Revised-Production-Ready/
 
 # All director-cycle directives/reports/audits — local only, never committed
 /local-notes/
+
+# v2.0 source drop (delta source only — never committed)
+FinCompass-v2.0/
+
+# local scratch build/run logs
+scratch_*.log

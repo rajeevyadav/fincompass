@@ -1,0 +1,272 @@
+{
+  "applicability_domain": {
+    "asset_classes": [
+      "equity"
+    ],
+    "benchmark_family": "US_LARGE_CAP",
+    "feature_frequency": "monthly",
+    "regions": [
+      "US"
+    ],
+    "security_types": [
+      "common_stock"
+    ],
+    "supports_bonds": false,
+    "supports_commodity_proxies": false,
+    "supports_crypto": false,
+    "supports_etf": false,
+    "target_horizon_months": 36,
+    "training_period_end": "2022-06-30",
+    "training_period_start": "1990-01-31",
+    "training_symbols": [
+      "IBM",
+      "AAPL",
+      "MSFT",
+      "XRX",
+      "AMZN",
+      "DELL",
+      "GOOGL",
+      "ADBE"
+    ],
+    "training_universe_type": "pooled_equities"
+  },
+  "created_at": "2026-08-30T01:35:00.879356+00:00",
+  "data_quality": {
+    "corporate_action_adjusted": false,
+    "delistings_included": false,
+    "note": "Baseline research artifact; current/surviving sample constituents and source limitations prevent validated_market classification.",
+    "point_in_time_features": true,
+    "survivorship_control": false
+  },
+  "dataset_files": {
+    "training_source": {
+      "bundled": false,
+      "name": "matplotlib/mpl-data/sample_data/Stocks.csv",
+      "sha256": "ef6f3bf1a64d5c6c5de702ef154c3fae78fe9df83882ab6bb9c6638bec3cdf47"
+    }
+  },
+  "dataset_manifest_content_sha256": "08bc48f5eb68d303708ef4e5b375ae3bca004db7a72ba00a0bd51a94114bb804",
+  "dataset_provenance": {
+    "benchmark": "^GSPC",
+    "feature_contract": "monthly_relative_v1",
+    "live_eligible_target": false,
+    "rebuild_script": "development/train_bayesian_reference_models.py",
+    "sharing_note": "Artifact derived from the redistributable Matplotlib sample data container; raw training rows are not bundled with the model.",
+    "sharing_status": "PUBLIC",
+    "source_container": "Matplotlib sample_data/Stocks.csv",
+    "source_sha256": "ef6f3bf1a64d5c6c5de702ef154c3fae78fe9df83882ab6bb9c6638bec3cdf47",
+    "training_assets": [
+      "IBM",
+      "AAPL",
+      "MSFT",
+      "XRX",
+      "AMZN",
+      "DELL",
+      "GOOGL",
+      "ADBE"
+    ],
+    "training_period_end": "2022-06-30",
+    "training_period_start": "1990-01-31"
+  },
+  "dataset_schema_version": "2.0.0-bayesian-reference-dataset1",
+  "dataset_split": {
+    "embargo_trading_days": 756,
+    "method": "purged_chronological",
+    "purge_rule": "Rows whose target_end_date crosses the next partition boundary are removed; an explicit business-day embargo is also applied before each downstream partition.",
+    "test": {
+      "end": "2019-06-30",
+      "rows": 497,
+      "start": "2013-08-31"
+    },
+    "test_start": "2013-08-31",
+    "train": {
+      "end": "2001-09-30",
+      "rows": 757,
+      "start": "1990-01-31"
+    },
+    "val_start": "2004-10-31",
+    "validation": {
+      "end": "2010-07-31",
+      "rows": 490,
+      "start": "2004-10-31"
+    }
+  },
+  "features": [
+    "rel_ret_1m",
+    "rel_ret_3m",
+    "rel_ret_6m",
+    "rel_ret_12m",
+    "vol_6m",
+    "benchmark_vol_6m",
+    "drawdown_12m",
+    "sma_3_12"
+  ],
+  "forecast_engine_version": "1.0.0-prob1",
+  "model_file": "bayesian-reference-36m-2b88bf4d4890abec.joblib",
+  "model_id": "2b88bf4d4890abec",
+  "model_sha256": "2b88bf4d4890abec3f3c02eb234f416350efd043bcab9e0c4b5e01e572bc9bca",
+  "profile_name": "bayesian-reference-36m",
+  "settings": {
+    "abstain_if_interval_crosses_half": false,
+    "abstain_probability_band": 0.03,
+    "bayesian_prior_sigma": 1.5,
+    "benchmark": "^GSPC",
+    "bootstrap_block_dates": 0,
+    "bootstrap_draws": 100,
+    "calibration_method": "isotonic",
+    "embargo_trading_days": 756,
+    "excess_return_threshold": 0.0,
+    "horizon_trading_days": 756,
+    "max_bootstrap_ece_high": 0.22,
+    "max_calibration_slope": 2.5,
+    "max_ece": 0.15,
+    "min_auc": 0.5,
+    "min_bootstrap_auc_low": 0.45,
+    "min_bootstrap_brier_skill_low": -0.08,
+    "min_bootstrap_log_loss_skill_low": -0.08,
+    "min_brier_skill": -0.02,
+    "min_calibration_slope": 0.25,
+    "min_class_count": 30,
+    "min_log_loss_skill": -0.02,
+    "min_positive_walk_forward_fraction": 0.5,
+    "min_test_dates": 9,
+    "min_test_samples": 150,
+    "min_test_span_days": 180,
+    "posterior_draws": 1200,
+    "prediction_credible_level": 0.9,
+    "random_seed": 37001,
+    "sample_step_trading_days": 21,
+    "test_fraction": 0.2,
+    "train_fraction": 0.5,
+    "use_hist_gradient_boosting": false,
+    "use_random_forest": false,
+    "validation_fraction": 0.3,
+    "walk_forward_splits": 3
+  },
+  "target": {
+    "benchmark": "^GSPC",
+    "event": "asset monthly-close return over 36 months exceeds S&P 500 monthly-close return over the same interval",
+    "excess_return_threshold": 0.0,
+    "frequency": "monthly",
+    "horizon_months": 36,
+    "horizon_trading_days": 756,
+    "return_basis": "Monthly close series supplied by the declared Matplotlib sample source."
+  },
+  "validation": {
+    "bayesian_coefficients_standardized": {
+      "benchmark_vol_6m": -0.024277654064450052,
+      "drawdown_12m": 0.17508867068525572,
+      "intercept": 0.5127125676960648,
+      "rel_ret_12m": -0.6990485200225529,
+      "rel_ret_1m": 0.0016961091436369885,
+      "rel_ret_3m": 0.0843228177427557,
+      "rel_ret_6m": 0.010259896149415419,
+      "sma_3_12": -0.17817234028492895,
+      "vol_6m": 0.009652763487638162
+    },
+    "bootstrap": {
+      "_meta": {
+        "block_dates": 36,
+        "distinct_dates": 71,
+        "draws": 100,
+        "level": 0.9,
+        "method": "moving_date_block_cross_sectional_cluster"
+      },
+      "brier_skill": {
+        "high": -0.06398457783227857,
+        "low": -0.10591384336101634,
+        "median": -0.08441601898267537
+      },
+      "calibration_slope": {
+        "high": -0.1109800929212404,
+        "low": -0.27736820288268815,
+        "median": -0.16286897759117194
+      },
+      "ece_10": {
+        "high": 0.22069132179243278,
+        "low": 0.17275076328640468,
+        "median": 0.19818502747672084
+      },
+      "log_loss_skill": {
+        "high": -0.445351437765582,
+        "low": -0.7061112457220047,
+        "median": -0.5775760054004901
+      },
+      "roc_auc": {
+        "high": 0.33203837785334955,
+        "low": 0.27255711590861464,
+        "median": 0.301910191478978
+      }
+    },
+    "calibration": {
+      "event_rate": 0.7040816326530612,
+      "method": "isotonic",
+      "rows": 490
+    },
+    "dataset_quality": {
+      "corporate_action_adjusted": false,
+      "delistings_included": false,
+      "note": "Baseline research artifact; current/surviving sample constituents and source limitations prevent validated_market classification.",
+      "point_in_time_features": true,
+      "survivorship_control": false
+    },
+    "features": [
+      "rel_ret_1m",
+      "rel_ret_3m",
+      "rel_ret_6m",
+      "rel_ret_12m",
+      "vol_6m",
+      "benchmark_vol_6m",
+      "drawdown_12m",
+      "sma_3_12"
+    ],
+    "gate": {
+      "checks": {},
+      "meaning": "The strong research-validation gate was not claimed by the reference-model path.",
+      "passed": false
+    },
+    "hard_validity": {
+      "checks": {
+        "features_present": true,
+        "minimum_test_rows": true,
+        "minimum_training_rows": true,
+        "minimum_validation_rows": true,
+        "test_forward_endpoint_after_observation": true,
+        "test_target_end_present": true,
+        "test_target_matured": true,
+        "train_forward_endpoint_after_observation": true,
+        "train_target_end_present": true,
+        "train_target_matured": true,
+        "training_has_both_classes": true,
+        "validation_forward_endpoint_after_observation": true,
+        "validation_has_both_classes": true,
+        "validation_target_end_present": true,
+        "validation_target_matured": true
+      },
+      "meaning": "Hard validity checks model estimability and temporal integrity; it does not assert predictive skill.",
+      "passed": true
+    },
+    "interpretation": "bayesian_baseline means the model is temporally valid, estimable, regularized and calibrated, but stronger out-of-sample predictive skill has not been established. It is forecast-eligible with Limited evidence labeling and is not adaptive-Live eligible.",
+    "locked_test_metrics": {
+      "average_precision": 0.6742716953027978,
+      "baseline_brier": 0.20638651436997701,
+      "baseline_log_loss": 0.6036975057831694,
+      "brier": 0.22862394003706582,
+      "brier_skill": -0.10774650531296381,
+      "calibration_intercept": 1.150589179841473,
+      "calibration_slope": -0.13745444078444927,
+      "ece_10": 0.19912003012164536,
+      "event_rate": 0.716297786720322,
+      "log_loss": 1.0251826135418793,
+      "log_loss_skill": -0.698172683705099,
+      "roc_auc": 0.30313172364331825,
+      "samples": 497
+    },
+    "test_event_rate": 0.716297786720322,
+    "train_event_rate": 0.631439894319683,
+    "validation_event_rate": 0.7040816326530612,
+    "validation_reference_event_rate": 0.6599839615076183,
+    "validation_tier": "bayesian_baseline"
+  },
+  "validation_tier": "bayesian_baseline"
+}

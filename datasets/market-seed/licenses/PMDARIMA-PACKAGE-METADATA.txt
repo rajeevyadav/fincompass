@@ -1,0 +1,8 @@
+Name: pmdarima
+Version: 2.1.1
+License-Expression: MIT
+Project-URL: Homepage, http://alkaline-ml.com/pmdarima
+Project-URL: Documentation, http://alkaline-ml.com/pmdarima
+Project-URL: Repository, https://github.com/alkaline-ml/pmdarima
+Project-URL: Bug Tracker, https://github.com/alkaline-ml/pmdarima/issues
+Project-URL: Download, https://pypi.org/project/pmdarima/#files

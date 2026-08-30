@@ -1,0 +1,75 @@
+{
+  "hard_validity": {
+    "checks": {
+      "features_present": true,
+      "minimum_test_rows": true,
+      "minimum_training_rows": true,
+      "minimum_validation_rows": true,
+      "test_forward_endpoint_after_observation": true,
+      "test_target_end_present": true,
+      "test_target_matured": true,
+      "train_forward_endpoint_after_observation": true,
+      "train_target_end_present": true,
+      "train_target_matured": true,
+      "training_has_both_classes": true,
+      "validation_forward_endpoint_after_observation": true,
+      "validation_has_both_classes": true,
+      "validation_target_end_present": true,
+      "validation_target_matured": true
+    },
+    "meaning": "Hard validity checks model estimability and temporal integrity; it does not assert predictive skill.",
+    "passed": true
+  },
+  "horizon_months": 36,
+  "locked_test_evidence": "bayesian-regime-36m-6b93f8d3ac1fca49-locked-test.csv",
+  "locked_test_metrics": {
+    "average_precision": 0.6736834285866145,
+    "baseline_brier": 0.20638651436997701,
+    "baseline_log_loss": 0.6036975057831694,
+    "brier": 0.21532690411893607,
+    "brier_skill": -0.0433186721344212,
+    "calibration_intercept": 2.7985414863719695,
+    "calibration_slope": -2.0276921991907453,
+    "ece_10": 0.16275418390175808,
+    "event_rate": 0.716297786720322,
+    "log_loss": 0.6348073704313503,
+    "log_loss_skill": -0.05153220669318892,
+    "roc_auc": 0.32138018965654636,
+    "samples": 497
+  },
+  "model_family": "bayesian_regime_hmm",
+  "model_id": "6b93f8d3ac1fca49",
+  "model_sha256": "6b93f8d3ac1fca49768e91a3ed37a61073440027895db8d0456c320fe8926d7b",
+  "profile_name": "bayesian-regime-36m",
+  "regime_model": {
+    "inputs": [
+      "benchmark_ret_1m",
+      "benchmark_ret_6m",
+      "benchmark_vol_6m"
+    ],
+    "ordered_state_means": [
+      [
+        -0.0030020817148476535,
+        -0.020141925597653754,
+        0.20176403245697505
+      ],
+      [
+        0.009529486630985984,
+        0.05794621681113322,
+        0.07419275629539286
+      ],
+      [
+        0.0175909068412733,
+        0.1227411323319304,
+        0.1381333111474011
+      ]
+    ],
+    "semantics": [
+      "risk_off",
+      "neutral",
+      "risk_on"
+    ],
+    "states": 3
+  },
+  "validation_tier": "bayesian_baseline"
+}

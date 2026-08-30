@@ -14,7 +14,7 @@ FinCompass is research software, not investment advice. None of these outputs is
 
 | Contract | Version |
 |---|---|
-| Application | `1.4.0` |
+| Application | `1.2.0` |
 | Evidence engine | `1.0.0-evidence1` |
 | Normalized data schema | `1.0.0-normalized1` |
 | Forecast anchor engine | `1.0.0-prob1` |

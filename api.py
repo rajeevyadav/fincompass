@@ -572,8 +572,13 @@ def analytics_overview_v2(ticker: str, request: Request):
         fundamentals = build_fundamentals(ticker, instrument=instrument, market_cap=market_cap)
     except Exception:
         fundamentals = {"available": False, "reason": "Fundamentals are unavailable for this instrument."}
+    try:
+        last_price = float(frame["Close"].iloc[-1])
+    except (KeyError, IndexError, ValueError):
+        last_price = None
     return {
         "available": True, "ticker": ticker, "instrument": instrument, "benchmark": benchmark,
+        "last_price": last_price,
         "performance": perf, "risk": risk_summary(frame["Close"]), "technicals": technical_summary(frame),
         "fundamentals": fundamentals,
         "formula_transparency": {"engine": "FinCompass deterministic analytics kernel", "version": "2.0"},

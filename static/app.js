@@ -494,6 +494,46 @@ function _fmtPct(v) { return v == null ? "—" : `${(num(v) * 100).toFixed(1)}%`
 function _fmtNum(v, dp = 2) { return v == null ? "—" : num(v).toFixed(dp); }
 function _money(v) { return v == null ? "—" : num(v).toLocaleString(undefined, { maximumFractionDigits: 2 }); }
 
+// Plain-language DCF: a fair-value gauge comparing the estimate range to the
+// price a person can see, with the technical assumptions moved to Details.
+function dcfGaugeHtml(dcf, lastPrice, cur) {
+  const lo = Number(dcf.range_low), hi = Number(dcf.range_high), mid = Number(dcf.value_per_share);
+  const price = Number(lastPrice);
+  const havePrice = Number.isFinite(price) && price > 0;
+  let verdict = "an assumption-dependent estimate", cls = "neutral";
+  if (havePrice && Number.isFinite(lo) && Number.isFinite(hi)) {
+    if (price < lo) { verdict = "cheaper than the estimate"; cls = "good"; }
+    else if (price > hi) { verdict = "more expensive than the estimate"; cls = "warn"; }
+    else { verdict = "roughly fairly priced versus the estimate"; cls = "neutral"; }
+  }
+  // Scale that always includes the price, even if it sits outside the range.
+  const vals = [lo, hi, mid, havePrice ? price : lo].filter(Number.isFinite);
+  const dmin = Math.min(...vals) * 0.95, dmax = Math.max(...vals) * 1.05;
+  const span = (dmax - dmin) || 1;
+  const x = (v) => Math.max(0, Math.min(100, ((v - dmin) / span) * 100));
+  const bandL = x(lo), bandR = x(hi), priceX = havePrice ? x(price) : null;
+  const sentence = (Number.isFinite(lo) && Number.isFinite(hi))
+    ? `Our rough model estimates this company is worth about <strong>${cur} ${_money(lo)}–${_money(hi)}</strong> a share.${havePrice ? ` It's trading near <strong>${cur} ${_money(price)}</strong> — so it looks <strong>${verdict}</strong>.` : ""}`
+    : "A single estimate is not meaningful here; treat it as a scenario, not a target.";
+  return `
+    <p class="plain-read">${sentence}</p>
+    <div class="value-gauge" role="img" aria-label="Estimated fair-value range versus current price">
+      <svg viewBox="0 0 100 26" preserveAspectRatio="none" width="100%" height="52">
+        <line x1="0" y1="16" x2="100" y2="16" class="gauge-axis"/>
+        <rect x="${bandL.toFixed(1)}" y="12" width="${Math.max(0.5, bandR - bandL).toFixed(1)}" height="8" class="gauge-band gauge-${cls}"/>
+        ${priceX != null ? `<line x1="${priceX.toFixed(1)}" y1="6" x2="${priceX.toFixed(1)}" y2="24" class="gauge-price"/>` : ""}
+      </svg>
+      <div class="gauge-legend meta"><span>◀ cheaper</span><span>estimate range</span><span>pricier ▶</span></div>
+    </div>
+    <p class="meta">${esc(dcf.disclaimer || "")}</p>
+    <details class="advanced-only"><summary>Assumptions and figures</summary>
+      <div class="forecast-grid">
+        <div class="kpi"><div class="k-label">Intrinsic value / share</div><div class="k-value">${cur} ${_money(mid)}</div></div>
+        <div class="kpi"><div class="k-label">WACC</div><div class="k-value">${_fmtPct(dcf.assumptions?.wacc)}</div></div>
+        <div class="kpi"><div class="k-label">Terminal growth</div><div class="k-value">${_fmtPct(dcf.assumptions?.terminal_growth)}</div></div>
+      </div></details>`;
+}
+
 function analyticsPanelHtml(o) {
   if (!o || o.available === false) {
     return `<h2>Deterministic analytics</h2><div class="meta">${esc((o && o.message) || "Analytics unavailable for this instrument.")}</div>`;
@@ -505,14 +545,9 @@ function analyticsPanelHtml(o) {
   const cur = f.currency || "";
   const ratioRows = (f.ratios || []).map((r) =>
     `<tr><td>${esc(r.label)}</td><td class="num">${r.available ? (r.metric_id.includes("margin") || r.metric_id.includes("yield") || r.metric_id.includes("return_on") ? _fmtPct(r.value) : _fmtNum(r.value)) : "—"}</td></tr>`).join("");
-  const dcfBlock = (f.available && dcf.valid) ? `
-    <div class="analytics-dcf">
-      <div class="kpi"><div class="k-label">DCF intrinsic value / share</div><div class="k-value">${cur} ${_money(dcf.value_per_share)}</div></div>
-      <div class="kpi"><div class="k-label">Scenario range (WACC × growth)</div><div class="k-value">${cur} ${_money(dcf.range_low)} – ${_money(dcf.range_high)}</div></div>
-      <div class="kpi"><div class="k-label">WACC / terminal growth</div><div class="k-value">${_fmtPct(dcf.assumptions?.wacc)} / ${_fmtPct(dcf.assumptions?.terminal_growth)}</div></div>
-    </div>
-    <p class="meta">${esc(dcf.disclaimer || "")}</p>` :
-    `<div class="meta">${esc((f.reason) || "A DCF is available only for companies with reported statements.")}</div>`;
+  const dcfBlock = (f.available && dcf.valid)
+    ? dcfGaugeHtml(dcf, o.last_price, cur)
+    : `<div class="meta">${esc((f.reason) || "A DCF is available only for companies with reported statements.")}</div>`;
   const perfKpi = (label, val, pct) => `<div class="kpi"><div class="k-label">${label}</div><div class="k-value">${pct ? _fmtPct(val) : _fmtNum(val)}</div></div>`;
   return `
     <h2>Deterministic analytics</h2>
@@ -581,6 +616,50 @@ function calculatorsHtml() {
     </form>`;
 }
 
+// Profit/loss at expiry versus the stock price — the one options chart a
+// beginner reads. Break-even is strike +/- the premium paid.
+function optionPayoffHtml(type, strike, premium) {
+  const isCall = String(type).toLowerCase() === "call";
+  const be = isCall ? strike + premium : strike - premium;
+  const lo = Math.max(0, strike * 0.5), hi = strike * 1.5, span = (hi - lo) || 1;
+  const pl = (s) => (isCall ? Math.max(s - strike, 0) : Math.max(strike - s, 0)) - premium;
+  const pts = [];
+  for (let i = 0; i <= 40; i++) { const s = lo + (span * i) / 40; pts.push([s, pl(s)]); }
+  const ymax = Math.max(...pts.map((p) => Math.abs(p[1]))) || 1;
+  const X = (s) => ((s - lo) / span) * 100;
+  const Y = (v) => 20 - (v / ymax) * 18;               // 20 = bottom, 2 = top
+  const path = pts.map((p, i) => `${i ? "L" : "M"}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(" ");
+  const zeroY = Y(0).toFixed(1), beX = X(be).toFixed(1);
+  const sentence = `This ${isCall ? "call" : "put"} costs <strong>${_money(premium)}</strong>. ` +
+    `You start making money if the stock is ${isCall ? "above" : "below"} <strong>${_money(be)}</strong> at expiry; ` +
+    `the most you can lose is the <strong>${_money(premium)}</strong> you paid.`;
+  return `
+    <p class="plain-read">${sentence}</p>
+    <div class="payoff" role="img" aria-label="Option profit and loss at expiry versus stock price">
+      <svg viewBox="0 0 100 22" preserveAspectRatio="none" width="100%" height="88">
+        <line x1="0" y1="${zeroY}" x2="100" y2="${zeroY}" class="gauge-axis"/>
+        <line x1="${beX}" y1="2" x2="${beX}" y2="20" class="gauge-price"/>
+        <path d="${path}" class="payoff-line"/>
+      </svg>
+      <div class="gauge-legend meta"><span>lower price</span><span>break-even ${_money(be)}</span><span>higher price</span></div>
+    </div>`;
+}
+
+// Where the portfolio's risk actually comes from — each holding's share of total
+// volatility. A holding can be a small weight but a large share of the risk.
+function portfolioRiskHtml(res) {
+  const pct = (res.risk_contributions.percent || []).map((v) => Number(v) * 100);
+  const names = pct.map((_, i) => String.fromCharCode(65 + i));   // A, B, ...
+  const bars = pct.map((v, i) =>
+    `<div class="risk-row"><span class="risk-name">${names[i]}</span>` +
+    `<span class="risk-bar"><span class="risk-fill" style="width:${Math.max(0, Math.min(100, v)).toFixed(1)}%"></span></span>` +
+    `<span class="risk-val">${Number.isFinite(v) ? v.toFixed(0) + "%" : "—"}</span></div>`).join("");
+  const vol = Number(res.volatility);
+  return `
+    <p class="plain-read">Portfolio volatility is <strong>${Number.isFinite(vol) ? (vol * 100).toFixed(1) + "%" : "—"}</strong>. Share of that risk from each holding:</p>
+    <div class="risk-bars">${bars}</div>`;
+}
+
 async function submitCalculator(form) {
   const kind = form.getAttribute("data-calc");
   const out = form.querySelector(".calc-out");
@@ -601,9 +680,17 @@ async function submitCalculator(form) {
     }
     const r = await api(path, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
     const res = r.results || {};
-    out.innerHTML = Object.entries(res)
+    const numbers = Object.entries(res)
       .filter(([, v]) => typeof v === "number")
       .map(([k, v]) => `<div><strong>${esc(k.replaceAll("_", " "))}:</strong> ${num(v).toFixed(4)}</div>`).join("") || "—";
+    if (kind === "options" && typeof res.price === "number") {
+      out.innerHTML = optionPayoffHtml(body.option_type, val("strike"), res.price) +
+        `<details class="advanced-only"><summary>Greeks and price</summary>${numbers}</details>`;
+    } else if (kind === "portfolio" && res.risk_contributions) {
+      out.innerHTML = portfolioRiskHtml(res) + `<details class="advanced-only"><summary>Figures</summary>${numbers}</details>`;
+    } else {
+      out.innerHTML = numbers;
+    }
   } catch (error) {
     out.innerHTML = `<span class="error">${esc(error.message)}</span>`;
   }
@@ -1294,6 +1381,25 @@ async function runForecastModelCompare(){
   }catch(error){out.innerHTML=`<div class="error">${esc(error.message)}</div>`;}
 }
 
+// A gauge for the forecast probability against the 50% even-odds line. The band
+// is descriptive (how far from a coin flip), never a buy/sell colour.
+function probabilityGaugeHtml(p, abstain) {
+  const v = Number(p);
+  if (!Number.isFinite(v)) return "";
+  const pctv = Math.max(0, Math.min(100, v * 100));
+  const band = abstain ? "neutral" : (Math.abs(v - 0.5) < 0.05 ? "neutral" : (v > 0.5 ? "up" : "down"));
+  return `
+    <div class="prob-gauge" role="img" aria-label="Forecast probability against 50 percent even odds">
+      <svg viewBox="0 0 100 12" preserveAspectRatio="none" width="100%" height="30">
+        <rect x="0" y="4" width="100" height="4" class="gauge-track"/>
+        <rect x="0" y="4" width="${pctv.toFixed(1)}" height="4" class="prob-fill prob-${band}"/>
+        <line x1="50" y1="1" x2="50" y2="11" class="gauge-mid"/>
+        <line x1="${pctv.toFixed(1)}" y1="1" x2="${pctv.toFixed(1)}" y2="11" class="gauge-price"/>
+      </svg>
+      <div class="gauge-legend meta"><span>0%</span><span>50% · even odds</span><span>100%</span></div>
+    </div>`;
+}
+
 // Citizen dictionary for evidence tiers. Guided shows the plain label and the
 // allowed next step; Research keeps the internal tier name.
 function citizenEvidence(tier){
@@ -1310,7 +1416,7 @@ async function runForecast(){
   $("forecast-out").innerHTML='<div class="card loading">Preparing forecast…</div>'; $("btn-forecast").disabled=true;
   try{
     const d=await api(`/api/v4/forecast/${encodeURIComponent(ticker)}${q.toString()?`?${q}`:""}`); const p=d.probability||{}; const target=d.target||{}; const ci=p.uncertainty_interval||[]; const metrics=d.validation_summary?.locked_test_metrics||{};
-    $("forecast-out").innerHTML=`<article class="card score-card"><div class="score-top"><div><h1 class="company-name">${esc(d.ticker)} forward-event forecast</h1><div class="meta">As of ${esc(d.as_of)} · model ${esc(d.model_id)} · <span class="validation-tier">${esc(d.evidence_strength||String(d.validation_tier||"").replaceAll("_"," "))}</span></div><div class="score-hero"><span class="forecast-probability">${probabilityText(p.probability_outperform)}</span><span class="score-denom">estimated probability</span></div></div></div><div class="notice"><strong>Defined event:</strong> outperform ${esc(target.benchmark||"benchmark")} over ${target.horizon_months?`${num(target.horizon_months)} months`:`${num(target.horizon_trading_days)} trading days`} by more than ${pct(target.excess_return_threshold||0,1)}.</div>${d.action?`<div class="notice action-${esc(d.action.action)}"><strong>What you may do:</strong> ${esc(d.action.action_label)} — ${esc(d.action.citizen_sentence)} <span class="meta">${esc(d.action.disclaimer||"")}</span></div>`:""}<div class="forecast-grid"><div class="kpi"><div class="k-label">Model uncertainty range</div><div class="k-value">${ci.length?`${probabilityText(ci[0])}–${probabilityText(ci[1])}`:"—"}</div><div class="k-note">posterior + inter-model dispersion</div></div><div class="kpi"><div class="k-label">Locked-test Brier skill</div><div class="k-value">${Number.isFinite(Number(metrics.brier_skill))?pct(metrics.brier_skill,1):"—"}</div></div><div class="kpi"><div class="k-label">Locked-test ROC AUC</div><div class="k-value">${Number.isFinite(Number(metrics.roc_auc))?num(metrics.roc_auc).toFixed(3):"—"}</div></div><div class="kpi"><div class="k-label">Calibration error</div><div class="k-value">${Number.isFinite(Number(metrics.ece_10))?pct(metrics.ece_10,1):"—"}</div></div></div>${p.abstain?'<div class="notice"><strong>Abstention flag:</strong> probability is too close to the configured decision-neutral region for a directional interpretation.</div>':""}<details><summary>Inspect component probabilities and validation</summary><pre class="detail">${esc(JSON.stringify({probability:p,validation:d.validation_summary,target:d.target},null,2))}</pre></details><p class="meta">${esc(d.disclaimer||"")}</p></article>`;
+    $("forecast-out").innerHTML=`<article class="card score-card"><div class="score-top"><div><h1 class="company-name">${esc(d.ticker)} forward-event forecast</h1><div class="meta">As of ${esc(d.as_of)} · model ${esc(d.model_id)} · <span class="validation-tier">${esc(d.evidence_strength||String(d.validation_tier||"").replaceAll("_"," "))}</span></div><div class="score-hero"><span class="forecast-probability">${probabilityText(p.probability_outperform)}</span><span class="score-denom">estimated probability</span></div></div></div>${probabilityGaugeHtml(p.probability_outperform, p.abstain)}<div class="notice"><strong>Defined event:</strong> outperform ${esc(target.benchmark||"benchmark")} over ${target.horizon_months?`${num(target.horizon_months)} months`:`${num(target.horizon_trading_days)} trading days`} by more than ${pct(target.excess_return_threshold||0,1)}.</div>${d.action?`<div class="notice action-${esc(d.action.action)}"><strong>What you may do:</strong> ${esc(d.action.action_label)} — ${esc(d.action.citizen_sentence)} <span class="meta">${esc(d.action.disclaimer||"")}</span></div>`:""}<div class="forecast-grid"><div class="kpi"><div class="k-label">Model uncertainty range</div><div class="k-value">${ci.length?`${probabilityText(ci[0])}–${probabilityText(ci[1])}`:"—"}</div><div class="k-note">posterior + inter-model dispersion</div></div><div class="kpi"><div class="k-label">Locked-test Brier skill</div><div class="k-value">${Number.isFinite(Number(metrics.brier_skill))?pct(metrics.brier_skill,1):"—"}</div></div><div class="kpi"><div class="k-label">Locked-test ROC AUC</div><div class="k-value">${Number.isFinite(Number(metrics.roc_auc))?num(metrics.roc_auc).toFixed(3):"—"}</div></div><div class="kpi"><div class="k-label">Calibration error</div><div class="k-value">${Number.isFinite(Number(metrics.ece_10))?pct(metrics.ece_10,1):"—"}</div></div></div>${p.abstain?'<div class="notice"><strong>Abstention flag:</strong> probability is too close to the configured decision-neutral region for a directional interpretation.</div>':""}<details><summary>Inspect component probabilities and validation</summary><pre class="detail">${esc(JSON.stringify({probability:p,validation:d.validation_summary,target:d.target},null,2))}</pre></details><p class="meta">${esc(d.disclaimer||"")}</p></article>`;
   }catch(error){
     const pl=error&&error.payload;
     if(error&&(error.status===409||(pl&&pl.available===false))){

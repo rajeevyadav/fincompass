@@ -278,3 +278,30 @@ body.mode-research .guided-only { display: none !important; }
 .condition-card .condition-prob { font-size: 1.55rem; font-weight: 850; letter-spacing: -.02em; }
 .condition-card .meta { margin: .18rem 0; }
 @media (max-width: 760px) { .condition-grid { grid-template-columns: 1fr; } .experience-control span { display: none; } }
+
+/* Plain-language analytics visuals: fair-value gauge and option payoff. */
+.value-gauge, .payoff { margin: 0.5rem 0 0.25rem; }
+.gauge-axis { stroke: var(--border, #ccc); stroke-width: 0.4; }
+.gauge-band { rx: 1; opacity: 0.85; }
+.gauge-band.gauge-good { fill: #2e9e5b; }
+.gauge-band.gauge-warn { fill: #d08a1e; }
+.gauge-band.gauge-neutral { fill: #6b7a90; }
+.gauge-price { stroke: #d64545; stroke-width: 0.8; }
+.payoff-line { fill: none; stroke: #2f6fed; stroke-width: 0.8; }
+.gauge-legend { display: flex; justify-content: space-between; font-size: 0.8em; }
+.plain-read { font-size: 1.02em; line-height: 1.5; margin: 0.25rem 0; }
+
+/* Forecast probability gauge + portfolio risk bars. */
+.prob-gauge { margin: 0.5rem 0; }
+.gauge-track, .gauge-mid { }
+.gauge-track { fill: var(--border, #d8dee9); }
+.prob-fill.prob-up { fill: #3f7cc0; }
+.prob-fill.prob-down { fill: #c07a3f; }
+.prob-fill.prob-neutral { fill: #6b7a90; }
+.gauge-mid { stroke: #333; stroke-width: 0.5; stroke-dasharray: 1 1; }
+.risk-bars { display: flex; flex-direction: column; gap: 4px; }
+.risk-row { display: flex; align-items: center; gap: 8px; }
+.risk-name { width: 1.5em; font-weight: 600; }
+.risk-bar { flex: 1; height: 12px; background: var(--border, #e3e8ef); border-radius: 6px; overflow: hidden; }
+.risk-fill { display: block; height: 100%; background: #3f7cc0; }
+.risk-val { width: 3em; text-align: right; }

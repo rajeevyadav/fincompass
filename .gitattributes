@@ -11,7 +11,9 @@ datasets/** -text
 models/** -text
 adaptive_models/** -text
 *.joblib binary
-*.bat text eol=crlf
+# Hash-pinned in RELEASE_MANIFEST.sha256: keep exact bytes (CRLF, no EOL
+# conversion) so the working-tree hash is identical on every platform/checkout.
+*.bat -text
 
 # User manual and other PDFs: preserve exact bytes.
 *.pdf binary

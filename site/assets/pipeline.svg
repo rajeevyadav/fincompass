@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 190" role="img" aria-label="FinCompass pipeline: ticker to forecast to live">
+  <rect x="0" y="0" width="900" height="190" rx="14" fill="#0f1729"/>
+  <text x="30" y="40" fill="#9fb0c5" font-family="Segoe UI,Helvetica,Arial,sans-serif" font-size="15" font-weight="600">The Guided path — one ticker, one question, one probability</text>
+  <g font-family="Segoe UI,Helvetica,Arial,sans-serif" font-size="14" font-weight="600" text-anchor="middle">
+    <g>
+      <rect x="30"  y="70" width="118" height="52" rx="10" fill="#182338" stroke="#2f6fed"/>
+      <text x="89"  y="93" fill="#e6edf6">Ticker</text><text x="89" y="110" fill="#7f8ea3" font-size="11" font-weight="400">e.g. AAPL</text>
+    </g>
+    <g>
+      <rect x="178" y="70" width="118" height="52" rx="10" fill="#182338" stroke="#3f7cc0"/>
+      <text x="237" y="93" fill="#e6edf6">Identify</text><text x="237" y="110" fill="#7f8ea3" font-size="11" font-weight="400">market · benchmark</text>
+    </g>
+    <g>
+      <rect x="326" y="70" width="118" height="52" rx="10" fill="#182338" stroke="#3f7cc0"/>
+      <text x="385" y="93" fill="#e6edf6">Data</text><text x="385" y="110" fill="#7f8ea3" font-size="11" font-weight="400">local store</text>
+    </g>
+    <g>
+      <rect x="474" y="70" width="118" height="52" rx="10" fill="#182338" stroke="#3f7cc0"/>
+      <text x="533" y="93" fill="#e6edf6">Pooled model</text><text x="533" y="110" fill="#7f8ea3" font-size="11" font-weight="400">no per-name training</text>
+    </g>
+    <g>
+      <rect x="622" y="70" width="118" height="52" rx="10" fill="#123524" stroke="#2e9e5b"/>
+      <text x="681" y="93" fill="#e6edf6">Forecast</text><text x="681" y="110" fill="#7f8ea3" font-size="11" font-weight="400">calibrated p</text>
+    </g>
+    <g>
+      <rect x="770" y="70" width="100" height="52" rx="10" fill="#123524" stroke="#2e9e5b"/>
+      <text x="820" y="93" fill="#e6edf6">Live</text><text x="820" y="110" fill="#7f8ea3" font-size="11" font-weight="400">watch / track</text>
+    </g>
+  </g>
+  <g stroke="#5b6b86" stroke-width="2" fill="none">
+    <path d="M148 96 L178 96"/><path d="M296 96 L326 96"/><path d="M444 96 L474 96"/><path d="M592 96 L622 96"/><path d="M740 96 L770 96"/>
+  </g>
+  <text x="30" y="160" fill="#7f8ea3" font-family="Segoe UI,Helvetica,Arial,sans-serif" font-size="12">A probability the name beats the S&#38;P 500 over the next 12 months — not a target price, not advice.</text>
+</svg>

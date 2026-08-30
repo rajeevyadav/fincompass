@@ -4,8 +4,9 @@ a5753492ee87cf052624d5607d24eb5111075e9fdfe2ec960a9a7d3500d6d7f3  ./.gitattribut
 9fc9e47719f12680d387a6750e5b6234dea53ecdf747c8533978f794166a399b  ./.githooks/commit-msg
 414a93b83b9321ed94cdedac7807f09a0ac94e9d57e75052a2793b98a62af2c6  ./.github/hooks/check-no-ai-trailer.sh
 c56e268212eb00222231b39286fc046f1f0f2a58ad9f58a6d8732bf316237735  ./.github/hooks/check-restricted-files.sh
-71e265ff8d5d97b81faaa08dd7decc7026a133cd91415bd474f8ddb73202efc3  ./.github/workflows/build-packages.yml
+a8212639ca35397932c3c342c1ee37c5e30b60ae9d90127b0e18c1cbc766a703  ./.github/workflows/build-packages.yml
 cb1492c470d434582f48a97a9656dd11b62caeeac33a7f874fb63c57f945fc14  ./.github/workflows/ci.yml
+a774c765452340ac935dbafac6945d5f256c727fc5e8bccb35f4c9f16ac50911  ./.github/workflows/pages.yml
 210b8f8bb3a3c61b3647d433b355a6a580d5fb69b3cb2d5c8470612f699b8988  ./.github/workflows/restricted-folders-guard.yml
 879af9960b19b99d411b1eb903e9bb7e6679d91ba7326a57f5013b35499548fa  ./.gitignore
 89ce29688e4bad6461db17297939ca4d045dbf15bb20b7518c69f7d39fd8506b  ./.pre-commit-config.yaml
@@ -211,6 +212,9 @@ c74c39ba1f5ad9fdb018d2f7e1fa5c579b64067b0a1eab1f5f8c827f6671e3ca  ./services/rea
 29058a7390b0bc34c201eaf4f4ac04c7d8db8c2adb69d23c8e11b1e5a4a625a6  ./services/research_store.py
 eab785ca97efbf6242971f6b494af0b2f966f2b330826ca26c91cd481894b354  ./services/scoring.py
 d46d52d634de6a594c5a293d81b0ed0fe566790ea8e0ac4ed19ef6048235b849  ./services/training_readiness.py
+d2030cef07a5af539115e7e94a0d31dc8767aa9443d119f219a909c6196ffd3e  ./site/assets/banner.svg
+8e8dbbb7c377f1e2ca63ba2f7b481990125de19c6536c6a64f9c40a598ab5e56  ./site/assets/pipeline.svg
+2c8cdf687060326e3698094958d57129e949421889923775c9ad50fd64c468fb  ./site/index.html
 9189189a7f6dff0c0bd67983a59a7b043cb8db583b349e1ecb333fed2100a8a4  ./static/app.css
 7a890e5f3ed74221e8c1b46543c94be2b72a840f126845c548307d71da6745ad  ./static/app.js
 b3b2760bb50488443d97273f368e4e3d7853806605d0125a9757ef5686bc2ac7  ./static/index.html

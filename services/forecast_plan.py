@@ -22,21 +22,23 @@ def build_forecast_plan(ticker: str, horizon_months: int = 12) -> Dict[str, Any]
     selected = selected_info.get("selected")
     preflight = evaluate_preflight(instrument, benchmark, selected, data_ready=data_ready)
     freshness = evaluate_model_freshness(selected, instrument["symbol"]) if selected else None
-    preflight_ok = all(preflight.get(k) for k in ("data_ready", "computationally_compatible", "scientifically_supported"))
+    # A pooled model can forecast a valid, in-domain instrument by fetching the
+    # required history on demand — local store coverage is only needed for the
+    # richer Live tracking, not for a one-shot forecast. So a producible forecast
+    # is the primary action even before a local data refresh; the refresh is
+    # surfaced as advisory (data_update_available), never as a blocking step.
+    can_produce = bool(selected) and preflight.get("computationally_compatible") \
+        and preflight.get("scientifically_supported")
     if instrument.get("asset_class") == "unknown" or not benchmark.get("supported"):
         action = "unsupported"
+    elif can_produce:
+        # Model age never blocks the forecast (fixed-cutoff reference anchors could
+        # otherwise loop on "update"). Freshness/update stays advisory below.
+        action = "forecast"
+    elif selected is None:
+        action = "update_data" if not data_ready else "build_model"
     elif not data_ready:
         action = "update_data"
-    elif selected is None:
-        action = "build_model"
-    elif preflight_ok:
-        # A selected, applicable model forecasts now. Model freshness is advisory
-        # only: the shipped reference anchors have a fixed training cutoff that a
-        # user data refresh cannot advance, so it must never gate the forecast
-        # (doing so left the Guided flow stuck on "update model" forever).
-        action = "forecast"
-    elif freshness and freshness.get("status") in {"retrain_recommended", "stale"}:
-        action = "update_model"
     else:
         action = "unsupported"
     # Whether an in-app model update is even possible is decided by the selected
@@ -55,6 +57,7 @@ def build_forecast_plan(ticker: str, horizon_months: int = 12) -> Dict[str, Any]
         "preflight": preflight,
         "recommended_action": action,
         "can_forecast_now": action == "forecast",
+        "data_update_available": (not data_ready),
         "model_update_available": model_update_available,
         "model_update_required": False,
         "training_contract": contract or None,

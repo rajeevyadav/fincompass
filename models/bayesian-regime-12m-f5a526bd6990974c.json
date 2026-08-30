@@ -1,0 +1,290 @@
+{
+  "applicability_domain": {
+    "asset_classes": [
+      "equity"
+    ],
+    "benchmark_family": "US_LARGE_CAP",
+    "feature_frequency": "monthly",
+    "regions": [
+      "US"
+    ],
+    "security_types": [
+      "common_stock"
+    ],
+    "supports_bonds": false,
+    "supports_commodity_proxies": false,
+    "supports_crypto": false,
+    "supports_etf": false,
+    "target_horizon_months": 12,
+    "training_symbols": [
+      "IBM",
+      "AAPL",
+      "MSFT",
+      "XRX",
+      "AMZN",
+      "DELL",
+      "GOOGL",
+      "ADBE"
+    ],
+    "training_universe_type": "pooled_equities"
+  },
+  "created_at": "2026-08-30T02:28:57.049472+00:00",
+  "data_quality": {
+    "corporate_action_adjusted": false,
+    "delistings_included": false,
+    "note": "Regime-aware baseline research artifact; source limitations prevent validated_market classification.",
+    "point_in_time_features": true,
+    "survivorship_control": false
+  },
+  "dataset_files": {
+    "training_source": {
+      "bundled": false,
+      "name": "matplotlib/mpl-data/sample_data/Stocks.csv",
+      "sha256": "ef6f3bf1a64d5c6c5de702ef154c3fae78fe9df83882ab6bb9c6638bec3cdf47"
+    }
+  },
+  "dataset_manifest_content_sha256": "20747d4354e8ea97aa9a1c095296b766e976ca4054f86785e5ba6768112468d8",
+  "dataset_provenance": {
+    "benchmark": "^GSPC",
+    "feature_contract": "monthly_relative_plus_benchmark_hmm_v1",
+    "live_eligible_target": false,
+    "rebuild_script": "development/train_bayesian_regime_models.py",
+    "sharing_status": "PUBLIC",
+    "source_container": "Matplotlib sample_data/Stocks.csv",
+    "source_sha256": "ef6f3bf1a64d5c6c5de702ef154c3fae78fe9df83882ab6bb9c6638bec3cdf47",
+    "training_assets": [
+      "IBM",
+      "AAPL",
+      "MSFT",
+      "XRX",
+      "AMZN",
+      "DELL",
+      "GOOGL",
+      "ADBE"
+    ]
+  },
+  "dataset_schema_version": "2.0.0-bayesian-regime-dataset1",
+  "dataset_split": {
+    "embargo_trading_days": 252,
+    "method": "purged_chronological",
+    "purge_rule": "Rows whose target_end_date crosses the next partition boundary are removed; an explicit business-day embargo is also applied before each downstream partition.",
+    "test": {
+      "end": "2021-06-30",
+      "rows": 532,
+      "start": "2015-03-31"
+    },
+    "test_start": "2015-03-31",
+    "train": {
+      "end": "2004-09-30",
+      "rows": 974,
+      "start": "1990-01-31"
+    },
+    "val_start": "2005-10-31",
+    "validation": {
+      "end": "2014-02-28",
+      "rows": 707,
+      "start": "2005-10-31"
+    }
+  },
+  "features": [
+    "rel_ret_1m",
+    "rel_ret_3m",
+    "rel_ret_6m",
+    "rel_ret_12m",
+    "vol_6m",
+    "benchmark_vol_6m",
+    "drawdown_12m",
+    "sma_3_12",
+    "regime_risk_off",
+    "regime_neutral",
+    "regime_risk_on"
+  ],
+  "forecast_engine_version": "1.0.0-prob1",
+  "guided_eligible": false,
+  "model_family": "bayesian_regime_hmm",
+  "model_file": "bayesian-regime-12m-f5a526bd6990974c.joblib",
+  "model_id": "f5a526bd6990974c",
+  "model_sha256": "f5a526bd6990974c470fd8e811c905e54af6ef231d232117914e5d82619eccea",
+  "profile_name": "bayesian-regime-12m",
+  "selection_role": "research_alternative",
+  "settings": {
+    "abstain_if_interval_crosses_half": false,
+    "abstain_probability_band": 0.03,
+    "bayesian_prior_sigma": 1.5,
+    "benchmark": "^GSPC",
+    "bootstrap_block_dates": 0,
+    "bootstrap_draws": 100,
+    "calibration_method": "isotonic",
+    "embargo_trading_days": 252,
+    "excess_return_threshold": 0.0,
+    "horizon_trading_days": 252,
+    "max_bootstrap_ece_high": 0.22,
+    "max_calibration_slope": 2.5,
+    "max_ece": 0.15,
+    "min_auc": 0.5,
+    "min_bootstrap_auc_low": 0.45,
+    "min_bootstrap_brier_skill_low": -0.08,
+    "min_bootstrap_log_loss_skill_low": -0.08,
+    "min_brier_skill": -0.02,
+    "min_calibration_slope": 0.25,
+    "min_class_count": 30,
+    "min_log_loss_skill": -0.02,
+    "min_positive_walk_forward_fraction": 0.5,
+    "min_test_dates": 9,
+    "min_test_samples": 150,
+    "min_test_span_days": 180,
+    "posterior_draws": 1200,
+    "prediction_credible_level": 0.9,
+    "random_seed": 37001,
+    "sample_step_trading_days": 21,
+    "test_fraction": 0.2,
+    "train_fraction": 0.5,
+    "use_hist_gradient_boosting": false,
+    "use_random_forest": false,
+    "validation_fraction": 0.3,
+    "walk_forward_splits": 3
+  },
+  "target": {
+    "benchmark": "^GSPC",
+    "event": "asset monthly-close return over 12 months exceeds S&P 500 monthly-close return over the same interval",
+    "excess_return_threshold": 0.0,
+    "frequency": "monthly",
+    "horizon_months": 12,
+    "horizon_trading_days": 252
+  },
+  "validation": {
+    "bootstrap": {
+      "_meta": {
+        "block_dates": 12,
+        "distinct_dates": 76,
+        "draws": 100,
+        "level": 0.9,
+        "method": "moving_date_block_cross_sectional_cluster"
+      },
+      "brier_skill": {
+        "high": -0.03684834149935924,
+        "low": -0.11775983814362373,
+        "median": -0.07695884314072798
+      },
+      "calibration_slope": {
+        "high": 0.04055998382046473,
+        "low": -0.25054384987294825,
+        "median": -0.011010661982818071
+      },
+      "ece_10": {
+        "high": 0.12951384485848033,
+        "low": 0.06055412942556986,
+        "median": 0.08624694743358398
+      },
+      "log_loss_skill": {
+        "high": -0.12228871448456664,
+        "low": -0.4429339178813038,
+        "median": -0.28250126617740867
+      },
+      "roc_auc": {
+        "high": 0.5173288747860921,
+        "low": 0.42874918461563477,
+        "median": 0.4723162261937416
+      }
+    },
+    "calibration": {
+      "method": "isotonic",
+      "rows": 707
+    },
+    "dataset_quality": {
+      "corporate_action_adjusted": false,
+      "delistings_included": false,
+      "note": "Regime-aware baseline research artifact; source limitations prevent validated_market classification.",
+      "point_in_time_features": true,
+      "survivorship_control": false
+    },
+    "features": [
+      "rel_ret_1m",
+      "rel_ret_3m",
+      "rel_ret_6m",
+      "rel_ret_12m",
+      "vol_6m",
+      "benchmark_vol_6m",
+      "drawdown_12m",
+      "sma_3_12",
+      "regime_risk_off",
+      "regime_neutral",
+      "regime_risk_on"
+    ],
+    "gate": {
+      "checks": {},
+      "meaning": "Regime-aware reference remains Limited evidence unless the separate strong research-validation path passes.",
+      "passed": false
+    },
+    "hard_validity": {
+      "checks": {
+        "features_present": true,
+        "minimum_test_rows": true,
+        "minimum_training_rows": true,
+        "minimum_validation_rows": true,
+        "test_forward_endpoint_after_observation": true,
+        "test_target_end_present": true,
+        "test_target_matured": true,
+        "train_forward_endpoint_after_observation": true,
+        "train_target_end_present": true,
+        "train_target_matured": true,
+        "training_has_both_classes": true,
+        "validation_forward_endpoint_after_observation": true,
+        "validation_has_both_classes": true,
+        "validation_target_end_present": true,
+        "validation_target_matured": true
+      },
+      "meaning": "Hard validity checks model estimability and temporal integrity; it does not assert predictive skill.",
+      "passed": true
+    },
+    "interpretation": "Regime-aware Bayesian reference; hard-valid probability model with no automatic claim of predictive alpha.",
+    "locked_test_metrics": {
+      "average_precision": 0.6646222661040463,
+      "baseline_brier": 0.2265007317358143,
+      "baseline_log_loss": 0.6454626025962455,
+      "brier": 0.2398386465899471,
+      "brier_skill": -0.05888685105746094,
+      "calibration_intercept": 0.6388018752291448,
+      "calibration_slope": 0.027822438404489155,
+      "ece_10": 0.06656659434111561,
+      "event_rate": 0.6560150375939849,
+      "log_loss": 0.8231568626662689,
+      "log_loss_skill": -0.2752975297953488,
+      "roc_auc": 0.5084550706937856,
+      "samples": 532
+    },
+    "model_family": "bayesian_regime_hmm",
+    "regime_model": {
+      "inputs": [
+        "benchmark_ret_1m",
+        "benchmark_ret_6m",
+        "benchmark_vol_6m"
+      ],
+      "ordered_state_means": [
+        [
+          -0.008797148203378442,
+          -0.07574865529087328,
+          0.2048484267693631
+        ],
+        [
+          0.009332560033772102,
+          0.061052657323659526,
+          0.0756787802706278
+        ],
+        [
+          0.016265797657463305,
+          0.10758319402159407,
+          0.145971612358055
+        ]
+      ],
+      "semantics": [
+        "risk_off",
+        "neutral",
+        "risk_on"
+      ],
+      "states": 3
+    },
+    "validation_tier": "bayesian_baseline"
+  },
+  "validation_tier": "bayesian_baseline"
+}

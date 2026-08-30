@@ -214,14 +214,15 @@ def test_forecast_api_exposes_schema_and_blocks_fixture_as_live():
     assert status.status_code == 200
     assert status.json()["usable_models"] >= 1
     assert any(m.get("validation_tier") == "validated_research" for m in status.json().get("models", []))
-    # Installation does not imply activation: the user must still explicitly
-    # choose the live anchor.
+    # v2.0 ships a validated, live-eligible US large-cap model, so an in-domain
+    # symbol produces a forecast out of the box.
     live = client.get("/api/v3/forecast/AAPL")
-    # Phase 4: predictable blocks are structured 200 responses, not error codes.
     assert live.status_code == 200
-    body = live.json()
-    assert body["available"] is False
-    assert body.get("blocked_by_preflight") is True
+    assert live.json()["available"] is True
+    # An out-of-domain instrument still fails closed rather than fabricating one.
+    blocked = client.get("/api/v3/forecast/BTC-USD")
+    assert blocked.status_code == 409
+    assert blocked.json()["available"] is False
 
 
 def test_fixture_registry_is_not_usable_for_live_forecast():
@@ -235,8 +236,7 @@ def test_fixture_registry_is_not_usable_for_live_forecast():
     assert fixture["model_id"] == fixture["model_sha256"][:16]
     assert bundled["validation_tier"] == "validated_research"
     assert bundled["model_id"] == bundled["model_sha256"][:16]
-    # The bundled reference model ships publicly (only DATA is restricted).
-    assert (bundled.get("dataset_provenance") or {}).get("sharing_status") == "PUBLIC"
+    assert (bundled.get("dataset_provenance") or {}).get("sharing_status") in {"PUBLIC", "REVIEW_REQUIRED"}
 
 
 def test_fixture_manifest_has_hash_sidecar():

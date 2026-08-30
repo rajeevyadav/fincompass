@@ -101,3 +101,6 @@ FinCompass-Revised-Production-Ready/
 
 # All director-cycle directives/reports/audits — local only, never committed
 /local-notes/
+
+# v2.0 source drop (delta source only — never committed)
+FinCompass-v2.0/

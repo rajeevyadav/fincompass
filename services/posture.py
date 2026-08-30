@@ -65,7 +65,7 @@ def _weakest_below_floor(pillars: Dict[str, Any]) -> Optional[str]:
 def new_position_priority(
     composite: float, confidence: str, interval_width: float, pillars: Dict[str, Any]
 ) -> Dict[str, str]:
-    """Priority for fresh research, from the composite score and confidence."""
+    """§2.1 — priority for fresh research based on composite + confidence."""
     conf = str(confidence or "Low")
     if composite >= POSTURE_STRONG_MIN and conf == "High":
         value, tone = "High", "success"
@@ -96,7 +96,7 @@ def new_position_priority(
 
 
 def accumulation_signal(pillars: Dict[str, Any]) -> Dict[str, str]:
-    """Whether the pillar shape matches a classic accumulation zone."""
+    """§2.2 — whether the pillar shape matches a classic accumulation zone."""
     quality = _score(pillars, "quality")
     durability = _score(pillars, "moat")
     valuation = _score(pillars, "valuation")
@@ -131,7 +131,7 @@ def accumulation_signal(pillars: Dict[str, Any]) -> Dict[str, str]:
 
 
 def re_underwrite_trigger(pillars: Dict[str, Any]) -> Dict[str, str]:
-    """Flags when any pillar has slipped into weak territory."""
+    """§2.3 — flags when any pillar has slipped into weak territory."""
     weak = _weak_pillars(pillars)
     if not weak:
         return {

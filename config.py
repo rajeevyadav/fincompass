@@ -9,7 +9,7 @@ load_dotenv()
 # Application / scoring engine versions. The score cache is explicitly tied to
 # SCORING_ENGINE_VERSION so a methodology change can never silently reuse a
 # score produced by an older engine.
-APP_VERSION = "1.4.0"
+APP_VERSION = "2.0.0"
 SCORING_ENGINE_VERSION = "1.0.0-evidence1"
 DATA_SCHEMA_VERSION = "1.0.0-normalized1"
 

@@ -19,8 +19,14 @@ from forecasting import FORECAST_ENGINE_VERSION
 
 MODEL_ROOT = Path(os.getenv("FINCOMPASS_MODELS_DIR") or (Path(__file__).resolve().parents[1] / "models"))
 ACTIVE_MODEL_FILENAME = "active_model.json"
+# Live-eligible tiers: only these may be explicitly activated as the Live anchor.
 _USABLE_TIERS = {"validated_research", "validated_market"}
-_TIER_RANK = {"rejected": 0, "fixture_only": 0, "validated_research": 1, "validated_market": 2}
+# Forecast-eligible tiers: the Bayesian reference baseline is loadable for guided
+# forecasts (it is a hard-valid model) but is deliberately NOT live-activatable and
+# must never be presented as demonstrated alpha.
+_FORECAST_TIERS = {"bayesian_baseline", "validated_research", "validated_market"}
+_TIER_RANK = {"rejected": 0, "fixture_only": 0, "bayesian_baseline": 1,
+              "validated_research": 2, "validated_market": 3}
 
 
 def _manifest_content_hash(manifest: Dict[str, Any]) -> str:
@@ -257,10 +263,45 @@ def load_model(
     return joblib.load(path), manifest
 
 
+def load_best_forecast_model(*, profile_name: Optional[str] = None,
+                             horizon_months: Optional[int] = None,
+                             root: Path = MODEL_ROOT):
+    """Load the strongest forecast-eligible artifact without activating it.
+
+    Selection is deterministic by exact requested horizon, evidence tier and
+    creation time. This is for one-shot Guided Forecast only; it never changes
+    the explicit Live anchor. The Bayesian baseline participates here (it is
+    forecast-eligible) but remains ineligible for Live activation.
+    """
+    manifests = [m for m in list_model_manifests(root)
+                 if m.get("validation_tier") in _FORECAST_TIERS
+                 and m.get("guided_eligible", True) is not False]
+    if profile_name:
+        manifests = [m for m in manifests if m.get("profile_name") == profile_name]
+    if horizon_months is not None:
+        h = int(horizon_months)
+
+        def mh(m):
+            t = m.get("target") or {}
+            if t.get("horizon_months") is not None:
+                return int(t.get("horizon_months"))
+            return int(round(float(t.get("horizon_trading_days") or 0) / 21.0))
+
+        manifests = [m for m in manifests if mh(m) == h]
+    manifests.sort(key=lambda m: (_TIER_RANK.get(m.get("validation_tier"), 0), m.get("created_at", "")),
+                   reverse=True)
+    for manifest in manifests:
+        path = _verified_model_path(manifest, root)
+        if path is not None:
+            return joblib.load(path), manifest
+    return None, None
+
+
 def registry_status(root: Path = MODEL_ROOT) -> Dict[str, Any]:
     manifests = list_model_manifests(root)
     usable = [m for m in manifests if m.get("validation_tier") in _USABLE_TIERS]
     market = [m for m in usable if m.get("validation_tier") == "validated_market"]
+    baseline = [m for m in manifests if m.get("validation_tier") == "bayesian_baseline"]
     pointer = get_active_pointer(root)
     active = get_active_manifest(root)
     pointer_valid = bool(pointer and active)
@@ -269,6 +310,10 @@ def registry_status(root: Path = MODEL_ROOT) -> Dict[str, Any]:
         "models_total": len(manifests),
         "usable_models": len(usable),
         "market_validated_models": len(market),
+        "bayesian_baseline_models": len(baseline),
+        "live_eligible_models": sum(
+            1 for m in usable if (m.get("dataset_provenance") or {}).get("live_eligible_target") is not False
+        ),
         "active_model": active.get("model_id") if active else None,
         "active_tier": active.get("validation_tier") if active else None,
         "activation_pointer_present": bool(pointer),

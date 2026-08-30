@@ -169,10 +169,15 @@ def test_v4_realtime_status_hides_scope_keys():
     assert "scope_key" not in text
 
 
-def test_v4_live_fails_closed_without_validated_anchor():
-    r=client.get("/api/v4/realtime/AAPL")
+def test_v4_live_fails_closed_for_out_of_domain_instrument():
+    # v2.0 ships a validated, live-eligible US large-cap anchor, so an in-domain
+    # symbol serves Live out of the box. Live must still fail closed for any
+    # instrument with no scientifically applicable anchor.
+    r=client.get("/api/v4/realtime/BTC-USD")
     assert r.status_code==409
     assert r.json()["available"] is False
+    ok=client.get("/api/v4/realtime/AAPL")
+    assert ok.status_code==200 and ok.json()["available"] is True
 
 
 def test_v4_methodology_separates_fresh_prediction_from_parameter_update():
@@ -280,3 +285,11 @@ def test_v4_live_condition_compare_endpoint(monkeypatch):
     assert response.status_code == 200
     assert [x["profile"] for x in response.json()["conditions"]] == ["conservative", "balanced", "responsive"]
     assert response.json()["learning_side_effects"] is False
+
+def test_baseline_live_is_anchor_only_tracking(monkeypatch):
+    import services.realtime_service as rs
+    monkeypatch.setattr(rs,'forecast_ticker',lambda *a,**k:{'available':True,'ticker':'AAA','model_id':'baseline1','validation_tier':'bayesian_baseline','live_eligible':False,'target':{'benchmark':'^GSPC','horizon_trading_days':252},'probability':{'probability_outperform':0.54}})
+    out=rs.live_snapshot('AAA',db=rs.store,queue_observation=False)
+    assert out['available'] is True and out['tracking_only'] is True
+    assert out['adaptive_applied_probability']==out['anchor_probability']==0.54
+    assert out['gate']['status']=='anchor_only'

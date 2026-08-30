@@ -24,44 +24,27 @@ def _resource_root() -> str:
 # --- persistent, writable data dir next to the executable (frozen builds) ----
 if getattr(sys, "frozen", False):
     _base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or os.path.dirname(sys.executable)
-    # Honor an explicit FINCOMPASS_DATA_DIR override for the WHOLE data dir
-    # (including the model registry), so a clean-environment launch is truly
-    # isolated and does not reuse %LOCALAPPDATA%\FinCompass state.
     _data_dir = os.environ.get("FINCOMPASS_DATA_DIR") or os.path.join(_base, "FinCompass")
     os.makedirs(_data_dir, exist_ok=True)
-    os.environ.setdefault("FINCOMPASS_DATA_DIR", _data_dir)
+    os.environ["FINCOMPASS_DATA_DIR"] = _data_dir
     # Onefile builds run from an ephemeral extraction dir, so models trained via
     # the in-app builder must be written somewhere persistent — otherwise they
     # vanish on exit. Point the model registry at a writable per-user location.
-    _models_dir = os.environ.get("FINCOMPASS_MODELS_DIR") or os.path.join(_data_dir, "models")
+    _models_dir = os.path.join(_data_dir, "models")
     os.makedirs(_models_dir, exist_ok=True)
     os.environ.setdefault("FINCOMPASS_MODELS_DIR", _models_dir)
-    # Seed the bundled shipped models (e.g. the validated_research monthly
-    # reference model) into the writable registry. On first run this makes a
-    # usable model available; on UPGRADE it refreshes a shipped model artifact
-    # whose content changed (e.g. an updated manifest / applicability_domain).
-    # User-trained models never exist in the bundle, so they are never touched.
+    # Seed shipped model artifacts into the persistent writable registry. Never
+    # overwrite a user-trained artifact or seed active_model.json.
     try:
         import shutil
-
-        def _differs(a, b):
-            try:
-                if os.path.getsize(a) != os.path.getsize(b):
-                    return True
-                with open(a, "rb") as fa, open(b, "rb") as fb:
-                    return fa.read() != fb.read()
-            except Exception:
-                return True
-
         _bundled_models = os.path.join(_resource_root(), "models")
         if os.path.isdir(_bundled_models):
             for _name in os.listdir(_bundled_models):
+                if _name == "active_model.json" or not _name.endswith((".json", ".joblib", ".csv")):
+                    continue
                 _src = os.path.join(_bundled_models, _name)
                 _dst = os.path.join(_models_dir, _name)
-                # active_model.json is per-user activation state, never seeded.
-                if _name == "active_model.json" or not os.path.isfile(_src):
-                    continue
-                if not os.path.exists(_dst) or _differs(_src, _dst):
+                if os.path.isfile(_src) and not os.path.exists(_dst):
                     shutil.copy2(_src, _dst)
     except Exception:
         pass

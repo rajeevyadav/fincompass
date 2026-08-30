@@ -1,0 +1,151 @@
+{
+  "models": [
+    {
+      "asset_classes": [
+        "equity"
+      ],
+      "benchmark_family": "US_LARGE_CAP",
+      "family": "bayesian_reference",
+      "guided_eligible": true,
+      "horizon_months": 12,
+      "model_id": "433da15a875abe1e",
+      "profile": "bayesian-reference-12m",
+      "regions": [
+        "US"
+      ],
+      "tier": "bayesian_baseline"
+    },
+    {
+      "asset_classes": [
+        "equity"
+      ],
+      "benchmark_family": "US_LARGE_CAP",
+      "family": "bayesian_reference",
+      "guided_eligible": true,
+      "horizon_months": 24,
+      "model_id": "05021963b5372516",
+      "profile": "bayesian-reference-24m",
+      "regions": [
+        "US"
+      ],
+      "tier": "bayesian_baseline"
+    },
+    {
+      "asset_classes": [
+        "equity"
+      ],
+      "benchmark_family": "US_LARGE_CAP",
+      "family": "bayesian_reference",
+      "guided_eligible": true,
+      "horizon_months": 36,
+      "model_id": "2b88bf4d4890abec",
+      "profile": "bayesian-reference-36m",
+      "regions": [
+        "US"
+      ],
+      "tier": "bayesian_baseline"
+    },
+    {
+      "asset_classes": [
+        "equity"
+      ],
+      "benchmark_family": "US_LARGE_CAP",
+      "family": "bayesian_reference",
+      "guided_eligible": true,
+      "horizon_months": 6,
+      "model_id": "fc7cb4f63cfa3e39",
+      "profile": "bayesian-reference-6m",
+      "regions": [
+        "US"
+      ],
+      "tier": "bayesian_baseline"
+    },
+    {
+      "asset_classes": [
+        "equity"
+      ],
+      "benchmark_family": "US_LARGE_CAP",
+      "family": "bayesian_regime_hmm",
+      "guided_eligible": false,
+      "horizon_months": 12,
+      "model_id": "f5a526bd6990974c",
+      "profile": "bayesian-regime-12m",
+      "regions": [
+        "US"
+      ],
+      "tier": "bayesian_baseline"
+    },
+    {
+      "asset_classes": [
+        "equity"
+      ],
+      "benchmark_family": "US_LARGE_CAP",
+      "family": "bayesian_regime_hmm",
+      "guided_eligible": false,
+      "horizon_months": 24,
+      "model_id": "9f47d4736430ee1e",
+      "profile": "bayesian-regime-24m",
+      "regions": [
+        "US"
+      ],
+      "tier": "bayesian_baseline"
+    },
+    {
+      "asset_classes": [
+        "equity"
+      ],
+      "benchmark_family": "US_LARGE_CAP",
+      "family": "bayesian_regime_hmm",
+      "guided_eligible": false,
+      "horizon_months": 36,
+      "model_id": "6b93f8d3ac1fca49",
+      "profile": "bayesian-regime-36m",
+      "regions": [
+        "US"
+      ],
+      "tier": "bayesian_baseline"
+    },
+    {
+      "asset_classes": [
+        "equity"
+      ],
+      "benchmark_family": "US_LARGE_CAP",
+      "family": "bayesian_regime_hmm",
+      "guided_eligible": false,
+      "horizon_months": 6,
+      "model_id": "d6c6c0fd82e70caa",
+      "profile": "bayesian-regime-6m",
+      "regions": [
+        "US"
+      ],
+      "tier": "bayesian_baseline"
+    },
+    {
+      "asset_classes": [
+        "equity"
+      ],
+      "benchmark_family": "US_LARGE_CAP",
+      "family": "enhanced_ensemble",
+      "guided_eligible": true,
+      "horizon_months": 12,
+      "model_id": "80e63fcbc21ce820",
+      "profile": "bundled-monthly-12m",
+      "regions": [
+        "US"
+      ],
+      "tier": "validated_research"
+    },
+    {
+      "asset_classes": null,
+      "benchmark_family": null,
+      "family": "bayesian_reference",
+      "guided_eligible": true,
+      "horizon_months": 12,
+      "model_id": "efd41fec7d9d24fd",
+      "profile": "fixture-reference",
+      "regions": null,
+      "tier": "fixture_only"
+    }
+  ],
+  "version": "2.0.0"
+}

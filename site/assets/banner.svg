@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-label="FinCompass — free systematic stock research">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#07111f"/>
+      <stop offset="0.55" stop-color="#0b1626"/>
+      <stop offset="1" stop-color="#12263c"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#39a9ff"/>
+      <stop offset="1" stop-color="#58dbc9"/>
+    </linearGradient>
+    <style>
+      text { font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif; }
+      .wm { font-weight: 800; letter-spacing: -1.5px; }
+      .chip { font-weight: 700; font-size: 20px; }
+      .sub { font-weight: 400; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="360" rx="20" fill="url(#bg)"/>
+  <rect x="1" y="1" width="1198" height="358" rx="19" fill="none" stroke="#29405f" stroke-width="1"/>
+
+  <!-- compass diamond mark -->
+  <g transform="translate(150 160)">
+    <circle r="86" fill="#0b1220" stroke="url(#accent)" stroke-width="4"/>
+    <polygon points="0,-64 24,0 0,64 -24,0" fill="url(#accent)"/>
+    <polygon points="0,-64 24,0 0,0" fill="#2a86d6" opacity="0.55"/>
+    <circle r="7" fill="#07111f" stroke="#58dbc9" stroke-width="2"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="290" y="150" class="wm" font-size="86"><tspan fill="#edf5ff">Fin</tspan><tspan fill="#58dbc9">Compass</tspan></text>
+  <rect x="292" y="176" width="96" height="30" rx="15" fill="#12324e" stroke="#39a9ff" stroke-width="1.5"/>
+  <text x="404" y="197" fill="#9fb0c5" class="sub" font-size="19">Free systematic stock research — evidence, forecasts &amp; adaptive context</text>
+
+  <!-- three layer chips -->
+  <g transform="translate(290 244)">
+    <rect x="0" y="0" width="250" height="64" rx="12" fill="#0e1b2d" stroke="#29405f"/>
+    <circle cx="30" cy="32" r="7" fill="#5fe09b"/>
+    <text x="50" y="28" class="chip" fill="#edf5ff">Evidence Engine</text>
+    <text x="50" y="50" fill="#9fb0c5" font-size="14">Bayesian 0–10 score · 5 pillars</text>
+
+    <rect x="270" y="0" width="250" height="64" rx="12" fill="#0e1b2d" stroke="#29405f"/>
+    <circle cx="300" cy="32" r="7" fill="#39a9ff"/>
+    <text x="320" y="28" class="chip" fill="#edf5ff">Forecast Anchor</text>
+    <text x="320" y="50" fill="#9fb0c5" font-size="14">validation-gated probability</text>
+
+    <rect x="540" y="0" width="250" height="64" rx="12" fill="#0e1b2d" stroke="#29405f"/>
+    <circle cx="570" cy="32" r="7" fill="#ffc861"/>
+    <text x="590" y="28" class="chip" fill="#edf5ff">Adaptive Live</text>
+    <text x="590" y="50" fill="#9fb0c5" font-size="14">bounded near-real-time residual</text>
+  </g>
+
+  <!-- footer strip -->
+  <text x="290" y="336" fill="#6f8199" font-size="16" font-weight="600">Self-hosted&#160;&#160;·&#160;&#160;No accounts&#160;&#160;·&#160;&#160;No ads or trackers&#160;&#160;·&#160;&#160;MIT&#160;&#160;·&#160;&#160;Educational only, not financial advice</text>
+</svg>

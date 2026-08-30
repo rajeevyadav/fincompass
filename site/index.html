@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FinCompass — free, local systematic stock research</title>
+<meta name="description" content="A local research workbench that answers one honest question: over the next year, how likely is this company to beat the S&P 500? No account, no cloud, no advice.">
+<style>
+  :root { --bg:#0f1729; --panel:#182338; --ink:#e6edf6; --muted:#9fb0c5; --line:#26324a; --blue:#3f7cc0; --green:#2e9e5b; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.6 "Segoe UI",Helvetica,Arial,sans-serif; }
+  a { color:#7db1f0; }
+  .wrap { max-width:960px; margin:0 auto; padding:28px 20px 64px; }
+  header img { width:100%; height:auto; border-radius:14px; }
+  .badges { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin:16px 0; }
+  .badges img { height:22px; }
+  .tag { text-align:center; color:var(--muted); font-size:1.05em; margin:8px 0 20px; }
+  .lead { text-align:center; font-size:1.25em; font-weight:600; margin:6px 0; }
+  h2 { border-bottom:1px solid var(--line); padding-bottom:6px; margin-top:40px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .card h3 { margin:0 0 6px; }
+  .card p { margin:0; color:var(--muted); font-size:0.95em; }
+  .dl { display:flex; flex-wrap:wrap; gap:14px; margin:16px 0; }
+  .dl a { flex:1 1 220px; text-decoration:none; background:var(--panel); border:1px solid var(--blue); border-radius:12px; padding:16px 18px; color:var(--ink); transition:.15s; }
+  .dl a:hover { border-color:#5b9be6; transform:translateY(-1px); }
+  .dl .os { font-weight:700; font-size:1.1em; }
+  .dl .note { color:var(--muted); font-size:0.9em; display:block; margin-top:4px; }
+  code, pre { background:#0b1220; border:1px solid var(--line); border-radius:8px; }
+  code { padding:2px 6px; }
+  pre { padding:14px 16px; overflow-x:auto; }
+  .muted { color:var(--muted); }
+  .cta { display:inline-block; background:var(--green); color:#04120a; font-weight:700; padding:10px 18px; border-radius:10px; text-decoration:none; }
+  footer { margin-top:48px; border-top:1px solid var(--line); padding-top:18px; color:var(--muted); font-size:0.9em; text-align:center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img src="assets/banner.svg" alt="FinCompass — free systematic stock research">
+  </header>
+
+  <div class="badges">
+    <img src="https://img.shields.io/badge/version-2.0.0-2f6fed" alt="version 2.0.0">
+    <img src="https://img.shields.io/badge/tests-347%20passing-2e9e5b" alt="347 tests passing">
+    <img src="https://img.shields.io/badge/license-MIT-58dbc9" alt="MIT">
+    <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-9fb0c5" alt="cross platform">
+    <img src="https://img.shields.io/badge/accounts-none-5fe09b" alt="no accounts">
+  </div>
+
+  <p class="lead">A local research workbench for one honest question:</p>
+  <p class="tag"><em>Over the next year, how likely is this company to do better than the S&amp;P 500?</em></p>
+
+  <p class="muted" style="text-align:center">It runs on your machine — no account, no subscription, no ad network, no cloud model API. A Forecast is a calibrated probability for that exact event. It is <strong>not</strong> a target price, expected return, or advice to buy or sell.</p>
+
+  <img src="assets/pipeline.svg" alt="Guided path: ticker to forecast to live" style="width:100%;height:auto;margin:20px 0">
+
+  <h2 id="download">Download</h2>
+  <p class="muted">Pick your platform. The app opens in your browser at <code>http://127.0.0.1:8000/</code>; your data stays on your machine.</p>
+  <div class="dl">
+    <a href="https://github.com/rajeevyadav/fincompass/releases/latest">
+      <span class="os">🪟 Windows</span><span class="note">Installer (.exe) — run Setup, launch from Start menu</span>
+    </a>
+    <a href="https://github.com/rajeevyadav/fincompass/releases/latest">
+      <span class="os">🍎 macOS</span><span class="note">App bundle (.zip) — unzip and open</span>
+    </a>
+    <a href="https://github.com/rajeevyadav/fincompass/releases/latest">
+      <span class="os">🐧 Linux</span><span class="note">Binary (.tar.gz) — extract and run</span>
+    </a>
+  </div>
+  <p class="muted">All packages are attached to the <a href="https://github.com/rajeevyadav/fincompass/releases/latest">latest release</a>.</p>
+
+  <h2 id="install">Install &amp; run</h2>
+  <div class="grid">
+    <div class="card"><h3>Windows</h3><p>Run <code>FinCompass-Setup.exe</code>, then launch <strong>FinCompass</strong> from the Start menu. Windowed, no console.</p></div>
+    <div class="card"><h3>macOS</h3><p>Unzip <code>FinCompass-macos.zip</code> and open <code>FinCompass.app</code>. If Gatekeeper warns, right-click → Open once.</p></div>
+    <div class="card"><h3>Linux</h3><p><code>tar -xzf FinCompass-linux.tar.gz</code> then <code>./FinCompass</code>.</p></div>
+  </div>
+  <p class="muted" style="margin-top:14px">Prefer source? <code>pip install -r requirements.txt</code> then <code>uvicorn api:app --host 127.0.0.1 --port 8000</code>.</p>
+
+  <h2 id="what">What you get</h2>
+  <div class="grid">
+    <div class="card"><h3>Guided</h3><p>Ticker in, a plain percent out, and at most five verbs: Don't decide, Watch, DCA a little, Hold, Trim. No lab jargon.</p></div>
+    <div class="card"><h3>Research</h3><p>The same number as a specification: target event, model class, calibration scores, tier, manifest.</p></div>
+    <div class="card"><h3>Analytics desks</h3><p>DCF, ratios, options (real chains), bonds (Treasury curve), portfolio, performance and risk — plain-language first.</p></div>
+    <div class="card"><h3>Honest by design</h3><p>A Limited-evidence model may only be watched. No "buy all", no auto position sizing, no cloud model.</p></div>
+  </div>
+
+  <h2 id="guide">User guide</h2>
+  <p><a class="cta" href="https://github.com/rajeevyadav/fincompass/blob/main/docs/FinCompass-User-Guide.pdf">📘 Read the User Guide (PDF)</a></p>
+
+  <footer>
+    Educational research software — a probability can be wrong on this name and this date. Position size, tax and suitability are yours.
+    <br>MIT licensed · <a href="https://github.com/rajeevyadav/fincompass">Source on GitHub</a>
+  </footer>
+</div>
+</body>
+</html>

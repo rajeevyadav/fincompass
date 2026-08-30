@@ -638,7 +638,9 @@ function optionPayoffHtml(type, strike, premium) {
   for (let i = 0; i <= 40; i++) { const s = lo + (span * i) / 40; pts.push([s, pl(s)]); }
   const ymax = Math.max(...pts.map((p) => Math.abs(p[1]))) || 1;
   const X = (s) => ((s - lo) / span) * 100;
-  const Y = (v) => 20 - (v / ymax) * 18;               // 20 = bottom, 2 = top
+  // Centre P/L=0 in the 22-unit viewBox with symmetric amplitude so both the
+  // loss and profit halves stay on-canvas (the earlier mapping clipped losses).
+  const Y = (v) => 11 - (v / ymax) * 9;                 // 2 = top (max profit), 20 = bottom (max loss)
   const path = pts.map((p, i) => `${i ? "L" : "M"}${X(p[0]).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(" ");
   const zeroY = Y(0).toFixed(1), beX = X(be).toFixed(1);
   const sentence = `This ${isCall ? "call" : "put"} costs <strong>${_money(premium)}</strong>. ` +

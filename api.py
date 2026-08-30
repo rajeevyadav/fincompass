@@ -926,6 +926,49 @@ def model_lab_readiness_v4(request: Request, recipe_id: str):
     return {**result, "request_id": _rid(request)}
 
 
+@app.get("/api/v4/models/{model_id}")
+def model_detail_v4(model_id: str, request: Request):
+    """Plain comparison fields for one model (for the candidate-vs-current view)."""
+    from forecasting.registry import list_model_manifests, get_active_pointer
+    mid = str(model_id).strip()
+    m = next((x for x in list_model_manifests() if x.get("model_id") == mid), None)
+    if not m:
+        raise HTTPException(404, f"model not found: {mid}")
+    dom = m.get("applicability_domain") or {}
+    prov = m.get("dataset_provenance") or {}
+    target = m.get("target") or {}
+    active = get_active_pointer()
+    return {
+        "model_id": m.get("model_id"),
+        "validation_tier": m.get("validation_tier"),
+        "horizon_months": dom.get("target_horizon_months") or target.get("horizon_months"),
+        "benchmark": target.get("benchmark"),
+        "training_cutoff": dom.get("training_period_end") or prov.get("training_period_end"),
+        "created_at": m.get("created_at"),
+        "lineage": m.get("lineage"),
+        "is_active": bool(active and active.get("model_id") == mid),
+        "request_id": _rid(request),
+    }
+
+
+@app.post("/api/v4/models/{model_id}/update")
+def model_update_v4(model_id: str, request: Request):
+    """Retrain a model from the accumulated local corpus as a NEW candidate that
+    records the given model as its parent. The active model is never replaced by
+    this call — replacement stays an explicit, separate user action."""
+    from forecasting.registry import list_model_manifests
+    mid = str(model_id).strip()
+    manifest = next((m for m in list_model_manifests() if m.get("model_id") == mid), None)
+    if not manifest:
+        raise HTTPException(404, f"model not found: {mid}")
+    recipe_id = str(manifest.get("profile_name") or "core-us-6m")
+    try:
+        state = start_model_build(recipe_id=recipe_id, parent_model_id=mid)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc))
+    return {**state, "parent_model_id": mid, "request_id": _rid(request)}
+
+
 @app.post("/api/v4/forecast/build")
 def forecast_build_v4(request: Request, payload: Dict[str, Any] = Body(default={})):
     """Start an offline-only Model Lab recipe build from retained local data."""

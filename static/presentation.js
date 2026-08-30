@@ -565,7 +565,30 @@
     return { label: "Limited evidence", level: "limited" };
   }
 
+  // Plain current-vs-newer comparison rows (no model IDs / metrics in Guided).
+  function describeModelComparison(current, candidate) {
+    current = current || {}; candidate = candidate || {};
+    function mon(iso) {
+      if (!iso) return "—";
+      var d = new Date(iso);
+      return isNaN(d.getTime()) ? String(iso)
+        : d.toLocaleString(undefined, { month: "short", year: "numeric" });
+    }
+    var curFresh = describeFreshness(current.freshness || {});
+    var newFresh = describeFreshness(candidate.freshness || { status: "current" });
+    return {
+      rows: [
+        { label: "Market data through", current: mon(current.training_cutoff), newer: mon(candidate.training_cutoff) },
+        { label: "Forecast period", current: horizonWords({ horizon_months: current.horizon_months }), newer: horizonWords({ horizon_months: candidate.horizon_months }) },
+        { label: "Benchmark", current: friendlyBenchmark(current.benchmark), newer: friendlyBenchmark(candidate.benchmark) },
+        { label: "Validation", current: describeModelTier(current.validation_tier).label, newer: describeModelTier(candidate.validation_tier).label },
+        { label: "Freshness", current: curFresh.label, newer: newFresh.label },
+      ],
+    };
+  }
+
   global.FCP = {
+    describeModelComparison: describeModelComparison,
     describeInstrument: describeInstrument,
     describeFreshness: describeFreshness,
     describeEvidenceStrength: describeEvidenceStrength,

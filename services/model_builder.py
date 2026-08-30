@@ -165,6 +165,7 @@ def _worker(
     tickers_override: Optional[List[str]],
     output_root: Path,
     experiment_id: str,
+    parent_model_id: Optional[str] = None,
 ) -> None:
     # Heavy scientific imports are deferred so API startup stays light.
     from forecasting.config import settings_from_dict
@@ -321,7 +322,11 @@ def _worker(
                 phase="saving_candidate", completed=len(prices), failures=len(missing),
                 message="Saving validated candidate (not activated)",
             )
-            saved = save_model(model, report, frozen_manifest, profile_name=recipe["recipe_id"])
+            lineage = None
+            if parent_model_id:
+                lineage = {"parent_model_id": str(parent_model_id), "update_type": "retrain",
+                           "reason": "new_data_and_matured_labels", "created_at": _utc_now()}
+            saved = save_model(model, report, frozen_manifest, profile_name=recipe["recipe_id"], lineage=lineage)
             status = "validated"
             message = (
                 f"Validation passed at {tier.replace('_', ' ')} tier. Candidate retained but NOT active; "
@@ -392,8 +397,14 @@ def start_model_build(
     tickers: Optional[List[str]] = None,
     *,
     recipe_id: str = DEFAULT_RECIPE_ID,
+    parent_model_id: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Claim the single build slot and launch an offline-only recipe build."""
+    """Claim the single build slot and launch an offline-only recipe build.
+
+    ``parent_model_id`` marks the build as a retrain of an existing model; the
+    resulting candidate records it as lineage and NEVER replaces the active model
+    (activation stays an explicit, separate user action).
+    """
     try:
         recipe = get_recipe(recipe_id)
     except KeyError as exc:
@@ -445,7 +456,7 @@ def start_model_build(
     )
     thread = threading.Thread(
         target=_worker,
-        args=(recipe["recipe_id"], resolved_profile, tickers, BUILD_OUTPUT_DIR, experiment_id),
+        args=(recipe["recipe_id"], resolved_profile, tickers, BUILD_OUTPUT_DIR, experiment_id, parent_model_id),
         name="fincompass-model-build",
         daemon=True,
     )

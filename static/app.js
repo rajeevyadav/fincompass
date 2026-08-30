@@ -1117,10 +1117,18 @@ async function pollBuildStatus(){
           const out=$("forecast-out"); if(out)out.innerHTML=`<article class="card readiness-strip readiness-unsupported"><h3>${esc(o.title)}</h3><p>${esc(o.blurb)}</p>${reasons?`<ul class="meta">${reasons}</ul>`:""}<p class="meta">Your existing forecasts are unaffected. You can try a different time period.</p></article>`;
         }
       }
+      if(_guidedCompareAfterBuild){
+        const currentId=_guidedCompareAfterBuild; _guidedCompareAfterBuild=null;
+        if(s.usable && s.model_id){ renderCandidateComparison(currentId, s.model_id); }
+        else{
+          const o=FCP.describeExperimentOutcome(s.status==="not_ready"?"not_ready":(s.status==="failed"?"failed":"rejected"),s.validation_tier,s.failed_gates||[]);
+          const out=$("forecast-out"); if(out)out.innerHTML=`<article class="card readiness-strip readiness-needs"><h3>${esc(o.title)}</h3><p>${esc(o.blurb)}</p><p class="meta">Your current model is unchanged and still active. Keeping the current model.</p></article>`;
+        }
+      }
     }
   }catch(error){
     renderBuildStatus({status:"failed",message:error.message});
-    _buildPollTimer=null; $("btn-build-model").disabled=false; _guidedReplanAfterBuild=false;
+    _buildPollTimer=null; $("btn-build-model").disabled=false; _guidedReplanAfterBuild=false; _guidedCompareAfterBuild=null;
   }
 }
 
@@ -1262,6 +1270,7 @@ async function runForecast(){
 // ---- Guided single-flow (plan-driven): identify -> data -> model -> forecast -> Live ----
 let _guidedReplanAfterRefresh=false;
 let _guidedReplanAfterBuild=false;
+let _guidedCompareAfterBuild=null;
 let _lastGuidedPlan=null;
 
 async function runGuidedFlow(){
@@ -1297,7 +1306,7 @@ async function renderGuidedPlan(plan,ticker){
     }
     const bClass=fr.level==='ok'?'ACTIVE':(fr.level==='bad'?'BASE_ONLY_DRIFT':(fr.level==='warn'?'BASE_ONLY_STALE':''));
     const frBanner=(fr.label&&fr.level!=="muted")?`<div class="live-banner banner-${bClass}"><span class="badge-dot"></span><div><strong>${esc(fr.label)}</strong><span class="badge-blurb">${esc(fr.blurb)}</span></div></div>`:"";
-    const updateBtn=fr.level==='bad'?`<button class="secondary" data-guided-update="${esc(ticker)}">Update model data</button>`:"";
+    const updateBtn=(fr.level==='bad'||fr.level==='warn')?`<button class="secondary" data-update-model="${esc(d.model_id||'')}">Update model</button>`:"";
     out.innerHTML=forecastCardHtml(d)+`<div class="card">${frBanner}<div class="button-row"><button class="primary" data-start-live="${esc(d.model_id||'')}">Start Live — keep this forecast updated</button>${updateBtn}</div><p class="meta">Live keeps this forecast as its base and only applies adjustments once it has enough evidence.</p></div>`;
     return;
   }
@@ -1348,10 +1357,47 @@ async function guidedBuildModel(recipeId){
   try{ await startModelBuild(); }catch(e){ if(out)out.innerHTML=`<div class="error">${esc(e.message)}</div>`; }
 }
 
+// Update model = retrain a newer candidate from the accumulated corpus, then
+// present it against the current model. The active model is never replaced
+// automatically — the user explicitly chooses.
+async function guidedUpdateModel(modelId){
+  if(!modelId)return; _guidedCompareAfterBuild=modelId; _guidedReplanAfterBuild=false;
+  const out=$("forecast-out"); if(out)out.innerHTML=`<div class="card loading">Training an updated model with the latest market data… <span class="meta">your current model stays active until you choose.</span></div>`;
+  try{
+    const s=await api(`/api/v4/models/${encodeURIComponent(modelId)}/update`,{method:'POST'});
+    renderBuildStatus(s);
+    if(s.status==="running"){ if(_buildPollTimer)clearTimeout(_buildPollTimer); pollBuildStatus(); }
+    else if(s.status==="not_ready"){ _guidedCompareAfterBuild=null; if(out)out.innerHTML=`<article class="card readiness-strip readiness-needs"><h3>More data needed to update the model</h3><p>${esc(s.message||"")}</p></article>`; }
+  }catch(e){ _guidedCompareAfterBuild=null; if(out)out.innerHTML=`<div class="error">${esc(e.message)}</div>`; }
+}
+
+async function renderCandidateComparison(currentId, candidateId){
+  const out=$("forecast-out"); if(!out)return;
+  let cur=null, cand=null;
+  try{ cur=await api(`/api/v4/models/${encodeURIComponent(currentId)}`); }catch(_){}
+  try{ cand=await api(`/api/v4/models/${encodeURIComponent(candidateId)}`); }catch(_){}
+  if(cand&&!cand.freshness)cand.freshness={status:"current"};
+  const cmp=FCP.describeModelComparison(cur||{},cand||{});
+  const rows=cmp.rows.map((r)=>`<tr><th>${esc(r.label)}</th><td>${esc(r.current)}</td><td>${esc(r.newer)}</td></tr>`).join("");
+  out.innerHTML=`<article class="card"><h2>A newer validated model is available</h2><p class="meta">Your current model stays active until you choose. Nothing was replaced automatically.</p>`
+    +`<div class="table-wrap"><table><thead><tr><th></th><th>Current model</th><th>Newer model</th></tr></thead><tbody>${rows}</tbody></table></div>`
+    +`<div class="button-row"><button class="primary" data-use-newer="${esc(candidateId)}">Use newer model</button><button class="secondary" data-keep-current="1">Keep current model</button></div></article>`;
+}
+
+async function guidedUseNewerModel(candidateId){
+  if(!candidateId)return;
+  const out=$("forecast-out"); if(out)out.innerHTML='<div class="card loading">Activating the newer model…</div>';
+  try{ await api(`/api/v4/forecast/models/${encodeURIComponent(candidateId)}/activate`,{method:'POST'}); runGuidedFlow(); }
+  catch(e){ if(out)out.innerHTML=`<div class="error">${esc(e.message)}</div>`; }
+}
+
 function initGuidedForecastDelegation(){
   const out=$("forecast-out"); if(!out)return;
   out.addEventListener("click",(e)=>{
-    const el=e.target.closest("[data-start-live],[data-guided-update],[data-guided-train],[data-guided-alt]"); if(!el)return;
+    const el=e.target.closest("[data-start-live],[data-guided-update],[data-guided-train],[data-guided-alt],[data-update-model],[data-use-newer],[data-keep-current]"); if(!el)return;
+    if(el.hasAttribute("data-update-model")) return guidedUpdateModel(el.getAttribute("data-update-model"));
+    if(el.hasAttribute("data-use-newer")) return guidedUseNewerModel(el.getAttribute("data-use-newer"));
+    if(el.hasAttribute("data-keep-current")) return runGuidedFlow();
     if(el.hasAttribute("data-start-live")) return guidedStartLive(el.getAttribute("data-start-live"));
     if(el.hasAttribute("data-guided-update")) return guidedUpdateData(el.getAttribute("data-guided-update"));
     if(el.hasAttribute("data-guided-train")) return guidedBuildModel(el.getAttribute("data-guided-train"));

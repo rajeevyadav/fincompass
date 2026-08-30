@@ -69,7 +69,7 @@ SCORE_LABELS = {
     (0.0, 6.0): "Weak",
 }
 
-# Investor Posture indicators (presentation-layer, model-free; see D-001).
+# Investor Posture indicators: presentation-layer, model-free signals.
 # Named thresholds mirror SCORE_LABELS so the derived indicators stay in lock-
 # step with the pillar labels shown on the card. These drive display-only
 # research signals — never a buy/sell recommendation or a combined verdict.

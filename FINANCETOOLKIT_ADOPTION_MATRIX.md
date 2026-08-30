@@ -2,7 +2,7 @@
 
 External reference: <https://github.com/JerBouma/FinanceToolkit> (MIT). This matrix records, per capability area, how FinCompass will (or will not) use it. **No FinanceToolkit code has been copied or vendored yet** — see `THIRD_PARTY_NOTICES.md`. FinCompass's core freeware operation must never require FinanceToolkit or a paid provider.
 
-Decision legend: `ADOPT_CODE` (vendor MIT code, isolated + attributed) · `ADAPT_CONCEPT` (reimplement natively from the public formula) · `USE_AS_REFERENCE` (cross-check only) · `NOT_NEEDED` · `DEFER` (after Track A lifecycle is green) · `BLOCKED_BY_DATA` · `BLOCKED_BY_LICENSE`.
+Decision legend: `ADOPT_CODE` (vendor MIT code, isolated + attributed) · `ADAPT_CONCEPT` (reimplement natively from the public formula) · `USE_AS_REFERENCE` (cross-check only) · `NOT_NEEDED` · `DEFER` (until the retrain/replacement lifecycle is in place) · `BLOCKED_BY_DATA` · `BLOCKED_BY_LICENSE`.
 
 | FinanceToolkit capability | FinCompass target | Decision | Reason | License action | Data need | Test strategy |
 |---|---|---|---|---|---|---|

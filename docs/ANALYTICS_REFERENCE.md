@@ -2,13 +2,20 @@
 
 Auto-derived from the in-code formula registry (analytics/registry.py). Every metric is a native, provider-independent reimplementation verified by hand-calculated unit tests. No external analytics package or paid provider is required at runtime.
 
-Ratios and DCF consume ONLY canonical statement fields (see analytics/statements.py) — provider vocabulary never reaches a formula. A DCF intrinsic value is a scenario/assumption estimate, NOT a probability or price target. VaR is a confidence-level loss threshold, not a maximum possible loss. Non-positive or missing denominators yield NaN.
+Ratios and DCF consume ONLY canonical statement fields (see analytics/statements.py) — provider vocabulary never reaches a formula. A DCF intrinsic value is a scenario/assumption estimate, NOT a probability or price target. Fixed-income measures are closed-form from user-supplied bond terms. VaR is a confidence-level loss threshold, not a maximum possible loss. Non-positive or missing denominators yield NaN.
 
 | Metric | ID | Version | Formula | Inputs | Units | Supported assets | Reference |
 |---|---|---|---|---|---|---|---|
+| Bond price (PV of cash flows) | `fixedincome.bond_price.v1` | 1 | sum(CF_t / (1+ytm/freq)^t); CF includes coupon each period and face at maturity | face, coupon_rate, ytm, years, freq | currency | fixed_income | standard bond present-value; not a forecast or guaranteed return |
+| Convexity | `fixedincome.convexity.v1` | 1 | sum(CF_t * t*(t+1) / (1+y)^(t+2)) / (price * freq^2) | face, coupon_rate, ytm, years, freq | years_squared | fixed_income | standard definition |
+| Current yield | `fixedincome.current_yield.v1` | 1 | annual coupon / clean price | face, coupon_rate, price | ratio | fixed_income | standard definition |
+| DV01 (price value of a basis point) | `fixedincome.dv01.v1` | 1 | price(ytm - 1bp) - price(ytm) | face, coupon_rate, ytm, years, freq | currency | fixed_income | standard definition |
+| Macaulay duration | `fixedincome.macaulay_duration.v1` | 1 | sum((t/freq) * PV(CF_t)) / price | face, coupon_rate, ytm, years, freq | years | fixed_income | standard definition |
+| Modified duration | `fixedincome.modified_duration.v1` | 1 | Macaulay / (1 + ytm/freq) | face, coupon_rate, ytm, years, freq | years | fixed_income | standard definition |
+| Yield to maturity | `fixedincome.ytm.v1` | 1 | yield solving price = sum(CF_t/(1+ytm/freq)^t) via bisection | price, face, coupon_rate, years, freq | ratio | fixed_income | internal rate of return of the bond cash flows |
 | Annualized return | `performance.annualized_return.v1` | 1 | prod(1+r)^(P/N) - 1 | returns | ratio_percent | equity, etf, index | standard definition |
 | Beta | `performance.beta.v1` | 1 | cov(asset, market) / var(market) | asset_returns, market_returns | ratio | equity, etf, index | standard definition |
-| Calmar ratio | `performance.calmar.v1` | 1 | annualized_return / /max_drawdown/ | returns | ratio | equity, etf, index | standard definition |
+| Calmar ratio | `performance.calmar.v1` | 1 | annualized_return / |max_drawdown| | returns | ratio | equity, etf, index | standard definition |
 | Information ratio | `performance.information_ratio.v1` | 1 | active_annual_return / tracking_error | asset_returns, benchmark_returns | ratio | equity, etf, index | standard definition |
 | Maximum drawdown | `performance.max_drawdown.v1` | 1 | min(wealth/cummax(wealth) - 1) | returns | ratio_percent | equity, etf, index | standard definition |
 | Sharpe ratio | `performance.sharpe.v1` | 1 | mean(r-rf)/std(r-rf) * sqrt(P) | returns, rf | ratio | equity, etf, index | standard definition |
@@ -40,7 +47,7 @@ Ratios and DCF consume ONLY canonical statement fields (see analytics/statements
 | Return on assets | `ratio.return_on_assets.v1` | 1 | net_income / avg(total_assets) | net_income, total_assets | ratio_percent | equity | standard financial-statement analysis |
 | Return on equity | `ratio.return_on_equity.v1` | 1 | net_income / avg(total_equity); non-positive equity -> NaN | net_income, total_equity | ratio_percent | equity | standard financial-statement analysis |
 | Return on invested capital | `ratio.return_on_invested_capital.v1` | 1 | EBIT*(1-eff_tax) / (total_debt+equity-cash) | ebit, tax_expense, pretax_income, total_debt, total_equity, cash_and_equivalents | ratio_percent | equity | standard financial-statement analysis |
-| Conditional VaR (expected shortfall) | `risk.cvar.v1` | 1 | -mean(r / r <= VaR quantile) | returns, confidence | ratio_percent | equity, etf, index | standard definition |
+| Conditional VaR (expected shortfall) | `risk.cvar.v1` | 1 | -mean(r | r <= VaR quantile) | returns, confidence | ratio_percent | equity, etf, index | standard definition |
 | EWMA volatility | `risk.ewma_volatility.v1` | 1 | RiskMetrics EWMA(var, lambda); annualized | returns, lambda | ratio_percent | equity, etf, index | standard definition |
 | Maximum drawdown | `risk.max_drawdown.v1` | 1 | min(wealth/cummax(wealth) - 1) | returns | ratio_percent | equity, etf, index | standard definition |
 | Max drawdown duration | `risk.max_drawdown_duration.v1` | 1 | longest run below a prior wealth peak | returns | periods | equity, etf, index | standard definition |

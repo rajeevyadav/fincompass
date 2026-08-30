@@ -22,16 +22,21 @@ def build_forecast_plan(ticker: str, horizon_months: int = 12) -> Dict[str, Any]
     selected = selected_info.get("selected")
     preflight = evaluate_preflight(instrument, benchmark, selected, data_ready=data_ready)
     freshness = evaluate_model_freshness(selected, instrument["symbol"]) if selected else None
+    preflight_ok = all(preflight.get(k) for k in ("data_ready", "computationally_compatible", "scientifically_supported"))
     if instrument.get("asset_class") == "unknown" or not benchmark.get("supported"):
         action = "unsupported"
     elif not data_ready:
         action = "update_data"
     elif selected is None:
         action = "build_model"
+    elif preflight_ok:
+        # A selected, applicable model forecasts now. Model freshness is advisory
+        # only: the shipped reference anchors have a fixed training cutoff that a
+        # user data refresh cannot advance, so it must never gate the forecast
+        # (doing so left the Guided flow stuck on "update model" forever).
+        action = "forecast"
     elif freshness and freshness.get("status") in {"retrain_recommended", "stale"}:
         action = "update_model"
-    elif all(preflight.get(k) for k in ("data_ready", "computationally_compatible", "scientifically_supported")):
-        action = "forecast"
     else:
         action = "unsupported"
     return {

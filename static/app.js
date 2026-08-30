@@ -332,7 +332,7 @@ function metricKpis(d) {
   const interval = Array.isArray(u.credible_interval) ? u.credible_interval : [d.composite, d.composite];
   return `
     <div class="kpi-grid">
-      <div class="kpi"><div class="k-label">Confidence range</div><div class="k-value">${num(interval[0]).toFixed(2)}–${num(interval[1]).toFixed(2)}</div><div class="k-note">how much the score could vary</div></div>
+      <div class="kpi"><div class="k-label">90% score interval</div><div class="k-value">${num(interval[0]).toFixed(2)}–${num(interval[1]).toFixed(2)}</div><div class="k-note">posterior evidence uncertainty</div></div>
       <div class="kpi"><div class="k-label">Evidence coverage</div><div class="k-value">${pct(u.evidence_coverage)}</div><div class="k-note">weighted evidence observed</div></div>
       <div class="kpi"><div class="k-label">P(score ≥ 8)</div><div class="k-value">${pctRange(u.probability_strong_score_range, u.probability_strong_score)}</div><div class="k-note">dependence-sensitive range; not returns</div></div>
       <div class="kpi"><div class="k-label">Metric completeness</div><div class="k-value">${pct(dq.metric_completeness)}</div><div class="k-note">${num(dq.metrics_available)}/${num(dq.metrics_expected)} core fields</div></div>
@@ -888,7 +888,7 @@ function populateModelSelects(status) {
     if (!select) return;
     const current = select.value;
     select.innerHTML = '<option value="">Active model (default)</option>' + models.map((m)=>{
-      const t=m.target||{}; const horizon=t.horizon_months?`${t.horizon_months}M`:`${t.horizon_trading_days||"?"}d`; const tierLabel=FCP.describeModelTier(m.validation_tier).label; const label=`${horizon} vs ${FCP.friendlyBenchmark(t.benchmark)} · ${tierLabel}`;
+      const t=m.target||{}; const horizon=t.horizon_months?`${t.horizon_months}M`:`${t.horizon_trading_days||"?"}d`; const label=`${m.validation_tier} · ${horizon} vs ${t.benchmark||"?"} · ${String(m.model_id||"").slice(0,8)}`;
       return `<option value="${esc(m.model_id)}">${esc(label)}</option>`;
     }).join("");
     select.value = current || getRuntimeSettings().modelId || "";
@@ -922,27 +922,19 @@ function renderBuildStatus(s){
   const pctDone=total?Math.min(100,Math.round(done/total*100)):(st==="complete"?100:0);
   const phase=esc(String(s.phase||"").replaceAll("_"," "));
   if(st==="running"){
-    const stages=FCP.describeTrainingStages(s.phase).map((st)=>`<li class="stage stage-${st.state}"><span class="stage-dot" aria-hidden="true"></span>${esc(st.label)}${st.state==="active"?' <span class="stage-now">in progress…</span>':""}</li>`).join("");
-    box.innerHTML=`<div class="notice"><strong>Training in progress…</strong></div><ol class="stage-list">${stages}</ol><p class="meta">${esc(s.message||"")}</p><p class="meta">This runs in the background — you can keep using the app; leave this tab open to watch progress.</p>`;
-    return;
-  }
-  if(st==="not_ready"){
-    const o=FCP.describeExperimentOutcome("not_ready");
-    box.innerHTML=`<div class="notice readiness-strip readiness-needs"><strong>${esc(o.title)}.</strong> ${esc(o.blurb)}</div><p class="meta">${esc(s.message||"")}</p><p class="meta">Use <em>Update missing data</em>, then train.</p>`;
+    box.innerHTML=`<div class="notice"><strong>Building forecast model…</strong> <span class="meta">${phase}</span></div><div class="build-bar"><span style="width:${pctDone}%"></span></div><p class="meta">${esc(s.message||"")}</p><p class="meta">This runs in the background — you can keep using the app; leave this tab open to watch progress.</p>`;
     renderRecipeReadiness();
     return;
   }
   if(st==="failed"){
-    const o=FCP.describeExperimentOutcome("failed");
-    box.innerHTML=`<div class="error"><strong>${esc(o.title)}.</strong> ${esc(o.blurb)} <span class="meta">${esc(s.message||"")}</span></div>`;
+    box.innerHTML=`<div class="error"><strong>Build failed.</strong> ${esc(s.message||"")}</div>`;
     return;
   }
   // complete
   const usable=!!s.usable;
-  const outcome=FCP.describeExperimentOutcome(usable?"validated":"rejected",s.validation_tier,s.failed_gates||[]);
-  const reasons=outcome.reasons.length?`<ul class="meta">${outcome.reasons.map((r)=>`<li>${esc(r)}</li>`).join("")}</ul>`:"";
-  const rawGates=Array.isArray(s.failed_gates)&&s.failed_gates.length?`<p class="meta advanced-only"><strong>Failed gates:</strong> ${s.failed_gates.map(esc).join(", ")}</p>`:"";
-  box.innerHTML=`<div class="notice"><strong>${esc(outcome.title)}.</strong></div><p class="meta">${esc(outcome.blurb)}</p>${reasons}${rawGates}`;
+  const tier=esc(String(s.validation_tier||"none").replaceAll("_"," "));
+  const failed=Array.isArray(s.failed_gates)&&s.failed_gates.length?`<p class="meta"><strong>Failed gates:</strong> ${s.failed_gates.map(esc).join(", ")}</p>`:"";
+  box.innerHTML=`<div class="notice"><strong>${usable?"Validated candidate created — not active.":"Build complete — candidate rejected."}</strong> <span class="meta">tier: ${tier}</span></div><p class="meta">${esc(s.message||"")}</p>${failed}`;
   renderRecipeReadiness();
 }
 
@@ -958,27 +950,30 @@ function renderResearchData(d){
   out.innerHTML=`<strong>Local corpus:</strong> ${covered} populated symbols / ${num(audit.symbols_catalogued)} catalogued · ${rows.toLocaleString()} rows · ${num(audit.revisions)} retained revisions · ${num(audit.quality_issue_count)} quality flags.<br><strong>Refresh:</strong> ${esc(refresh.status||"idle")}${refresh.message?` — ${esc(refresh.message)}`:""}${ranges?`<br><span class="meta">${ranges}</span>`:""}`;
 }
 
-async function renderRecipeReadiness(){
+function renderRecipeReadiness(){
   const select=$("build-recipe"), out=$("recipe-readiness"), btn=$("btn-build-model");
   if(!select||!out)return;
   const recipe=state.modelLabRecipes.find((row)=>row.recipe_id===select.value);
   if(!recipe){out.textContent="Recipe readiness unavailable.";if(btn)btn.disabled=true;return;}
-  // Hard data-readiness gates decide whether training can start at all.
-  if(btn)btn.disabled=true;
-  out.innerHTML='<div class="loading">Checking whether FinCompass can train this model…</div>';
-  let result=null;
-  try{result=await api(`/api/v4/model-lab/recipes/${encodeURIComponent(recipe.recipe_id)}/readiness`);}catch(_){}
-  const r=FCP.describeReadiness(result||{});
-  const rows=r.checklist.map((c)=>`<li class="chk ${c.ok?'chk-ok':'chk-bad'}"><span aria-hidden="true">${c.ok?'✓':'✕'}</span> ${esc(c.label)}${c.ok?'':' <span class="chk-tag">needs attention</span>'}</li>`).join("");
-  const actions=r.actions.length?`<div class="readiness-actions"><strong>To fix:</strong><ul>${r.actions.map((a)=>`<li>${esc(a.text)}</li>`).join("")}</ul></div>`:"";
-  out.innerHTML=`<div class="readiness-panel ${r.ready?'is-ready':'is-not-ready'}"><h3>Can FinCompass train this model?</h3><ul class="readiness-checklist">${rows}</ul><p class="readiness-headline">${r.ready?'✓ ':'✕ '}${esc(r.headline)}</p>${actions}</div>`;
-  const ready=result?!!result.ready:false;
-  if(btn)btn.disabled=state.modelBuildRunning||!ready;
+  const ready=recipe.readiness||{};
+  const present=num(ready.targets_present_count), required=num(ready.targets_required_count);
+  const benchmark=esc(recipe.benchmark||"benchmark");
+  if(ready.trainable){
+    const partial=present<required?` Partial local universe: ${present}/${required} targets available.`:` ${present}/${required} targets available.`;
+    out.innerHTML=`<strong>Ready to train locally.</strong> Benchmark ${benchmark}: ${num(ready.benchmark_rows).toLocaleString()} rows.${partial}`;
+  }else{
+    const missing=Array.isArray(ready.target_symbols_missing)?ready.target_symbols_missing.slice(0,8):[];
+    const benchmarkNote=ready.benchmark_ready?"":` benchmark ${benchmark}`;
+    const targetNote=present?"":`${benchmarkNote?" and":""} at least one target series`;
+    const examples=missing.length?` Missing examples: ${missing.map(esc).join(", ")}${ready.target_symbols_missing.length>missing.length?", …":""}.`:"";
+    out.innerHTML=`<strong>Needs local data before training.</strong> Missing${benchmarkNote}${targetNote}.${examples} Use <em>Update local data</em> or import an operator-owned corpus.`;
+  }
+  if(btn)btn.disabled=state.modelBuildRunning||!ready.trainable;
   const guided=$("guided-model-message"), guidedBtn=$("btn-guided-update-train");
   if(guided){
     const recommended=recipe.recipe_id===state.modelLabRecommended;
     const prefix=recommended?"Recommended: ":"Selected: ";
-    if(ready){
+    if(ready.trainable){
       guided.innerHTML=`<strong>${prefix}${esc(recipe.name)}.</strong> Local data are ready. Training will still have to pass calibration and locked-test gates before activation is possible.`;
       if(guidedBtn)guidedBtn.textContent="Train recommended model";
     }else{
@@ -993,13 +988,10 @@ function renderExperiments(payload){
   const out=$("model-lab-experiments"); if(!out)return; const experiments=Array.isArray(payload?.experiments)?payload.experiments:[]; const active=payload?.active?.model_id||"";
   if(!experiments.length){out.innerHTML='<h2>Experiments</h2><p class="meta">No Model Lab experiment has been run yet.</p>';return;}
   out.innerHTML='<h2>Experiments</h2>'+experiments.map((e)=>{
-    const failed=Array.isArray(e.failed_gates)?e.failed_gates:[]; const isActive=active&&e.model_id===active;
+    const failed=Array.isArray(e.failed_gates)?e.failed_gates:[]; const tier=String(e.validation_tier||"none").replaceAll("_"," "); const isActive=active&&e.model_id===active;
     const eligible=e.status==="validated"&&e.model_id&&e.lineage?.live_eligible_target!==false;
     const action=isActive?'<span class="badge">Active</span>':eligible?`<button class="secondary" data-activate-experiment="${esc(e.experiment_id)}">Activate</button>`:'';
-    const outcome=FCP.describeExperimentOutcome(e.status,e.validation_tier,failed);
-    const reasons=outcome.reasons.length?`<ul class="meta">${outcome.reasons.map((r)=>`<li>${esc(r)}</li>`).join("")}</ul>`:"";
-    const rawGates=failed.length?`<p class="meta advanced-only"><strong>Failed gates:</strong> ${failed.map(esc).join(", ")}</p>`:"";
-    return `<details class="experiment-row"><summary><strong>${esc(e.recipe_id)}</strong> · ${esc(outcome.title)} · ${esc(String(e.experiment_id||"").slice(0,10))} ${action}</summary><p class="meta">${esc(outcome.blurb||e.message||"")}</p>${reasons}${rawGates}<pre class="detail advanced-only">${esc(JSON.stringify({status:e.status,validation_tier:e.validation_tier,model_id:e.model_id,metrics:e.metrics,lineage:e.lineage},null,2))}</pre></details>`;
+    return `<details class="experiment-row"><summary><strong>${esc(e.recipe_id)}</strong> · ${esc(e.status)} · ${esc(tier)} · ${esc(String(e.experiment_id||"").slice(0,10))} ${action}</summary><p class="meta">${esc(e.message||"")}</p>${failed.length?`<p class="meta"><strong>Failed gates:</strong> ${failed.map(esc).join(", ")}</p>`:""}<pre class="detail advanced-only">${esc(JSON.stringify({model_id:e.model_id,metrics:e.metrics,lineage:e.lineage},null,2))}</pre></details>`;
   }).join('');
 }
 
@@ -1012,7 +1004,7 @@ async function loadModelLab(){
     state.modelLabRecommendedReason=recipes.recommended_reason||"";
     const select=$("build-recipe"); if(select){
       const current=select.value;
-      select.innerHTML=state.modelLabRecipes.map((r)=>{const ready=r.readiness?.trainable?"ready":"needs local data";const tag=r.recipe_id===state.modelLabRecommended?" · recommended":"";return `<option value="${esc(r.recipe_id)}">${esc(r.name)} · ${num(r.horizon_trading_days)}d vs ${esc(FCP.friendlyBenchmark(r.benchmark))} · ${ready}${tag}</option>`;}).join('');
+      select.innerHTML=state.modelLabRecipes.map((r)=>{const ready=r.readiness?.trainable?"ready":"needs local data";const tag=r.recipe_id===state.modelLabRecommended?" · recommended":"";return `<option value="${esc(r.recipe_id)}">${esc(r.name)} · ${num(r.horizon_trading_days)}d vs ${esc(r.benchmark)} · ${ready}${tag}</option>`;}).join('');
       const keepCurrent=current&&[...select.options].some((o)=>o.value===current)&&getExperienceMode()==="research";
       if(keepCurrent)select.value=current;
       else if(state.modelLabRecommended&&[...select.options].some((o)=>o.value===state.modelLabRecommended))select.value=state.modelLabRecommended;
@@ -1022,26 +1014,14 @@ async function loadModelLab(){
   }catch(error){const out=$("model-lab-experiments");if(out)out.innerHTML=`<div class="error">${esc(error.message)}</div>`;}
 }
 
-function renderRefreshProgress(status){
-  const total=num(status.total)||0, done=num(status.completed)||0;
-  const pct=total?Math.min(100,Math.round(done/total*100)):0;
-  const line=esc(status.message||"Updating local data…");
-  const bar=`<div class="build-bar"><span style="width:${pct}%"></span></div>`;
-  const out=$("research-data-status");
-  if(out)out.innerHTML=`<div class="notice"><strong>${line}</strong>${total?` <span class="meta">${done}/${total} symbols</span>`:""}</div>${bar}`;
-  const g=$("guided-model-message");
-  if(g&&_guidedRecipeAfterRefresh)g.innerHTML=`<strong>Updating local data…</strong> <span class="meta">${line}</span>${bar}<p class="meta">Training will start automatically once the data are ready.</p>`;
-}
-
 async function pollResearchRefresh(){
   try{
     const status=await api('/api/v4/model-lab/data/refresh/status');
-    if(status.status==="running"){renderRefreshProgress(status);_researchPollTimer=setTimeout(pollResearchRefresh,1500);return;}
+    if(status.status==="running"){_researchPollTimer=setTimeout(pollResearchRefresh,3000);return;}
     _researchPollTimer=null;
     await loadModelLab();
     if($("btn-update-research-data"))$("btn-update-research-data").disabled=false;
     if($("btn-guided-update-train"))$("btn-guided-update-train").disabled=false;
-    if(_guidedReplanAfterRefresh){ _guidedReplanAfterRefresh=false; runGuidedFlow(); return; }
     if(_guidedRecipeAfterRefresh){
       const wanted=_guidedRecipeAfterRefresh; _guidedRecipeAfterRefresh=null;
       const select=$("build-recipe"); if(select)select.value=wanted; renderRecipeReadiness();
@@ -1050,7 +1030,7 @@ async function pollResearchRefresh(){
       else{const out=$("guided-model-message");if(out)out.innerHTML=`<strong>Data update finished, but the recommended recipe is still not trainable.</strong> Check provider status or switch to Research mode to inspect the missing symbols.`;}
     }
   }catch(error){
-    _researchPollTimer=null;_guidedRecipeAfterRefresh=null;_guidedReplanAfterRefresh=false;
+    _researchPollTimer=null;_guidedRecipeAfterRefresh=null;
     if($("btn-update-research-data"))$("btn-update-research-data").disabled=false;
     if($("btn-guided-update-train"))$("btn-guided-update-train").disabled=false;
   }
@@ -1108,27 +1088,10 @@ async function pollBuildStatus(){
       _buildPollTimer=null; $("btn-build-model").disabled=false;
       loadForecastStatus(); // refresh the registry/tier badge once a build settles
       loadModelLab();
-      if(_guidedReplanAfterBuild){
-        _guidedReplanAfterBuild=false;
-        if(s.usable){ runGuidedFlow(); }
-        else{
-          const o=FCP.describeExperimentOutcome(s.status==="not_ready"?"not_ready":(s.status==="failed"?"failed":"rejected"),s.validation_tier,s.failed_gates||[]);
-          const reasons=(o.reasons||[]).map((r)=>`<li>${esc(r)}</li>`).join("");
-          const out=$("forecast-out"); if(out)out.innerHTML=`<article class="card readiness-strip readiness-unsupported"><h3>${esc(o.title)}</h3><p>${esc(o.blurb)}</p>${reasons?`<ul class="meta">${reasons}</ul>`:""}<p class="meta">Your existing forecasts are unaffected. You can try a different time period.</p></article>`;
-        }
-      }
-      if(_guidedCompareAfterBuild){
-        const currentId=_guidedCompareAfterBuild; _guidedCompareAfterBuild=null;
-        if(s.usable && s.model_id){ renderCandidateComparison(currentId, s.model_id); }
-        else{
-          const o=FCP.describeExperimentOutcome(s.status==="not_ready"?"not_ready":(s.status==="failed"?"failed":"rejected"),s.validation_tier,s.failed_gates||[]);
-          const out=$("forecast-out"); if(out)out.innerHTML=`<article class="card readiness-strip readiness-needs"><h3>${esc(o.title)}</h3><p>${esc(o.blurb)}</p><p class="meta">Your current model is unchanged and still active. Keeping the current model.</p></article>`;
-        }
-      }
     }
   }catch(error){
     renderBuildStatus({status:"failed",message:error.message});
-    _buildPollTimer=null; $("btn-build-model").disabled=false; _guidedReplanAfterBuild=false; _guidedCompareAfterBuild=null;
+    _buildPollTimer=null; $("btn-build-model").disabled=false;
   }
 }
 
@@ -1185,224 +1148,29 @@ async function runForecastModelCompare(){
     }));
     const body=rows.map((row)=>{
       const m=row.model||{}; const target=m.target||{};
-      if(!row.ok)return `<tr><td>${esc(String(m.model_id||"").slice(0,10))}</td><td>${esc(FCP.describeModelTier(m.validation_tier).label)}</td><td>${num(target.horizon_trading_days)||"—"}</td><td>${esc(FCP.friendlyBenchmark(target.benchmark))}</td><td colspan="3">${esc(row.error||"unavailable")}</td></tr>`;
+      if(!row.ok)return `<tr><td>${esc(String(m.model_id||"").slice(0,10))}</td><td>${esc(String(m.validation_tier||"").replaceAll("_"," "))}</td><td>${num(target.horizon_trading_days)||"—"}</td><td>${esc(target.benchmark||"—")}</td><td colspan="3">${esc(row.error||"unavailable")}</td></tr>`;
       const d=row.result||{}, p=d.probability||{}, metrics=d.validation_summary?.locked_test_metrics||{};
-      return `<tr><td>${esc(String(d.model_id||"").slice(0,10))}</td><td>${esc(FCP.describeModelTier(d.validation_tier).label)}</td><td>${num(d.target?.horizon_trading_days)||"—"}</td><td>${esc(FCP.friendlyBenchmark(d.target?.benchmark))}</td><td>${probabilityText(p.probability_outperform)}</td><td>${Number.isFinite(Number(metrics.brier_skill))?pct(metrics.brier_skill,1):"—"}</td><td>${Number.isFinite(Number(metrics.roc_auc))?num(metrics.roc_auc).toFixed(3):"—"}</td></tr>`;
+      return `<tr><td>${esc(String(d.model_id||"").slice(0,10))}</td><td>${esc(String(d.validation_tier||"").replaceAll("_"," "))}</td><td>${num(d.target?.horizon_trading_days)||"—"}</td><td>${esc(d.target?.benchmark||"—")}</td><td>${probabilityText(p.probability_outperform)}</td><td>${Number.isFinite(Number(metrics.brier_skill))?pct(metrics.brier_skill,1):"—"}</td><td>${Number.isFinite(Number(metrics.roc_auc))?num(metrics.roc_auc).toFixed(3):"—"}</td></tr>`;
     }).join("");
     out.innerHTML=`<article class="card"><h2>${esc(ticker)} model comparison</h2><p class="meta">Each row keeps its own horizon, benchmark and validation record. A higher probability from a different target contract is not automatically a better model.</p><div class="table-wrap"><table><thead><tr><th>Model</th><th>Tier</th><th>Horizon</th><th>Benchmark</th><th>Probability</th><th>Brier skill</th><th>ROC AUC</th></tr></thead><tbody>${body}</tbody></table></div></article>`;
   }catch(error){out.innerHTML=`<div class="error">${esc(error.message)}</div>`;}
 }
 
-// Simple horizontal probability scale around 50%. Color is backed by text labels
-// (never color alone) and it is not a speedometer/gauge implying certainty.
-function probScaleHtml(p){
-  const v=Math.max(0,Math.min(1,Number(p))); if(!isFinite(v))return "";
-  const left=(v*100).toFixed(1);
-  return `<div class="prob-scale" role="img" aria-label="Estimated probability ${Math.round(v*100)} percent on a scale from 0 to 100 percent, where 50 percent is even">`
-    +`<div class="ps-track"><span class="ps-neutral"></span><span class="ps-marker" style="left:${left}%"></span></div>`
-    +`<div class="ps-labels"><span>0%</span><span>50% · even</span><span>100%</span></div></div>`;
-}
-
-// Shared Guided forecast result card (used by both the direct and plan-driven flows).
-function forecastCardHtml(d){
-  const p=d.probability||{}; const target=d.target||{}; const ci=p.uncertainty_interval||[]; const metrics=d.validation_summary?.locked_test_metrics||{};
-  const fp=FCP.describeForecastProbability(p.probability_outperform,p.abstain,target);
-  const tier=FCP.describeModelTier(d.validation_tier);
-  const ev=FCP.describeEvidenceStrength(metrics);
-  const horizon=FCP.horizonWords(target); const bench=esc(FCP.friendlyBenchmark(target.benchmark));
-  return `<article class="card guided-forecast"><div class="gf-head"><h1 class="company-name">${esc(d.ticker)} outlook</h1><div class="meta">over ${esc(horizon)} vs ${bench} · as of ${esc(d.as_of)}</div></div>`
-    +`<div class="gf-hero"><span class="gf-prob band-${esc(fp.band)}">${probabilityText(p.probability_outperform)}</span><span class="gf-denom">Estimated chance of outperforming ${bench} over ${esc(horizon)}</span></div>`
-    +`<p class="gf-interp"><strong>${esc(fp.headline)}.</strong> ${esc(fp.interpretation)}</p>`
-    +probScaleHtml(p.probability_outperform)
-    +`<div class="gf-block"><h3>What this means</h3><p>${esc(fp.meaning)}</p></div>`
-    +`<div class="gf-block"><h3>How much confidence should I place in this?</h3><p><strong>${esc(ev.label)}</strong> <span class="muted">— based on how well the model predicted unseen historical outcomes.</span></p></div>`
-    +`<div class="gf-badge badge-${esc(tier.level)}"><span class="badge-dot"></span><div><strong>${esc(tier.label)}</strong><span class="badge-blurb">${esc(tier.blurb)}</span></div></div>`
-    +`<div class="gf-block"><h3>Confidence range</h3><p><span class="gf-range">${ci.length?`${probabilityText(ci[0])} – ${probabilityText(ci[1])}`:"—"}</span> <span class="muted">— how sure the model is; a wider range means less certainty.</span></p></div>`
-    +`<details class="gf-tech"><summary>Technical details — model ID, calibration metrics, JSON</summary><div class="table-wrap"><table><tbody>`
-      +`<tr><th>Model ID</th><td>${esc(d.model_id)}</td></tr>`
-      +`<tr><th>Validation tier</th><td>${esc(String(d.validation_tier||"").replaceAll("_"," "))}</td></tr>`
-      +`<tr><th>Defined event</th><td>outperform ${bench} over ${esc(horizon)} by more than ${pct(target.excess_return_threshold||0,1)}</td></tr>`
-      +`<tr><th>Locked-test Brier skill</th><td>${Number.isFinite(Number(metrics.brier_skill))?pct(metrics.brier_skill,1):"—"}</td></tr>`
-      +`<tr><th>Locked-test ROC AUC</th><td>${Number.isFinite(Number(metrics.roc_auc))?num(metrics.roc_auc).toFixed(3):"—"}</td></tr>`
-      +`<tr><th>Calibration error (ECE)</th><td>${Number.isFinite(Number(metrics.ece_10))?pct(metrics.ece_10,1):"—"}</td></tr>`
-    +`</tbody></table></div><pre class="detail">${esc(JSON.stringify({probability:p,validation:d.validation_summary,target:d.target},null,2))}</pre></details>`
-    +`<p class="meta">${esc(d.disclaimer||"")}</p></article>`;
-}
-
 async function runForecast(){
   const ticker=$("forecast-ticker").value.trim().toUpperCase(); if(!ticker)return; $("forecast-ticker").value=ticker;
   const modelId=$("forecast-model").value; const q=new URLSearchParams(); if(modelId)q.set("model_id",modelId);
-  $("forecast-out").innerHTML='<div class="card loading">Checking whether a validated model applies to this instrument…</div>'; $("btn-forecast").disabled=true;
+  $("forecast-out").innerHTML='<div class="card loading">Preparing forecast…</div>'; $("btn-forecast").disabled=true;
   try{
-    // Mandatory applicability preflight. Guided mode auto-resolves the
-    // model; a forecast runs only when data + computational + scientific checks
-    // all pass. A failed preflight is NEVER silently ignored.
-    const pf=await api(`/api/v4/forecast/${encodeURIComponent(ticker)}/preflight${q.toString()?`?${q}`:""}`);
-    const guide=FCP.describeForecastPreflight(pf);
-    if(!guide.canRun){
-      if(guide.noModel){
-        $("forecast-out").innerHTML=`<article class="card readiness-strip readiness-unsupported"><h3>No validated model for this instrument yet</h3><p>FinCompass does not yet have a validated model for this market and forecast period. It will not show a probability it cannot stand behind.</p><p class="meta">You can build and validate a model in Model Lab.</p></article>`;
-      }else{
-        const cls=guide.status==="needs_data"?"needs":"unsupported";
-        const title=guide.status==="needs_data"?"More data needed":"Not supported for this instrument";
-        $("forecast-out").innerHTML=`<article class="card readiness-strip readiness-${cls}"><h3>${esc(title)}</h3><ul>${guide.reasons.map((r)=>`<li>${esc(r)}</li>`).join("")||"<li>This model cannot be used for this instrument right now.</li>"}</ul>${guide.action&&guide.status==="needs_data"?`<p class="meta">Suggested action: <strong>${esc(guide.action)}</strong>.</p>`:""}</article>`;
-      }
-      return;
-    }
-    $("forecast-out").innerHTML='<div class="card loading">Running validated probability model…</div>';
-    const d=await api(`/api/v4/forecast/${encodeURIComponent(ticker)}${q.toString()?`?${q}`:""}`);
-    if(!d.available){
-      const reasons=(d.reasons||[]).map((r)=>FCP.describeForecastReason(r.code,r.message_data));
-      $("forecast-out").innerHTML=`<article class="card readiness-strip readiness-unsupported"><h3>Forecast unavailable</h3><ul>${reasons.map((r)=>`<li>${esc(r)}</li>`).join("")||`<li>${esc(d.message||"No validated forecast is available.")}</li>`}</ul></article>`;
-      return;
-    }
-    $("forecast-out").innerHTML=forecastCardHtml(d);
+    const d=await api(`/api/v4/forecast/${encodeURIComponent(ticker)}${q.toString()?`?${q}`:""}`); const p=d.probability||{}; const target=d.target||{}; const ci=p.uncertainty_interval||[]; const metrics=d.validation_summary?.locked_test_metrics||{};
+    $("forecast-out").innerHTML=`<article class="card score-card"><div class="score-top"><div><h1 class="company-name">${esc(d.ticker)} forward-event forecast</h1><div class="meta">As of ${esc(d.as_of)} · model ${esc(d.model_id)} · <span class="validation-tier">${esc(d.evidence_strength||String(d.validation_tier||"").replaceAll("_"," "))}</span></div><div class="score-hero"><span class="forecast-probability">${probabilityText(p.probability_outperform)}</span><span class="score-denom">estimated probability</span></div></div></div><div class="notice"><strong>Defined event:</strong> outperform ${esc(target.benchmark||"benchmark")} over ${target.horizon_months?`${num(target.horizon_months)} months`:`${num(target.horizon_trading_days)} trading days`} by more than ${pct(target.excess_return_threshold||0,1)}.</div><div class="forecast-grid"><div class="kpi"><div class="k-label">Model uncertainty range</div><div class="k-value">${ci.length?`${probabilityText(ci[0])}–${probabilityText(ci[1])}`:"—"}</div><div class="k-note">posterior + inter-model dispersion</div></div><div class="kpi"><div class="k-label">Locked-test Brier skill</div><div class="k-value">${Number.isFinite(Number(metrics.brier_skill))?pct(metrics.brier_skill,1):"—"}</div></div><div class="kpi"><div class="k-label">Locked-test ROC AUC</div><div class="k-value">${Number.isFinite(Number(metrics.roc_auc))?num(metrics.roc_auc).toFixed(3):"—"}</div></div><div class="kpi"><div class="k-label">Calibration error</div><div class="k-value">${Number.isFinite(Number(metrics.ece_10))?pct(metrics.ece_10,1):"—"}</div></div></div>${p.abstain?'<div class="notice"><strong>Abstention flag:</strong> probability is too close to the configured decision-neutral region for a directional interpretation.</div>':""}<details><summary>Inspect component probabilities and validation</summary><pre class="detail">${esc(JSON.stringify({probability:p,validation:d.validation_summary,target:d.target},null,2))}</pre></details><p class="meta">${esc(d.disclaimer||"")}</p></article>`;
   }catch(error){
     const pl=error&&error.payload;
     if(error&&(error.status===409||(pl&&pl.available===false))){
-      $("forecast-out").innerHTML=`<div class="notice"><strong>No active validated forecast model is available.</strong> Use Model Lab to update/import local data, train a recipe, inspect its locked-test gates, and explicitly activate an eligible validated candidate. Rejected candidates and the bundled synthetic fixture never become live.</div>`;
+      $("forecast-out").innerHTML=`<div class="notice"><strong>Forecast is not available for this instrument or horizon yet.</strong> FinCompass can still analyze the instrument. Guided Forecast automatically uses the strongest installed model family when the market, benchmark, horizon and feature contract match.</div>`;
     } else {
       $("forecast-out").innerHTML=`<div class="error">${esc(error.message)}</div>`;
     }
   }finally{$("btn-forecast").disabled=false;}
-}
-
-// ---- Guided single-flow (plan-driven): identify -> data -> model -> forecast -> Live ----
-let _guidedReplanAfterRefresh=false;
-let _guidedReplanAfterBuild=false;
-let _guidedCompareAfterBuild=null;
-let _lastGuidedPlan=null;
-
-async function runGuidedFlow(){
-  const ticker=$("forecast-ticker").value.trim().toUpperCase(); if(!ticker)return; $("forecast-ticker").value=ticker;
-  const horizon=$("forecast-horizon")?.value||"1y";
-  const out=$("forecast-out"); if(out)out.innerHTML=`<div class="card loading">Working out the best forecast for ${esc(ticker)}…</div>`;
-  if($("btn-forecast"))$("btn-forecast").disabled=true;
-  try{
-    const plan=await api(`/api/v4/forecast-plan/${encodeURIComponent(ticker)}?horizon=${encodeURIComponent(horizon)}`);
-    _lastGuidedPlan=plan;
-    await renderGuidedPlan(plan,ticker);
-  }catch(e){ if(out)out.innerHTML=`<div class="error">${esc(e.message)}</div>`; }
-  finally{ if($("btn-forecast"))$("btn-forecast").disabled=false; }
-}
-
-function planHeaderHtml(plan){
-  const inst=FCP.describeInstrument(plan.instrument||{});
-  const bench=(plan.benchmark||{}).benchmark_name;
-  const hz=FCP.horizonWords({horizon_months:plan.horizon_months});
-  return `<div class="plan-head"><h2 class="company-name">${esc(inst.title)}</h2>${inst.subtitle?`<div class="meta">${esc(inst.subtitle)}</div>`:""}<div class="meta">${esc(hz)} outlook${bench?` vs ${esc(bench)}`:""}</div></div>`;
-}
-
-async function renderGuidedPlan(plan,ticker){
-  const out=$("forecast-out"); if(!out)return; const head=planHeaderHtml(plan); const action=plan.recommended_action;
-  if(action==="forecast"){
-    const fr=FCP.describeFreshness(plan.model_freshness);
-    out.innerHTML=`<article class="card">${head}<div class="loading">Producing your forecast…</div></article>`;
-    let d=null; try{ d=await api(`/api/v4/forecast/${encodeURIComponent(ticker)}`); }catch(e){ d=(e&&e.payload)||null; }
-    if(!d||!d.available){
-      const reasons=((d&&d.reasons)||[]).map((r)=>FCP.describeForecastReason(r.code,r.message_data));
-      out.innerHTML=`<article class="card">${head}<div class="readiness-strip readiness-unsupported"><h3>Forecast unavailable</h3><ul>${reasons.map((r)=>`<li>${esc(r)}</li>`).join("")||`<li>${esc((d&&d.message)||"No validated forecast is available.")}</li>`}</ul></div></article>`;
-      return;
-    }
-    const bClass=fr.level==='ok'?'ACTIVE':(fr.level==='bad'?'BASE_ONLY_DRIFT':(fr.level==='warn'?'BASE_ONLY_STALE':''));
-    const frBanner=(fr.label&&fr.level!=="muted")?`<div class="live-banner banner-${bClass}"><span class="badge-dot"></span><div><strong>${esc(fr.label)}</strong><span class="badge-blurb">${esc(fr.blurb)}</span></div></div>`:"";
-    const updateBtn=(fr.level==='bad'||fr.level==='warn')?`<button class="secondary" data-update-model="${esc(d.model_id||'')}">Update model</button>`:"";
-    out.innerHTML=forecastCardHtml(d)+`<div class="card">${frBanner}<div class="button-row"><button class="primary" data-start-live="${esc(d.model_id||'')}">Start Live — keep this forecast updated</button>${updateBtn}</div><p class="meta">Live keeps this forecast as its base and only applies adjustments once it has enough evidence.</p></div>`;
-    return;
-  }
-  if(action==="update_data"){
-    const ds=plan.data_status||{};
-    out.innerHTML=`<article class="card readiness-strip readiness-needs">${head}<h3>Data update needed</h3><p>${esc(plan.message||"More market history is needed.")}</p>${ds.ticker_latest?`<p class="meta">Local history for ${esc(ticker)} ends ${esc(ds.ticker_latest)}.</p>`:""}<div class="button-row"><button class="primary" data-guided-update="${esc(ticker)}">Update data and continue</button></div></article>`;
-    return;
-  }
-  if(action==="train"){
-    const rec=(plan.models.trainable[0]||{});
-    out.innerHTML=`<article class="card readiness-strip readiness-needs">${head}<h3>A model can be built</h3><p>FinCompass does not yet have a validated ${esc(FCP.horizonWords({horizon_months:plan.horizon_months}))} model for this security, but one can be trained from the available data.</p><div class="button-row"><button class="primary" data-guided-train="${esc(rec.recipe_id||'')}">Build model</button></div><p class="meta">FinCompass chooses the recommended scientific configuration automatically. Nothing is activated until it passes validation.</p></article>`;
-    return;
-  }
-  const alts=(plan.alternatives||[]).map((m)=>m.horizon_months?`<button class="secondary" data-guided-alt="${m.horizon_months}m">${esc(FCP.horizonWords({horizon_months:m.horizon_months}))} — validated model available</button>`:"").join("");
-  out.innerHTML=`<article class="card readiness-strip readiness-unsupported">${head}<h3>No validated forecast for this yet</h3><p>${esc(plan.message||"FinCompass does not yet have a validated model for this market and period.")}</p>${alts?`<p class="meta">Available instead:</p><div class="button-row">${alts}</div>`:""}<p class="meta">FinCompass will not show a probability it cannot stand behind.</p></article>`;
-}
-
-async function guidedStartLive(modelId){
-  if(!modelId)return;
-  if(!window.confirm("Use this validated model for Live updates?\n\nFinCompass will keep the original forecast as its base and only apply live adjustments when they have enough evidence."))return;
-  try{
-    await api(`/api/v4/forecast/models/${encodeURIComponent(modelId)}/activate`,{method:'POST'});
-    const t=$("forecast-ticker").value.trim().toUpperCase(); if($("live-ticker"))$("live-ticker").value=t;
-    const tab=$("tab-btn-live"); if(tab)tab.click();
-    if(typeof runLive==="function")runLive(false);
-  }catch(e){ const out=$("forecast-out"); if(out)out.insertAdjacentHTML("afterbegin",`<div class="error">${esc(e.message)}</div>`); }
-}
-
-async function guidedUpdateData(ticker){
-  _guidedReplanAfterRefresh=true; _guidedRecipeAfterRefresh=null;
-  // Fetch exactly the symbols the plan says are needed to close the gap
-  // (benchmark + recipe universe for training; ticker + benchmark for a forecast).
-  // Symbols already present get a fast incremental tail update; only missing
-  // symbols do a first-time history fetch.
-  const symbols=(_lastGuidedPlan&&Array.isArray(_lastGuidedPlan.update_symbols)&&_lastGuidedPlan.update_symbols.length)?_lastGuidedPlan.update_symbols:[ticker];
-  const out=$("forecast-out"); if(out)out.innerHTML=`<div class="card loading">Updating market data for ${symbols.length} instrument${symbols.length===1?"":"s"}… <span class="meta">already-stored history updates quickly; missing instruments are downloaded once.</span></div>`;
-  try{
-    const s=await api('/api/v4/model-lab/data/refresh',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbols})});
-    if(s.status==="running"){ if(_researchPollTimer)clearTimeout(_researchPollTimer); pollResearchRefresh(); }
-    else { _guidedReplanAfterRefresh=false; runGuidedFlow(); }
-  }catch(e){ _guidedReplanAfterRefresh=false; if(out)out.innerHTML=`<div class="error">${esc(e.message)}</div>`; }
-}
-
-async function guidedBuildModel(recipeId){
-  if(!recipeId)return; _guidedReplanAfterBuild=true;
-  if($("build-recipe"))$("build-recipe").value=recipeId;
-  const out=$("forecast-out"); if(out)out.innerHTML=`<div class="card loading">Building your forecast model…</div>`;
-  try{ await startModelBuild(); }catch(e){ if(out)out.innerHTML=`<div class="error">${esc(e.message)}</div>`; }
-}
-
-// Update model = retrain a newer candidate from the accumulated corpus, then
-// present it against the current model. The active model is never replaced
-// automatically — the user explicitly chooses.
-async function guidedUpdateModel(modelId){
-  if(!modelId)return; _guidedCompareAfterBuild=modelId; _guidedReplanAfterBuild=false;
-  const out=$("forecast-out"); if(out)out.innerHTML=`<div class="card loading">Training an updated model with the latest market data… <span class="meta">your current model stays active until you choose.</span></div>`;
-  try{
-    const s=await api(`/api/v4/models/${encodeURIComponent(modelId)}/update`,{method:'POST'});
-    renderBuildStatus(s);
-    if(s.status==="running"){ if(_buildPollTimer)clearTimeout(_buildPollTimer); pollBuildStatus(); }
-    else if(s.status==="not_ready"){ _guidedCompareAfterBuild=null; if(out)out.innerHTML=`<article class="card readiness-strip readiness-needs"><h3>More data needed to update the model</h3><p>${esc(s.message||"")}</p></article>`; }
-  }catch(e){ _guidedCompareAfterBuild=null; if(out)out.innerHTML=`<div class="error">${esc(e.message)}</div>`; }
-}
-
-async function renderCandidateComparison(currentId, candidateId){
-  const out=$("forecast-out"); if(!out)return;
-  let cur=null, cand=null;
-  try{ cur=await api(`/api/v4/models/${encodeURIComponent(currentId)}`); }catch(_){}
-  try{ cand=await api(`/api/v4/models/${encodeURIComponent(candidateId)}`); }catch(_){}
-  if(cand&&!cand.freshness)cand.freshness={status:"current"};
-  const cmp=FCP.describeModelComparison(cur||{},cand||{});
-  const rows=cmp.rows.map((r)=>`<tr><th>${esc(r.label)}</th><td>${esc(r.current)}</td><td>${esc(r.newer)}</td></tr>`).join("");
-  out.innerHTML=`<article class="card"><h2>A newer validated model is available</h2><p class="meta">Your current model stays active until you choose. Nothing was replaced automatically.</p>`
-    +`<div class="table-wrap"><table><thead><tr><th></th><th>Current model</th><th>Newer model</th></tr></thead><tbody>${rows}</tbody></table></div>`
-    +`<div class="button-row"><button class="primary" data-use-newer="${esc(candidateId)}">Use newer model</button><button class="secondary" data-keep-current="1">Keep current model</button></div></article>`;
-}
-
-async function guidedUseNewerModel(candidateId){
-  if(!candidateId)return;
-  const out=$("forecast-out"); if(out)out.innerHTML='<div class="card loading">Activating the newer model…</div>';
-  try{ await api(`/api/v4/forecast/models/${encodeURIComponent(candidateId)}/activate`,{method:'POST'}); runGuidedFlow(); }
-  catch(e){ if(out)out.innerHTML=`<div class="error">${esc(e.message)}</div>`; }
-}
-
-function initGuidedForecastDelegation(){
-  const out=$("forecast-out"); if(!out)return;
-  out.addEventListener("click",(e)=>{
-    const el=e.target.closest("[data-start-live],[data-guided-update],[data-guided-train],[data-guided-alt],[data-update-model],[data-use-newer],[data-keep-current]"); if(!el)return;
-    if(el.hasAttribute("data-update-model")) return guidedUpdateModel(el.getAttribute("data-update-model"));
-    if(el.hasAttribute("data-use-newer")) return guidedUseNewerModel(el.getAttribute("data-use-newer"));
-    if(el.hasAttribute("data-keep-current")) return runGuidedFlow();
-    if(el.hasAttribute("data-start-live")) return guidedStartLive(el.getAttribute("data-start-live"));
-    if(el.hasAttribute("data-guided-update")) return guidedUpdateData(el.getAttribute("data-guided-update"));
-    if(el.hasAttribute("data-guided-train")) return guidedBuildModel(el.getAttribute("data-guided-train"));
-    if(el.hasAttribute("data-guided-alt")){ if($("forecast-horizon"))$("forecast-horizon").value=el.getAttribute("data-guided-alt"); return runGuidedFlow(); }
-  });
 }
 
 function applyRuntimeSettings(settings){
@@ -1480,27 +1248,7 @@ async function runLive(silent=false){
     let events=[]; try{events=(await api(`/api/v4/realtime/${encodeURIComponent(ticker)}/events?limit=12`)).events||[];}catch(_){events=[];}
     const contributions=(d.top_contributions||[]).map((c)=>`<tr><td>${esc(c.feature)}</td><td>${num(c.value).toFixed(3)}</td><td>${num(c.log_odds_contribution).toFixed(4)}</td></tr>`).join("");
     const eventRows=events.map((e)=>`<tr><td>${esc(e.source_time||"")}</td><td>${esc(e.source)}</td><td>${esc(e.event_type)}</td><td>${esc(e.payload?.form||e.payload?.note||"")}</td></tr>`).join("");
-    const st=FCP.liveStateFromSnapshot(d);
-    const applied=!!d.adaptive_shift_applied;
-    const change=FCP.describeProbabilityChange(d.anchor_probability,d.adaptive_applied_probability);
-    const ltarget=d.target||{}; const lbench=esc(FCP.friendlyBenchmark(ltarget.benchmark)); const lhorizon=esc(FCP.horizonWords(ltarget));
-    const changePts=(applied&&change.deltaPoints!==null)?`${change.deltaPoints>0?"+":""}${change.deltaPoints} percentage point${Math.abs(change.deltaPoints)===1?"":"s"}`:"none applied";
-    const changeSentence=applied?change.sentence:st.blurb;
-    const eventCards=events.slice(0,5).map((e)=>`<tr><td>${esc(FCP.describeEventCategory(e.source,e.event_type))}</td><td>${esc(e.payload?.form||e.payload?.note||e.event_type||"")}</td><td>${esc(e.source_time||"")}</td></tr>`).join("");
-    $("live-out").innerHTML=`<article class="card guided-forecast guided-live"><div class="gf-head"><h1 class="company-name">${esc(d.ticker)} live forecast</h1><div class="meta">over ${lhorizon} vs ${lbench} · as of ${esc(d.as_of)}</div></div>`
-      +`<div class="live-banner banner-${esc(st.code)}"><span class="badge-dot"></span><div><strong>${esc(st.label)}</strong><span class="badge-blurb">${esc(st.blurb)}</span></div></div>`
-      +`<div class="gf-hero"><span class="gf-prob">${probabilityText(d.adaptive_applied_probability)}</span><span class="gf-denom">Current forecast</span></div>`
-      +`<p class="live-change">Original forecast: <strong>${probabilityText(d.anchor_probability)}</strong> · Change from new information: <strong>${esc(changePts)}</strong></p>`
-      +`<p class="gf-interp">${esc(changeSentence)}</p>`
-      +`<div class="gf-block"><h3>What changed?</h3>${eventCards?`<div class="table-wrap"><table><thead><tr><th>Information</th><th>What arrived</th><th>When</th></tr></thead><tbody>${eventCards}</tbody></table></div>`:'<p class="muted">No new information has arrived yet.</p>'}</div>`
-      +`<div class="gf-block"><h3>Forecast model</h3><p class="muted">This is the model currently activated for Live${d.base_model_id?"":" (none active)"}.</p></div>`
-      +`<details class="gf-tech"><summary>Technical details — gate, drift, contributions, provenance</summary>`
-        +`<div class="table-wrap"><table><tbody><tr><th>Anchor (base) model</th><td>${esc(d.base_model_id||"—")}</td></tr><tr><th>Gate status</th><td>${esc(gate.status||"warming")} · ${num(gm.unique_dates)} dates · ${num(gm.span_days)} day span</td></tr><tr><th>Adaptive candidate</th><td>${probabilityText(d.adaptive_candidate_probability)} (${d.adaptive_shift_applied?"applied":"gated off"})</td></tr><tr><th>Settings fingerprint</th><td>${esc(d.settings_fingerprint||"—")}</td></tr></tbody></table></div>`
-        +`${renderSourceHealth(d.source_health)}`
-        +`<h3>Adaptive log-odds contributions</h3><div class="table-wrap"><table><thead><tr><th>Feature</th><th>Value</th><th>Log-odds contribution</th></tr></thead><tbody>${contributions||'<tr><td colspan="3">No adaptive contribution yet.</td></tr>'}</tbody></table></div>`
-        +`<h3>Event chronology</h3><div class="table-wrap"><table><thead><tr><th>Source time</th><th>Source</th><th>Type</th><th>Context</th></tr></thead><tbody>${eventRows||'<tr><td colspan="4">No stored events.</td></tr>'}</tbody></table></div>`
-        +`<pre class="detail">${esc(JSON.stringify({gate:d.gate,drift:d.drift,features:d.features,source_health:d.source_health,target:d.target,state_key:d.state_key,state_source:d.state_source},null,2))}</pre></details>`
-      +`<p class="meta">${esc(d.disclaimer||"")}</p></article>`;
+    $("live-out").innerHTML=`<article class="card score-card"><div class="score-top"><div><h1 class="company-name">${esc(d.ticker)} adaptive live state</h1><div class="meta">As of ${esc(d.as_of)} · anchor ${esc(d.base_model_id)} · lineage ${esc(d.settings_fingerprint)}</div><div class="score-hero"><span class="forecast-probability">${probabilityText(d.adaptive_applied_probability)}</span><span class="score-denom">applied live probability</span></div></div></div><div class="forecast-grid"><div class="kpi"><div class="k-label">Frozen anchor</div><div class="k-value">${probabilityText(d.anchor_probability)}</div></div><div class="kpi"><div class="k-label">Adaptive candidate</div><div class="k-value">${probabilityText(d.adaptive_candidate_probability)}</div><div class="k-note">${d.adaptive_shift_applied?"residual applied":"candidate shown; residual gated off"}</div></div><div class="kpi"><div class="k-label">Gate</div><div class="k-value validation-tier">${esc(gate.status||"warming")}</div><div class="k-note">${num(gm.unique_dates)} dates · ${num(gm.span_days)} day span</div></div><div class="kpi"><div class="k-label">Pending observation</div><div class="k-value">${d.pending_label?.created?"queued":"not added"}</div><div class="k-note">${esc(d.pending_label?.reason||"")}</div></div>${renderSourceHealth(d.source_health)}</div><div class="notice"><strong>Governance:</strong> fresh events may change the candidate now; posterior coefficients update only after the queued target matures. A stale/warming/degraded adapter contributes zero applied shift.</div><div class="split-grid"><div><h2>Top adaptive contributions</h2><div class="table-wrap"><table><thead><tr><th>Feature</th><th>Value</th><th>Log-odds contribution</th></tr></thead><tbody>${contributions||'<tr><td colspan="3">No adaptive contribution yet.</td></tr>'}</tbody></table></div></div><div><h2>Recent event chronology</h2><div class="table-wrap"><table><thead><tr><th>Source time</th><th>Source</th><th>Type</th><th>Context</th></tr></thead><tbody>${eventRows||'<tr><td colspan="4">No stored events.</td></tr>'}</tbody></table></div></div></div><details><summary>Inspect gate, drift, features and provenance</summary><pre class="detail">${esc(JSON.stringify({gate:d.gate,drift:d.drift,features:d.features,source_health:d.source_health,target:d.target,state_key:d.state_key,state_source:d.state_source},null,2))}</pre></details><p class="meta">${esc(d.disclaimer||"")}</p></article>`;
   }catch(error){if(!silent)$("live-out").innerHTML=`<div class="error">${esc(error.message)}</div>`;}finally{$("btn-live").disabled=false;}
 }
 
@@ -1511,12 +1259,8 @@ async function runLiveCompare(){
   out.innerHTML='<div class="card loading">Comparing conservative, balanced and responsive conditions…</div>';
   try{
     const d=await api(`/api/v4/realtime/${encodeURIComponent(ticker)}/compare${q.toString()?`?${q}`:""}`);
-    const conditions=d.conditions||[];
-    const PROFILE_SUB={conservative:"reacts least to new information",balanced:"a middle setting",responsive:"reacts most to new information"};
-    const anyApplied=conditions.some((row)=>row.adaptive_shift_applied);
-    const cards=conditions.map((row)=>{const st=FCP.liveStateFromSnapshot({gate:{status:row.gate_status},adaptive_shift_applied:row.adaptive_shift_applied});return `<article class="condition-card"><h3>${esc(row.profile)}</h3><p class="meta">${esc(PROFILE_SUB[String(row.profile).toLowerCase()]||"")}</p><div class="condition-prob">${probabilityText(row.adaptive_applied_probability)}</div><p class="meta">current live forecast</p><p class="meta">base forecast ${probabilityText(row.anchor_probability)} · <strong>${esc(st.label)}</strong></p></article>`;}).join("");
-    const lead=anyApplied?"Each sensitivity setting applies new information differently, within validated limits.":"Not enough completed outcomes yet (learning in progress), so every sensitivity setting currently returns the same validated base forecast. Differences appear only once live updates activate.";
-    out.innerHTML=`<article class="card"><h2>${esc(ticker)} — sensitivity comparison</h2><p>${esc(lead)}</p><div class="condition-grid">${cards}</div><details class="gf-tech"><summary>Technical details — comparison contract</summary><p class="meta">${esc(d.comparison_contract||"")} No learning observation is queued by this comparison.</p></details><p class="meta">${esc(d.disclaimer||"")}</p></article>`;
+    const cards=(d.conditions||[]).map((row)=>`<article class="condition-card"><h3>${esc(row.profile)}</h3><div class="condition-prob">${probabilityText(row.adaptive_applied_probability)}</div><p class="meta">applied probability</p><p><strong>Candidate:</strong> ${probabilityText(row.adaptive_candidate_probability)}<br><strong>Anchor:</strong> ${probabilityText(row.anchor_probability)}<br><strong>Gate:</strong> ${esc(row.gate_status||"warming")}</p><p class="meta">${row.adaptive_shift_applied?"Adaptive shift applied":"Anchor retained"}</p></article>`).join("");
+    out.innerHTML=`<article class="card"><h2>${esc(ticker)} live condition comparison</h2><p>${esc(d.comparison_contract||"")}</p><div class="condition-grid">${cards}</div><p class="meta">No learning observation is queued by this comparison. ${esc(d.disclaimer||"")}</p></article>`;
   }catch(error){out.innerHTML=`<div class="error">${esc(error.message)}</div>`;}finally{if(btn)btn.disabled=false;}
 }
 
@@ -1534,13 +1278,11 @@ function initEvents() {
   $("btn-compare").addEventListener("click", compare);
   $("compare-tickers").addEventListener("keydown", (e) => { if (e.key === "Enter") compare(); });
   $("btn-watch-compare").addEventListener("click", compareWatchlist);
-  $("btn-forecast").addEventListener("click", runGuidedFlow);
-  initGuidedForecastDelegation();
+  $("btn-forecast").addEventListener("click", runForecast);
   if($("btn-forecast-compare-models"))$("btn-forecast-compare-models").addEventListener("click", runForecastModelCompare);
   if($("btn-activate-selected-model"))$("btn-activate-selected-model").addEventListener("click", activateSelectedForecastModel);
   if($("btn-deactivate-model"))$("btn-deactivate-model").addEventListener("click", deactivateActiveModel);
-  $("forecast-ticker").addEventListener("keydown", (e) => { if (e.key === "Enter") runGuidedFlow(); });
-  if($("forecast-horizon"))$("forecast-horizon").addEventListener("change", runGuidedFlow);
+  $("forecast-ticker").addEventListener("keydown", (e) => { if (e.key === "Enter") runForecast(); });
   $("btn-forecast-status").addEventListener("click", loadForecastStatus);
   if($("btn-build-model"))$("btn-build-model").addEventListener("click", startModelBuild);
   if($("btn-guided-update-train"))$("btn-guided-update-train").addEventListener("click", guidedUpdateAndTrain);

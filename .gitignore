@@ -105,3 +105,6 @@ FinCompass-Revised-Production-Ready/
 
 # v2.0 source drop (delta source only — never committed)
 FinCompass-v2.0/
+
+# local scratch build/run logs
+scratch_*.log

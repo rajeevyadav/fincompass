@@ -1,0 +1,937 @@
+\documentclass[11pt]{article}
+\usepackage[margin=0.82in]{geometry}
+\usepackage[T1]{fontenc}
+% newtx not in this TeX Live; use Computer Modern\n\usepackage{lmodern}
+% \usepackage{microtype}
+\usepackage{amsmath}
+\usepackage{booktabs,longtable,tabularx,array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{xurl}
+\usepackage{fancyhdr}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\hypersetup{hidelinks,pdfauthor={Rajeev Yadav, Ph.D.},pdftitle={FinCompass User Guide}}
+\setlength{\parindent}{1em}
+\setlength{\parskip}{0.3em}
+\setlength{\emergencystretch}{2em}
+\newcommand{\FC}{\textsc{FinCompass}}
+\newcommand{\logit}{\operatorname{logit}}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small FinCompass User Guide}
+\fancyhead[R]{\small Rajeev Yadav, Ph.D.}
+\fancyfoot[C]{\thepage}
+\title{\textbf{FinCompass User Guide}}
+\author{Rajeev Yadav, Ph.D.}
+\date{August 2026}
+\begin{document}
+\maketitle
+\begin{center}
+\large A Local Workbench for Research, Forecasting, Model Governance and Quantitative Analytics
+\end{center}
+\vspace{0.6em}
+\noindent\textbf{Who this guide is for.} If you want a probability for a named event, a place to watch that probability live, and a separate desk of valuation and risk tools, start at the front. If you need to audit the model, skip to Research Details and the appendices.
+
+\noindent\textbf{What this is not.} \FC\ is not a brokerage, not a signal service, and not a promise that a probability will be right on the next name you type. The software is built so a weak-but-valid model can still speak, provided it is labelled honestly.
+
+\noindent\textbf{How the pages are arranged.} Sections~1--16 are the working product: ticker in, Forecast out, Live on, data and model maintenance. The remaining sections are the research and audit layer: scoring rules, locked tests, regimes, ensembles, troubleshooting and worked examples.
+
+\tableofcontents
+\newpage
+
+\section{What FinCompass Is}
+\FC\ is a local-first financial research workbench. It combines four kinds of analysis that are intentionally kept separate:
+\begin{enumerate}[itemsep=0.2em]
+\item an evidence score that summarizes currently observed company and market information;
+\item a probabilistic Forecast for a precisely defined future event;
+\item a Live workspace that tracks the frozen Forecast and may apply a separately governed adaptive adjustment when enough evidence has matured;
+\item deterministic quantitative analytics such as performance, risk, ratios, DCF, bond mathematics, options, portfolio measures, factors and technical indicators.
+\end{enumerate}
+
+Keep the four outputs apart in your head. A high evidence score is not a high chance of beating the index next year. A DCF value is a scenario, not a probability. A Sharpe ratio describes a history; it does not forecast one.
+
+\section{The Normal Workflow}
+For a supported security, the intended user journey is short:
+\begin{center}
+\textbf{Enter ticker $\rightarrow$ FinCompass identifies the market $\rightarrow$ obtains or checks local data $\rightarrow$ selects the strongest applicable pooled model $\rightarrow$ Forecast $\rightarrow$ Start Live.}
+\end{center}
+
+You do not train a private model for every new ticker. Pooled model families are designed to cover defined market domains. For example, a US common-stock family model may be applicable to a newly entered US common stock even if that ticker was not one of the securities used to fit the model.
+
+If local data are missing, \FC\ should ask for an update and continue. If the family model is old, the software may recommend model maintenance, but an existing hard-valid applicable Forecast should remain available unless a documented hard-expiry rule is triggered.
+
+\section{First Use: Entering a Ticker}
+Enter a ticker in the Forecast workspace. The software performs several steps internally:
+\begin{enumerate}[itemsep=0.2em]
+\item resolves the symbol and security identity;
+\item classifies the asset class and market region;
+\item chooses a benchmark policy;
+\item checks whether local price history is sufficient;
+\item searches the model registry for the strongest applicable model at the requested horizon;
+\item checks scientific applicability, not merely whether the code can calculate features;
+\item produces the Forecast when the required conditions are satisfied.
+\end{enumerate}
+
+The Guided screen is supposed to speak in readiness language, not engineering internals. Model IDs, dataset hashes, locked-test thresholds and feature contracts belong in Research Details.
+
+\section{Choosing a Forecast Period}
+The forecast period determines the event being estimated. A six-month forecast and a twelve-month forecast are not interchangeable.
+
+Suppose the displayed event is:
+\begin{quote}
+Probability that the security outperforms the S\&P 500 over the next 12 months.
+\end{quote}
+A value of 58\% means the model estimates a 0.58 probability of that exact event under its declared data and applicability contract. It does not mean:
+\begin{itemize}[itemsep=0.15em]
+\item the security will rise 58\%;
+\item the model is 58\% accurate;
+\item the security has a 58\% chance of making money on every path;
+\item the expected return is 58\%;
+\item the result is a recommendation.
+\end{itemize}
+
+\section{Understanding the Benchmark}
+Many \FC\ Forecasts are relative to a benchmark. If the benchmark is the S\&P 500, the event compares the security's future return with the S\&P 500 over the same horizon.
+
+A security can decline in absolute terms and still outperform its benchmark. Conversely, it can rise and still underperform a stronger market. Always read the benchmark line before interpreting the probability.
+
+\section{Reading the Forecast Card}
+A Forecast card should answer five questions immediately:
+\begin{enumerate}[itemsep=0.2em]
+\item \textbf{What is the probability?}
+\item \textbf{What event is being forecast?}
+\item \textbf{What is the horizon?}
+\item \textbf{What benchmark is used?}
+\item \textbf{How strong is the supporting evidence?}
+\end{enumerate}
+
+A typical card might read:
+\begin{quote}
+\textbf{54\%}\par
+Estimated probability of outperforming the S\&P 500 over the next year.\par
+\textbf{Evidence: Limited}
+\end{quote}
+
+The evidence label matters. It tells you whether the probability comes from a hard-valid Bayesian baseline or from a model that has passed stronger out-of-sample validation.
+
+\section{Evidence Labels}
+\subsection{Limited Evidence}
+A Limited-evidence Forecast comes from a Bayesian baseline that passed hard validity checks but did not establish the stronger predictive skill required for the validated-research tier.
+
+This means the model is usable as a probability reference but should be interpreted cautiously. It is not being presented as demonstrated alpha.
+
+\subsection{Research Validated}
+A research-validated model passed the configured locked-test statistical and stability gates on its declared historical research corpus. This is stronger evidence than a baseline, but the result remains limited to the data, market, horizon and applicability domain recorded in the model manifest.
+
+\subsection{Market Validated}
+This is the strongest model tier. In addition to the statistical gate, it requires stronger historical-universe and point-in-time controls such as survivorship handling, delistings and corporate-action treatment.
+
+\section{Why a Weak Model Can Still Produce a Probability}
+A model can be mathematically valid without showing meaningful incremental predictive skill. For example, it may converge, remain leakage-free, use a proper chronological split and produce reasonably calibrated probabilities, yet perform similarly to the historical event rate.
+
+The correct conclusion is not necessarily ``the software failed.'' It is that the probability has limited demonstrated predictive evidence. \FC\ separates these two judgments so the stronger validation thresholds do not need to be weakened simply to make the product usable.
+
+\section{Start Live}
+After a Forecast is available, choose \textbf{Start Live}. The same button can lead to two scientifically different modes, selected automatically by the software.
+
+\subsection{Tracking-Only Live}
+When the Forecast comes from a Limited-evidence Bayesian baseline, Live tracks the frozen probability and freshness state. It does not activate adaptive learning and does not apply a live residual. The current forecast therefore remains equal to the original forecast unless a different model is explicitly selected later.
+
+This mode is still useful. It gives one place to monitor the Forecast, data recency and model status without overstating the evidence.
+
+\subsection{Adaptive-Eligible Live}
+A research-validated or market-validated model may be eligible to serve as the anchor for the adaptive Live layer. Even then, the adaptive adjustment is not automatically applied. The Live gate must accumulate enough matured outcomes, enough distinct dates, enough elapsed time, acceptable probability losses, acceptable calibration and no active drift warning.
+
+Until those conditions are met, the frozen Forecast remains in control.
+
+\section{How to Read Live}
+The most important Live values are:
+\begin{description}[style=nextline]
+\item[Original forecast] The frozen anchor probability when Live was started.
+\item[Current forecast] The probability currently being applied. It may equal the original forecast when the adaptive layer is inactive.
+\item[Candidate forecast] A provisional adaptive estimate calculated from fresh context. It is not necessarily applied.
+\item[Evidence status] Whether the adaptive layer is warming, active or degraded.
+\end{description}
+
+A healthy display might say:
+\begin{quote}
+Current forecast: 61\%\par
+Original forecast: 62\%\par
+New information suggests a small decrease. Live adjustment is not being applied yet because FinCompass is still collecting enough completed outcomes.
+\end{quote}
+
+That wording is more meaningful than exposing raw gate names or model-state codes.
+
+\section{Data Updates}
+\FC\ keeps a durable local research corpus. Updating does not require downloading the entire history each time.
+
+A normal update:
+\begin{enumerate}[itemsep=0.2em]
+\item starts shortly before the most recent retained date;
+\item downloads a short overlap and the missing tail;
+\item compares overlapping values;
+\item records provider revisions;
+\item appends genuinely new observations;
+\item preserves raw source frames and hashes where configured.
+\end{enumerate}
+
+If the provider changes the price basis, such as raw versus adjusted history, \FC\ should rebuild the affected symbol instead of appending incompatible prices.
+
+\section{Three Kinds of Freshness}
+The term ``freshness'' is easy to misuse. \FC\ should distinguish three separate concepts.
+
+\subsection{Instrument-Data Freshness}
+Are the ticker and benchmark histories current enough to build today's features?
+
+\subsection{Model-Training Freshness}
+How old was the family training corpus when the model was fitted?
+
+\subsection{Retrainability}
+Have enough new family observations and matured labels accumulated to justify or support a retrain?
+
+A new ticker having data through today does not itself make a pooled family model stale. The model was trained on a family corpus, not on that newly entered ticker alone.
+
+\section{Model Maintenance}
+Model maintenance is separate from obtaining a Forecast. If an applicable hard-valid model already exists, an update may be recommended while the current Forecast remains available.
+
+When an update is launched, \FC\ should:
+\begin{enumerate}[itemsep=0.2em]
+\item keep the current model intact;
+\item rebuild the training dataset from the accumulated local corpus;
+\item include only matured forward outcomes;
+\item train a new immutable candidate;
+\item evaluate the candidate;
+\item compare the newer model with the current model;
+\item require an explicit replacement action for a stronger active model.
+\end{enumerate}
+
+If the candidate is not ready, fails computationally, or does not earn the intended evidence tier, the current Forecast should remain available.
+
+\section{Why Labels Must Mature}
+Assume a Forecast horizon of one year. An observation made today cannot have a one-year outcome tomorrow. The software may use today's information to create a new Forecast, but that observation cannot become a supervised training label until the one-year endpoint actually occurs.
+
+This rule prevents a major source of leakage. It also explains why adaptive Live learning can take time: each pending observation must wait for its original horizon to mature.
+
+\section{The Evidence Workspace}
+The evidence engine summarizes current information across five pillars:
+\begin{itemize}[itemsep=0.15em]
+\item Quality;
+\item Financial Durability;
+\item Safety;
+\item Valuation;
+\item Cycle.
+\end{itemize}
+Each pillar can include uncertainty and evidence coverage. Missing data should move the result toward neutral and widen uncertainty rather than being silently replaced by optimistic assumptions.
+
+The evidence score is not a forward return probability. It is a structured research summary.
+
+\section{Performance Analytics}
+\FC\ includes deterministic historical-performance measures.
+
+\subsection{Annualized Return}
+For periodic returns $r_t$ and $m$ periods per year,
+\begin{equation}
+R_{ann}=\left(\prod_{t=1}^{T}(1+r_t)\right)^{m/T}-1.
+\end{equation}
+Annualization makes histories of different lengths easier to compare, but it does not imply the same return will continue.
+
+\subsection{Volatility}
+Annualized volatility is approximately
+\begin{equation}
+\sigma_{ann}=s_r\sqrt{m}.
+\end{equation}
+It summarizes dispersion of historical returns, not direction.
+
+\subsection{Sharpe Ratio}
+The Sharpe ratio compares average excess return with total volatility. A higher historical Sharpe is not a guarantee of a better future outcome.
+
+\subsection{Sortino Ratio}
+Sortino focuses on downside deviation rather than all volatility. It can be useful when upside and downside variability should not be treated symmetrically.
+
+\subsection{Maximum Drawdown}
+Maximum drawdown is the largest peak-to-trough decline in the historical wealth path. It is a historical observation, not a worst-case bound.
+
+\subsection{Beta and Tracking Error}
+Beta describes historical sensitivity to a benchmark. Tracking error describes dispersion of active returns relative to the benchmark. Neither is itself a forecast.
+
+\section{Risk Analytics}
+\subsection{Value at Risk}
+VaR estimates a loss threshold under a stated model and confidence level. A 95\% one-day VaR is not the maximum possible one-day loss. Losses can exceed VaR.
+
+\subsection{Expected Shortfall}
+Expected shortfall summarizes average loss beyond a VaR threshold under the historical or assumed distribution. It provides tail information that VaR alone does not.
+
+\subsection{EWMA Volatility}
+Exponentially weighted volatility gives more weight to recent observations, allowing measured volatility to respond faster to changing market conditions.
+
+\section{Technical Analytics}
+Technical calculations include moving averages, exponential moving averages, RSI, MACD, Bollinger Bands and ATR.
+
+These can help describe trend, momentum and volatility. They do not automatically become Forecast features. An indicator must be separately admitted through the feature-governance process before it can influence the forecasting model.
+
+\section{Financial Statements and Normalization}
+Data providers use different field names and conventions. \FC\ converts provider-specific vocabulary into canonical income-statement, balance-sheet and cash-flow fields.
+
+Every normalized value should carry enough context to identify whether it was reported directly, mapped from a provider alias, derived from other fields, unavailable or not applicable. Missing values remain missing. They are not silently converted to zero.
+
+This matters because a missing inventory balance is not the same thing as zero inventory, and missing debt is not the same thing as no debt.
+
+\section{Financial Ratios}
+Ratios are grouped into several families.
+
+\subsection{Profitability}
+Examples include gross margin, operating margin, net margin, return on assets and return on equity. Ratios with negative or structurally invalid denominators require careful interpretation.
+
+\subsection{Liquidity}
+Current ratio and quick ratio compare near-term resources with near-term obligations. Sector context matters: a bank and a manufacturer should not be interpreted using identical balance-sheet intuition.
+
+\subsection{Leverage}
+Debt-to-equity, debt-to-assets and interest-coverage measures describe capital structure and debt burden. Negative equity can make some common leverage ratios economically difficult to interpret; the software should not hide that problem by returning a convenient finite value.
+
+\subsection{Efficiency}
+Asset turnover, inventory turnover and receivables measures describe how efficiently resources are used. Period-average balance-sheet denominators are often preferable to a single ending balance when appropriate data are available.
+
+\section{Discounted Cash Flow Valuation}
+DCF estimates present value under explicit assumptions. The unlevered free-cash-flow identity is
+\begin{equation}
+FCFF=EBIT(1-T)+D\&A-CapEx-\Delta NWC.
+\end{equation}
+Projected FCFF values are discounted at WACC. Terminal value may use perpetual growth or an exit multiple.
+
+The output is only as reliable as the assumptions. A useful DCF workflow therefore emphasizes sensitivity analysis:
+\begin{itemize}[itemsep=0.15em]
+\item revenue growth;
+\item operating margin;
+\item tax rate;
+\item reinvestment;
+\item WACC;
+\item terminal growth or exit multiple;
+\item net debt and diluted shares.
+\end{itemize}
+
+Do not treat one DCF number as truth. Compare scenarios and inspect which assumptions dominate the result.
+
+\section{Fixed-Income Analytics}
+The fixed-income module calculates bond price, current yield, yield to maturity, Macaulay duration, modified duration, convexity and DV01 from explicit terms.
+
+\subsection{Bond Price}
+For face value $F$, coupon $C$, yield $y$, frequency $m$ and $n$ remaining periods,
+\begin{equation}
+P=\sum_{k=1}^{n}\frac{C/m}{(1+y/m)^k}+\frac{F}{(1+y/m)^n}.
+\end{equation}
+
+\subsection{Duration}
+Macaulay duration is a weighted average time to cash flow. Modified duration approximates percentage price sensitivity to a small yield change. Convexity improves the approximation for larger changes.
+
+These are interest-rate sensitivity measures, not guaranteed future price changes.
+
+\section{Options Analytics}
+European Black-Scholes-Merton calculations include theoretical call/put value and major Greeks.
+
+\begin{description}[style=nextline]
+\item[Delta] First-order sensitivity to the underlying price.
+\item[Gamma] Change in Delta as the underlying changes.
+\item[Vega] Sensitivity to volatility.
+\item[Theta] Sensitivity to passage of time.
+\item[Rho] Sensitivity to interest rates.
+\end{description}
+
+Actual option prices can differ because of volatility surfaces, liquidity, discrete dividends, early exercise and market microstructure. The calculation is a model result under stated assumptions.
+
+\section{Portfolio Analytics}
+Portfolio analytics combine explicit holding weights with historical returns or a covariance matrix.
+
+For weight vector $w$ and covariance matrix $\Sigma$,
+\begin{equation}
+\sigma_p^2=w^\top\Sigma w.
+\end{equation}
+Euler risk contributions can decompose portfolio volatility into holding-level contributions.
+
+A portfolio probability should not be created by simply averaging the Forecast probabilities of its holdings. The joint distribution and dependence structure matter.
+
+\section{Factor and Regression Analytics}
+OLS factor models estimate descriptive exposures. A single-factor model may be written
+\begin{equation}
+r_i-r_f=\alpha+\beta(r_m-r_f)+\epsilon.
+\end{equation}
+A multi-factor model extends the right-hand side with additional factor returns.
+
+The output includes coefficients, standard errors, t-statistics and fit measures. A statistically significant loading does not mean a factor tilt will generate future returns. In-sample exposure is not a forecast.
+
+\section{The Bayesian Reference Model}
+The standard Forecast baseline uses regularized Bayesian logistic regression. For feature vector $x$,
+\begin{equation}
+P(Y=1\mid x)=\frac{1}{1+\exp[-(\beta_0+x^\top\beta)]}.
+\end{equation}
+Shrinkage priors pull coefficients toward zero when the data do not strongly support large effects. This reduces instability and makes the model a useful reference against which more complex models can be judged.
+
+The implementation approximates posterior coefficient uncertainty around the fitted mode and propagates that uncertainty into a probability range.
+
+\section{Calibration in Practical Terms}
+If a system repeatedly assigns 60\% probability to comparable events, a well-calibrated system should see those events occur approximately 60\% of the time over a sufficiently large and stable sample.
+
+Calibration is therefore different from ranking. A model can be good at ranking companies from stronger to weaker while giving overconfident probabilities. Another model can have modest ranking power but reasonably calibrated probabilities.
+
+\FC\ evaluates probability quality using proper scores and calibration diagnostics rather than relying on AUC alone.
+
+\section{Brier Score and Log Loss}
+For one binary outcome $y$ and probability $p$,
+\begin{equation}
+BS=(p-y)^2.
+\end{equation}
+Lower is better. Brier skill compares the model with a reference forecast such as the historical event rate.
+
+Log loss is
+\begin{equation}
+LL=-[y\log p+(1-y)\log(1-p)].
+\end{equation}
+It penalizes highly confident wrong predictions more strongly.
+
+These metrics are appropriate because the model is trying to produce probabilities, not merely class labels.
+
+\section{ROC AUC}
+ROC AUC measures ranking. AUC of 0.5 corresponds to random ranking in a balanced conceptual sense; values above 0.5 indicate better ordering of positive and negative outcomes.
+
+AUC is useful but insufficient. A high-AUC model can be badly calibrated, and a probability product must care about both ranking and probability accuracy.
+
+\section{Why the Test Is Locked}
+The locked test is meant to represent data not used in model design. If you repeatedly change features after seeing the locked-test result, the test is no longer locked. It has become another development set.
+
+\FC\ therefore separates:
+\begin{itemize}[itemsep=0.15em]
+\item training;
+\item validation/calibration;
+\item ensemble-weight selection where applicable;
+\item final calibration;
+\item locked testing.
+\end{itemize}
+
+Chronological purging and embargo rules further reduce leakage from overlapping forward horizons.
+
+\section{Regime-Aware Bayesian Research Model}
+Markets can behave differently during stress, neutral and risk-on environments. The regime-aware model introduces a hidden market state estimated from benchmark-only, backward-looking features.
+
+A three-state Gaussian hidden Markov model estimates filtered probabilities for the states. These probabilities are appended to the Bayesian reference features. Later test observations are processed forward so future data cannot rewrite earlier state assignments.
+
+The regime model is not assumed to be better. It must demonstrate incremental value. On the current reference corpus, some horizons improved selected metrics while others worsened. The model therefore remains a research alternative rather than the default.
+
+\section{Enhanced Model}
+The enhanced model combines Bayesian logistic regression with nonlinear learners such as histogram gradient boosting and random forest. Separate chronological stages are used for component calibration, ensemble weighting and final calibration.
+
+The important principle is not the exact list of algorithms. The principle is that complexity must improve on the simpler reference under protected out-of-sample evaluation. If it does not, the simpler model should remain preferred.
+
+\section{Current Reference Evidence}
+The current bundled research evidence uses a small historical US-equity sample and the S\&P 500. It is useful for demonstrating software behavior and the validation framework but is not a survivorship-complete market dataset.
+
+\begin{table}[ht]
+\centering
+\caption{Bayesian reference results on the declared locked tests.}
+\begin{tabular}{rrrrr}
+\toprule
+Horizon & Test $n$ & AUC & Brier skill & ECE\\
+\midrule
+6 months & 539 & 0.419 & -0.023 & 0.056\\
+12 months & 532 & 0.480 & -0.012 & 0.035\\
+24 months & 518 & 0.415 & -0.004 & 0.064\\
+36 months & 497 & 0.303 & -0.108 & 0.199\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+These models are retained as Limited-evidence baselines. They are not promoted to stronger tiers merely because the software can fit them.
+
+The stronger twelve-month enhanced model recorded approximately AUC 0.576, Brier skill 0.036, log-loss skill 0.027 and ECE 0.045 on its declared locked test. That supports its research-validation tier within the limits of the corpus.
+
+\section{Applicability Checks}
+Before trusting a Forecast, verify that the model's declared domain matches the security:
+\begin{itemize}[itemsep=0.15em]
+\item asset class;
+\item region;
+\item security type;
+\item benchmark family;
+\item forecast horizon;
+\item feature frequency;
+\item feature contract.
+\end{itemize}
+
+A US common-stock model should not silently forecast a bond, commodity or cryptoasset simply because the software can calculate returns for both.
+
+\section{Model Registry and Integrity}
+Each model has an immutable artifact and manifest. The manifest records the model hash, target, features, settings, dataset provenance, split metadata, evidence tier and applicability domain.
+
+A current model is selected explicitly. A newer candidate does not replace it merely because it has a later timestamp. This prevents accidental ``newest model wins'' behavior.
+
+\section{Candidate Replacement}
+When a model is retrained, the new model records its parent. The current model remains intact while the candidate is evaluated.
+
+For Guided use, the comparison should focus on meaningful fields such as:
+\begin{itemize}[itemsep=0.15em]
+\item market data through date;
+\item forecast period;
+\item benchmark;
+\item evidence tier;
+\item freshness.
+\end{itemize}
+Detailed Brier, AUC and calibration metrics belong in Research Details.
+
+\section{What Happens When an Update Fails}
+An unsuccessful optional model update should not remove a current hard-valid Forecast. The expected behavior is:
+\begin{quote}
+The newer model was not ready, so FinCompass kept the current model. Your forecast remains available.
+\end{quote}
+
+Technical diagnostics remain available for research inspection, but the normal workflow should recover automatically.
+
+\section{Troubleshooting: Forecast Unavailable}
+There are several distinct reasons a Forecast can be unavailable.
+
+\subsection{Not Enough Ticker History}
+The current security does not have enough retained data to build the model's required features. Update local data and try again.
+
+\subsection{Benchmark History Missing}
+The security may be available while its benchmark is missing. Update both histories.
+
+\subsection{No Applicable Model Family}
+The security is outside the declared domain of installed model families. Analytics may still be available. This is a scientific limitation, not a software crash.
+
+\subsection{Model Artifact Failed Integrity Checks}
+A model file may be missing or its hash may not match the manifest. Reinstall or restore the correct artifact rather than bypassing the integrity check.
+
+\subsection{Required Point-in-Time Features Unavailable}
+Some models may require additional point-in-time fundamental features. If those cannot be reconstructed under the declared data contract, the model should not run.
+
+\section{Troubleshooting: Update Model Failed}
+Model maintenance can fail for different reasons:
+\begin{itemize}[itemsep=0.15em]
+\item the declared retraining recipe is unsupported;
+\item the local corpus lacks enough target or benchmark history;
+\item labels have not matured;
+\item the trainer encounters a computational failure;
+\item the candidate is hard-invalid;
+\item the candidate is hard-valid but does not earn the stronger evidence tier.
+\end{itemize}
+
+These cases should be distinguished in Research Details. In Guided use, the current model should remain available whenever it was already hard-valid.
+
+\section{Troubleshooting: Start Live Failed}
+If the selected model is a Bayesian baseline, Live should start in tracking-only mode without trying to activate adaptive control. If the selected model is research-validated or market-validated, it may require explicit activation before adaptive Live is eligible.
+
+If Live cannot start, check whether the problem is model applicability, artifact integrity, benchmark data, or a missing current Forecast. Do not resolve the issue by promoting an ineligible baseline to adaptive control.
+
+\section{Research Details: Point-in-Time Discipline}
+Point-in-time discipline means that every feature value must have been available at the observation date. This is straightforward for historical prices and more subtle for fundamentals and macro data.
+
+A financial statement belongs to the feature history on its filing/publication date, not automatically on the fiscal period end. Revised macro data require similar care if a historical backtest claims real-time availability.
+
+\section{Research Details: Overlapping Horizons}
+Long-horizon labels overlap. Monthly observations with a one-year target share much of the same future return path. Treating them as independent rows understates uncertainty.
+
+This is why temporal breadth, unique observation dates, walk-forward stability and block-bootstrap methods matter. A dataset with many rows can still have limited independent temporal information.
+
+\section{Research Details: Block Bootstrap}
+The moving-date-block bootstrap resamples contiguous date blocks and keeps same-date cross-sectional observations together. This preserves part of the serial and cross-sectional dependence that an iid row bootstrap would destroy.
+
+Bootstrap intervals do not prove future robustness, but they provide a more realistic measure of uncertainty around the observed test statistics.
+
+\section{Research Details: Adaptive Residual}
+The Live residual adjusts the anchor in log-odds space:
+\begin{equation}
+\logit(p_{candidate})=\logit(p_0)+\delta(z_t).
+\end{equation}
+The correction is bounded. When the gate is inactive, the applied probability returns to $p_0$ even if a candidate probability can be calculated.
+
+This design prevents the fresh-event layer from silently redefining the validated anchor model.
+
+\section{Research Details: Drift}
+Distribution shift can make a previously useful adaptive relationship unreliable. The Live layer therefore monitors anchor-relative performance and calibration over matured outcomes. A drift alert disables the applied residual and returns control to the frozen anchor.
+
+Drift monitoring does not guarantee detection of every regime change. It is a defensive mechanism, not proof that the future distribution is stable.
+
+\section{Research Details: Model Freshness and Retraining}
+A model manifest should store the training cutoff and the data/feature contract. Retraining should ask whether enough new family observations and matured labels exist, not merely whether the currently viewed ticker has newer prices.
+
+This distinction is particularly important for pooled models. The user's ticker supplies today's feature vector; it does not automatically define the family retraining corpus.
+
+\section{Research Details: Retraining Contracts}
+A model should declare exactly how it can be retrained. A robust contract contains:
+\begin{itemize}[itemsep=0.15em]
+\item trainer family;
+\item recipe identifier;
+\item feature contract;
+\item benchmark family;
+\item horizon;
+\item retrain support flag.
+\end{itemize}
+
+The software should never infer a training recipe from a human-readable profile name.
+
+\section{Research Details: Model Selection}
+Model selection should prefer the strongest applicable tier, not the newest file. Within the same tier and domain, additional tie-breaking rules can consider creation date, exact feature compatibility and artifact integrity.
+
+A model from the wrong region or benchmark family is not a fallback. It is inapplicable.
+
+\section{Using Research Mode}
+Research mode exposes the mechanics hidden from Guided use. Typical tasks include:
+\begin{itemize}[itemsep=0.15em]
+\item inspect model manifests and evidence tiers;
+\item review locked-test metrics;
+\item compare Bayesian reference and enhanced models;
+\item inspect calibration and uncertainty;
+\item examine experiment history;
+\item review candidate lineage;
+\item inspect data coverage and provenance;
+\item run controlled retraining experiments;
+\item inspect Live source health and adaptive state.
+\end{itemize}
+
+Research mode is not a bypass around validation. It exposes more information; it does not weaken the scientific controls.
+
+\section{A Disciplined Model Experiment}
+When testing a new feature family or algorithm:
+\begin{enumerate}[itemsep=0.2em]
+\item define the target and benchmark before examining results;
+\item define point-in-time feature semantics;
+\item define missing-data handling;
+\item use chronological development splits;
+\item tune only inside development data;
+\item freeze the candidate;
+\item evaluate the locked test once;
+\item compare with the unconditional and Bayesian reference models;
+\item retain the simpler model if the extra complexity does not demonstrate robust improvement;
+\item record the experiment even when it fails.
+\end{enumerate}
+
+This process reduces the risk of discovering ``performance'' that exists only because many alternatives were tried.
+
+\section{What FinCompass Does Not Claim}
+\FC\ does not claim:
+\begin{itemize}[itemsep=0.15em]
+\item guaranteed returns;
+\item guaranteed outperformance;
+\item a universal model for every ticker and market;
+\item that a Limited-evidence probability has demonstrated alpha;
+\item that a research-validated result is market-grade proof;
+\item that a DCF value is a target price;
+\item that VaR is the worst possible loss;
+\item that historical factor exposure is causal;
+\item that a backtest will repeat in the future.
+\end{itemize}
+
+\section{Practical Checklist Before Relying on a Forecast}
+Ask:
+\begin{enumerate}[itemsep=0.2em]
+\item What exact event is being forecast?
+\item What is the horizon?
+\item What benchmark is used?
+\item Does the security match the model's applicability domain?
+\item Is the ticker data current enough to construct features?
+\item How old is the model's training corpus?
+\item Is the evidence Limited, research validated or market validated?
+\item Is Live tracking-only or adaptive eligible?
+\item If an update failed, did the current model remain intact?
+\item Are you interpreting the result as research evidence rather than a guarantee?
+\end{enumerate}
+
+
+\section{Worked Example: A New Supported Ticker}
+Assume you enter a valid US common-stock ticker that is not one of the securities used to fit the bundled reference model.
+
+\subsection{Step 1: Identify the Security}
+FinCompass resolves the symbol, security type, exchange/region and benchmark family. If the security is classified as a US common stock, the resolver can consider the US large-cap/common-equity family when the rest of the domain matches.
+
+\subsection{Step 2: Check Local History}
+The software checks whether enough ticker and benchmark history exists to calculate the current feature vector. If not, choose \textbf{Update data}. The update should fetch the missing tail plus an overlap window, then automatically return to the Forecast flow.
+
+\subsection{Step 3: Select the Model Family}
+FinCompass searches the installed model registry at the selected horizon. It prefers the strongest applicable tier. If a research-validated model exists for the same domain and horizon, it is selected before a Limited-evidence Bayesian baseline.
+
+\subsection{Step 4: Produce the Forecast}
+The current ticker's feature vector is calculated under the same feature contract used to train the pooled family. The ticker does not need to be retrained individually merely because it is new to the user.
+
+\subsection{Step 5: Start Live}
+If the selected model is a baseline, Live starts in tracking-only mode. If it is a stronger validated model, the software can use the adaptive-eligible path, subject to explicit activation and the Live gate.
+
+\section{Worked Example: Interpreting a 61 Percent Forecast}
+Suppose FinCompass shows:
+\begin{quote}
+61\% probability of outperforming the S\&P 500 over the next 12 months. Evidence: Research validated.
+\end{quote}
+A careful interpretation is:
+\begin{itemize}[itemsep=0.15em]
+\item the model estimates the defined relative-return event at 0.61;
+\item the estimate is conditional on the current feature vector and model contract;
+\item the evidence tier indicates the model passed the configured research gate on its declared locked test;
+\item the probability is not a guarantee and is not a target return;
+\item the model can still be wrong on this specific security and date.
+\end{itemize}
+
+Do not convert 61\% into a position size automatically. Position sizing requires a separate decision framework that considers expected payoff, loss severity, portfolio concentration, liquidity and personal constraints.
+
+\section{Worked Example: Limited Evidence}
+Suppose the 24-month horizon shows:
+\begin{quote}
+52\% probability of outperforming the S\&P 500 over the next 24 months. Evidence: Limited.
+\end{quote}
+The right interpretation is that the Bayesian reference model is hard-valid for the domain but has not demonstrated enough out-of-sample improvement to support a stronger claim. The number can serve as a reference probability, but it should carry less decision weight than a stronger validated model.
+
+If Live is started, it should track the frozen 52\% rather than applying adaptive learning.
+
+\section{Worked Example: Model Update Recommended}
+Assume the current model was trained several years ago and FinCompass reports that newer family data are available.
+
+You should still be able to view the current Forecast if the model remains hard-valid. The maintenance path is separate:
+\begin{enumerate}[itemsep=0.2em]
+\item choose Update model;
+\item the current model remains unchanged;
+\item FinCompass rebuilds the accumulated family dataset;
+\item only matured outcomes become labels;
+\item a new candidate is trained and evaluated;
+\item if the candidate is stronger and eligible, you can compare it with the current model;
+\item replacement occurs only through the governed selection action.
+\end{enumerate}
+
+If the update does not complete, the current Forecast should remain available.
+
+\section{Worked Example: DCF Sensitivity}
+Suppose a DCF produces a base-case per-share value of 120 under WACC 9\% and terminal growth 3\%. That value is not meaningful without sensitivity.
+
+A simple grid might show:
+\begin{center}
+\begin{tabular}{lrrr}\toprule
+ & $g=2\%$ & $g=3\%$ & $g=4\%$\\\midrule
+WACC 8\% & 132 & 145 & 162\\
+WACC 9\% & 111 & 120 & 132\\
+WACC 10\% & 95 & 102 & 111\\
+\bottomrule\end{tabular}
+\end{center}
+The key insight is not the single 120 value. It is how strongly the valuation changes when plausible assumptions change. If a small change in WACC or terminal growth produces a large swing, the valuation is assumption-sensitive and should be treated accordingly.
+
+\section{Worked Example: Risk Metrics Together}
+Assume a security has:
+\begin{itemize}[itemsep=0.15em]
+\item annualized volatility 35\%;
+\item maximum drawdown -48\%;
+\item beta 1.4;
+\item Sharpe ratio 0.55;
+\item historical 95\% one-day VaR of 3.2\%.
+\end{itemize}
+These numbers tell a coherent historical story: the security has been volatile, has experienced a large peak-to-trough loss, and has moved more than the market on average. The Sharpe ratio indicates only moderate historical return per unit of volatility. VaR summarizes a historical loss threshold but does not cap extreme losses.
+
+None of these metrics says whether the security will outperform over the next year. That is why they are kept separate from the Forecast probability.
+
+\section{Worked Example: Factor Exposure}
+Suppose a multi-factor regression reports a market beta of 1.25, a positive momentum loading and a statistically significant intercept over the sample.
+
+A disciplined interpretation is:
+\begin{itemize}[itemsep=0.15em]
+\item the security historically moved more than the market in the sample;
+\item its returns co-varied with the supplied momentum factor;
+\item the intercept is an in-sample estimate conditioned on the factor specification;
+\item statistical significance does not prove future alpha;
+\item factor returns supplied to the regression must themselves be trustworthy and aligned in time.
+\end{itemize}
+
+\section{Research Workflow: Comparing Model Families}
+When comparing Bayesian reference, regime-aware Bayesian and enhanced models, build a table containing at least:
+\begin{itemize}[itemsep=0.15em]
+\item test sample size and unique dates;
+\item Brier score and skill;
+\item log loss and skill;
+\item ROC AUC and average precision;
+\item ECE and calibration slope;
+\item bootstrap uncertainty;
+\item walk-forward stability;
+\item model complexity;
+\item applicability domain;
+\item data-quality limitations.
+\end{itemize}
+
+Prefer the simpler model when the more complex model does not demonstrate robust incremental improvement. Complexity is a cost that should be justified by evidence.
+
+\section{Research Workflow: Adding a New Feature}
+Before adding a new ratio, technical indicator, factor or macro variable to Forecast:
+\begin{enumerate}[itemsep=0.2em]
+\item write a precise formula and units;
+\item define the observation timestamp and point-in-time availability;
+\item define missing-value handling;
+\item determine whether revisions/restatements can change historical values;
+\item register the feature contract;
+\item test it inside chronological development data;
+\item compare with the existing Bayesian reference;
+\item protect the locked test from repeated search;
+\item retain the feature only if the evidence justifies it.
+\end{enumerate}
+
+\section{Research Workflow: Evaluating Calibration}
+Calibration should be inspected numerically and visually. Useful questions include:
+\begin{itemize}[itemsep=0.15em]
+\item do 50--60\% predictions occur at roughly that frequency?;
+\item are high-confidence forecasts systematically too extreme?;
+\item does calibration change across time periods?;
+\item is one market regime responsible for most calibration error?;
+\item is the calibration sample large enough to support the chosen calibrator?;
+\item does recalibration improve proper scores without hiding poor ranking?;
+\end{itemize}
+
+A calibrated probability can still have weak skill. Calibration and discrimination should be reported together.
+
+\section{Research Workflow: Reviewing a Retrained Candidate}
+A candidate comparison should answer:
+\begin{enumerate}[itemsep=0.2em]
+\item Was the dataset extended correctly?
+\item How many new matured labels were added?
+\item Did the feature contract change?
+\item Did the benchmark or applicability domain change?
+\item Did proper-score skill improve?
+\item Did calibration improve or deteriorate?
+\item Is the improvement stable across walk-forward windows?
+\item Is the candidate the same evidence tier, an upgrade, or a downgrade?
+\item Does the candidate introduce new data-quality limitations?
+\end{enumerate}
+
+A newer timestamp is not a sufficient reason to replace the current model.
+
+\section{Frequently Asked Questions}
+\subsection{Why does FinCompass sometimes refuse to forecast a ticker?}
+Because an appropriate model family may not exist for that market, security type, benchmark family or horizon. Returning no probability is better than applying a model outside its scientific domain.
+
+\subsection{Why can a model be Limited evidence but still available?}
+Because hard validity and predictive skill are different. The model can be coherent and calibrated enough to serve as a reference while failing the stronger out-of-sample skill threshold.
+
+\subsection{Why not train a neural network for every ticker?}
+More complex models require more data, can be harder to calibrate, and do not automatically generalize better. FinCompass uses a simple Bayesian reference so every complex candidate has a clear benchmark to beat.
+
+\subsection{Why use a pooled model instead of one model per stock?}
+A single stock often provides too little independent long-horizon data. Pooling across a defined family can improve estimation while retaining a clear applicability contract.
+
+\subsection{Why does Live sometimes show no change?}
+Because the adaptive gate may be warming, the source data may be stale, or the selected model may be baseline-only. In those cases the frozen anchor remains the scientifically appropriate value.
+
+\subsection{Why can model freshness be old while ticker data are current?}
+Because the model was trained on a family corpus at an earlier cutoff, while today's ticker features are calculated from current ticker data. These are different concepts.
+
+\subsection{Why is a model update not automatic?}
+Because retraining can produce a worse model. Preserving the current artifact and requiring governed replacement prevents silent degradation.
+
+\subsection{Can I use the DCF output as the Forecast target?}
+No. DCF is a valuation scenario based on cash-flow and discount-rate assumptions. Forecast is an empirical probability for a defined future event. They can be viewed together but should not be conflated.
+
+\subsection{Can I average probabilities across my portfolio?}
+Not as a valid portfolio forecast. The outcomes are dependent and the portfolio target must be defined separately.
+
+\section{Operational Checklist After Installation}
+After installing or moving the application to a new machine:
+\begin{enumerate}[itemsep=0.2em]
+\item confirm the application starts without a console dependency;
+\item check that the bundled model registry is visible;
+\item enter a known supported ticker and produce a Forecast;
+\item enter a different supported ticker that was not in the training symbols;
+\item update local data if prompted;
+\item start Live;
+\item close and reopen the application;
+\item verify that local data, settings and model state remain coherent;
+\item only then begin Model Lab experiments.
+\end{enumerate}
+
+\section{Audit Checklist for a Release Build}
+A release should not be called complete solely because unit tests pass. Confirm:
+\begin{itemize}[itemsep=0.15em]
+\item actual packaged new-ticker Forecast works;
+\item baseline Start Live works in tracking-only mode;
+\item validated-model Start Live follows the adaptive path;
+\item an optional model update failure does not destroy the current Forecast;
+\item every advertised horizon has an honest retrain-support status;
+\item no stale project-management terminology appears in user-facing text;
+\item the technical manuscript and guide match the implemented behavior;
+\item one canonical source exists for each document;
+\item no temporary LaTeX build logs or staging copies are distributed as documentation.
+\end{itemize}
+
+\section{Supported Horizons in Plain Language}
+The Guided product currently talks about four forecast periods. Each period is a different event. Do not treat a six-month probability as a twelve-month probability with a different label.
+
+\begin{center}
+\begin{tabular}{lp{0.62\textwidth}}
+\toprule
+Horizon & How to think about it\\
+\midrule
+6 months & Nearer event; more independent labels over a given calendar span, but more noise.\\
+12 months & The workhorse relative-outperformance event for the bundled US-equity family.\\
+24 months & Longer event; fewer matured labels and more overlap. Interpret more cautiously.\\
+36 months & Longest bundled event. Independent sample is thin. Treat Limited-evidence results as reference only.\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+A horizon may be forecast-ready without being retrain-ready. If the software offers \textbf{Update model} for a horizon, that horizon must have a working retraining contract. If it does not, the button should not appear.
+
+\section{Local-First Operating Assumptions}
+\FC\ is designed to keep the research corpus and model artifacts on the machine that runs the application. That has three practical consequences.
+
+\begin{enumerate}[itemsep=0.2em]
+\item Training never silently downloads a new universe behind your back. Data update is a separate, inspectable action.
+\item Restart should restore the local corpus, the selected model and the current Forecast/Live state.
+\item Moving the application to another computer is a data-and-artifact move, not a cloud-session resume.
+\end{enumerate}
+
+\section{Disclaimer}
+Nothing in this guide is investment advice, a solicitation, or a representation that any probability, valuation or risk number will be realised. Use the tool as a research workbench. Position sizing, tax, liquidity and suitability remain the user's responsibility.
+
+\appendix
+\section{Glossary}
+\begin{description}[style=nextline]
+\item[Adaptive candidate] Provisional Live probability after applying the bounded event residual.
+\item[Anchor] Frozen Forecast probability from the selected forecast model.
+\item[Applicability domain] Declared conditions under which a model may be used.
+\item[Bayesian baseline] Hard-valid probability model that has not established stronger predictive skill.
+\item[Benchmark] Reference security or index used to define relative outperformance.
+\item[Brier score] Proper probability score equal to squared error between forecast probability and binary outcome.
+\item[Calibration] Agreement between stated probabilities and observed event frequencies.
+\item[Candidate model] Newly trained immutable model that has not replaced the current model.
+\item[Evidence tier] Strength-of-evidence classification attached to a forecast model.
+\item[Feature contract] Versioned definition of the model inputs and their semantics.
+\item[Locked test] Final chronological evaluation set not used for fitting or tuning.
+\item[Matured label] Forward outcome whose original forecast horizon has completed.
+\item[Model family] Pooled model designed for a declared market/domain rather than one ticker only.
+\item[Point-in-time] Rule that a feature must be available at the historical observation date.
+\item[Proper scoring rule] Loss function that rewards truthful probability forecasts in expectation.
+\item[Regime] Latent market-state representation such as risk-off, neutral or risk-on.
+\item[Retraining contract] Explicit manifest fields that identify how a model can be rebuilt.
+\item[Tracking-only Live] Live mode that monitors a baseline Forecast without adaptive learning.
+\end{description}
+
+\section{Reference Formulas}
+\begin{longtable}{p{0.28\textwidth}p{0.62\textwidth}}
+\toprule
+Measure & Core expression or interpretation\\
+\midrule
+\endhead
+Bayesian forecast & $P(Y=1\mid x)=\left[1+\exp(-\beta_0-x^\top\beta)\right]^{-1}$\\
+Brier score & $(p-y)^2$\\
+Log loss & $-[y\log p+(1-y)\log(1-p)]$\\
+Annualized volatility & $s_r\sqrt{m}$\\
+Portfolio variance & $w^\top\Sigma w$\\
+FCFF & $EBIT(1-T)+D\&A-CapEx-\Delta NWC$\\
+DCF enterprise value & $\sum FCFF_t/(1+WACC)^t + TV/(1+WACC)^N$\\
+Bond price & Present value of coupons plus principal under stated yield convention\\
+Live candidate & $\logit(p_{candidate})=\logit(p_0)+\delta(z_t)$\\
+\bottomrule
+\end{longtable}
+
+\section{Recommended Interpretation Language}
+\begin{longtable}{p{0.25\textwidth}p{0.65\textwidth}}
+\toprule
+Situation & Preferred explanation\\
+\midrule
+\endhead
+Limited evidence & ``Forecast available. The Bayesian reference model is scientifically usable, but stronger out-of-sample improvement has not been established.''\\
+Research validated & ``The model passed the configured research validation gates for its declared data and applicability domain.''\\
+Model update failed & ``The newer model was not ready, so FinCompass kept the current model. Your forecast remains available.''\\
+Baseline Live & ``Live is tracking the frozen forecast. Adaptive changes are disabled for this evidence tier.''\\
+Unsupported market & ``FinCompass can analyze this instrument, but an appropriate forecasting family is not currently available.''\\
+\bottomrule
+\end{longtable}
+
+\end{document}

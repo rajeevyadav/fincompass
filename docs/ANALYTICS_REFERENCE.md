@@ -6,6 +6,10 @@ Ratios and DCF consume ONLY canonical statement fields (see analytics/statements
 
 | Metric | ID | Version | Formula | Inputs | Units | Supported assets | Reference |
 |---|---|---|---|---|---|---|---|
+| Multi-factor loadings | `factors.loadings.v1` | 1 | asset_excess = alpha + sum_k beta_k factor_k + e | asset_excess, factor_returns | mixed | equity, etf, index, factor | standard definition |
+| Ordinary least squares regression | `factors.ols.v1` | 1 | beta = (X'X)^-1 X'y; se = sqrt(diag(sigma^2 (X'X)^-1)); t = beta/se | y, x | mixed | equity, etf, index, factor | standard OLS; in-sample fit, not predictive power |
+| Rolling market beta | `factors.rolling_beta.v1` | 1 | cov(asset, market)/var(market) over a trailing window | asset_returns, market_returns, window | ratio | equity, etf, index, factor | standard definition |
+| Single-factor (CAPM-style) model | `factors.single_factor.v1` | 1 | asset_excess = alpha + beta * factor_excess + e | asset_excess, factor_excess | mixed | equity, etf, index, factor | alpha/beta are descriptive, not a forecast |
 | Bond price (PV of cash flows) | `fixedincome.bond_price.v1` | 1 | sum(CF_t / (1+ytm/freq)^t); CF includes coupon each period and face at maturity | face, coupon_rate, ytm, years, freq | currency | fixed_income | standard bond present-value; not a forecast or guaranteed return |
 | Convexity | `fixedincome.convexity.v1` | 1 | sum(CF_t * t*(t+1) / (1+y)^(t+2)) / (price * freq^2) | face, coupon_rate, ytm, years, freq | years_squared | fixed_income | standard definition |
 | Current yield | `fixedincome.current_yield.v1` | 1 | annual coupon / clean price | face, coupon_rate, price | ratio | fixed_income | standard definition |

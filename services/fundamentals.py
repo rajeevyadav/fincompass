@@ -128,11 +128,24 @@ def _fetch_yfinance_statements(ticker: str) -> Optional[Dict[str, Dict[str, floa
             return out
 
         income_frame = getattr(t, "income_stmt", None)
+        cashflow_frame = getattr(t, "cashflow", None)
         income = latest_column(income_frame)
         balance = latest_column(getattr(t, "balance_sheet", None))
-        cashflow = latest_column(getattr(t, "cashflow", None))
+        cashflow = latest_column(cashflow_frame)
         if not (income and balance):
             return None
+        # Free cash flow across the reported years (newest first) so the DCF can
+        # anchor its base on a multi-year average and its growth on FCF's own
+        # history — buybacks and margin shifts move FCF, not only revenue.
+        fcf_history: list = []
+        try:
+            if cashflow_frame is not None and not getattr(cashflow_frame, "empty", True):
+                for label in ("Free Cash Flow",):
+                    if label in cashflow_frame.index:
+                        fcf_history = [float(v) for v in cashflow_frame.loc[label].values if _finite(v)]
+                        break
+        except Exception:
+            fcf_history = []
         # Revenue across the reported years (newest first) so the DCF can anchor
         # its growth on the company's own history rather than a generic assumption.
         revenue_history: list = []
@@ -150,7 +163,8 @@ def _fetch_yfinance_statements(ticker: str) -> Optional[Dict[str, Dict[str, floa
         except Exception:
             currency = None
         return {"income": income, "balance": balance, "cashflow": cashflow,
-                "currency": currency, "revenue_history": revenue_history}
+                "currency": currency, "revenue_history": revenue_history,
+                "fcf_history": fcf_history}
     except Exception as e:  # pragma: no cover - network/provider variance
         logger.warning("fundamentals fetch failed %s: %s", ticker, type(e).__name__)
         return None
@@ -186,13 +200,44 @@ def _build_ratios(values: Dict[str, Optional[float]], market_cap: Optional[float
     return out
 
 
-def _base_free_cash_flow(inp: Val.DCFInputs, cashflow: St.Statement) -> Optional[float]:
-    """The company's reported free cash flow, or operating cash flow minus capex.
+# The three-stage split of the ten-year explicit forecast: a high-growth stage,
+# then a linear transition to the stable rate that the perpetual terminal uses.
+_HIGH_YEARS = 5
+_TRANSITION_YEARS = _HORIZON_YEARS - _HIGH_YEARS
+# Damodaran's cardinal rule for stable growth: a mature firm cannot outgrow the
+# economy forever, so terminal growth is capped at a proxy for the risk-free rate.
+_STABLE_GROWTH_CAP = 0.03
 
-    Using reported FCF avoids the large understatement of the EBIT reconstruction,
-    which omits the non-cash charges and working-capital swings that operating
-    cash flow already reflects.
+
+def _cagr(series_newest_first: Optional[List[float]]) -> Optional[float]:
+    """Compound annual growth from a newest-first series with positive endpoints."""
+    vals = [float(x) for x in (series_newest_first or []) if _finite(x)]
+    if len(vals) < 2:
+        return None
+    newest, oldest, years = vals[0], vals[-1], len(vals) - 1
+    if oldest <= 0 or newest <= 0 or years <= 0:
+        return None
+    try:
+        return (newest / oldest) ** (1.0 / years) - 1.0
+    except (ValueError, ZeroDivisionError):
+        return None
+
+
+def _base_free_cash_flow(inp: Val.DCFInputs, cashflow: St.Statement,
+                         fcf_history: Optional[List[float]] = None) -> Optional[float]:
+    """The base free cash flow the DCF grows forward.
+
+    Prefers a multi-year average of reported free cash flow (up to three years) so
+    a single unusually high or low year does not set the whole valuation; this is
+    the smoothing the reference verifier applies. Falls back to the most recent
+    reported FCF, then to operating cash flow minus capex. Using reported FCF
+    avoids the large understatement of the EBIT reconstruction, which omits the
+    non-cash charges and working-capital swings that operating cash flow reflects.
     """
+    hist = [float(x) for x in (fcf_history or []) if _finite(x)]
+    positive = [x for x in hist[:3] if x > 0]
+    if len(positive) >= 2:
+        return sum(positive) / len(positive)
     fcf = cashflow.get("free_cash_flow")
     if _finite(fcf):
         return float(fcf)
@@ -202,52 +247,53 @@ def _base_free_cash_flow(inp: Val.DCFInputs, cashflow: St.Statement) -> Optional
     return None
 
 
-def _historical_growth(revenue_history: Optional[List[float]]) -> Optional[float]:
-    """Compound annual revenue growth from the reported years (newest first)."""
-    rev = [float(x) for x in (revenue_history or []) if _finite(x) and float(x) > 0]
-    if len(rev) < 2:
-        return None
-    newest, oldest, years = rev[0], rev[-1], len(rev) - 1
-    if oldest <= 0 or years <= 0:
-        return None
-    try:
-        return (newest / oldest) ** (1.0 / years) - 1.0
-    except (ValueError, ZeroDivisionError):
-        return None
+def _historical_growth(revenue_history: Optional[List[float]],
+                       fcf_history: Optional[List[float]] = None) -> Optional[float]:
+    """The growth rate the DCF anchors on.
 
-
-def _taper(start: float, end: float, n: int = _HORIZON_YEARS) -> List[float]:
-    return [start + (end - start) * i / (n - 1) for i in range(n)]
-
-
-def _growth_paths(revenue_history: Optional[List[float]]) -> Dict[str, List[float]]:
-    """Ten-year growth paths anchored on the company's own history when available.
-
-    The base path tapers from the historical growth (clamped to a sane band) toward
-    a mature rate; the upside allows a materially higher trajectory so the range
-    overlaps mainstream analyst-driven estimates, and the downside brackets it low.
-    Falls back to generic paths when history is missing.
+    Prefers free-cash-flow CAGR, which captures buybacks and margin expansion that
+    revenue growth alone misses (the reason a cash-rich, flat-revenue name was
+    previously undervalued). Falls back to revenue CAGR when FCF history is thin.
     """
-    g = _historical_growth(revenue_history)
+    g_fcf = _cagr(fcf_history)
+    if g_fcf is not None:
+        return g_fcf
+    return _cagr(revenue_history)
+
+
+def _growth_paths(revenue_history: Optional[List[float]],
+                  fcf_history: Optional[List[float]] = None) -> Dict[str, List[float]]:
+    """Three-stage growth paths anchored on the company's own history.
+
+    Each path is a Damodaran three-stage vector: a constant high-growth stage, a
+    linear transition, then the stable rate the perpetual terminal uses. The base
+    anchors on historical FCF/revenue growth (clamped to a sane band); the upside
+    allows a higher trajectory so the range overlaps mainstream estimates; the
+    downside brackets it low. Falls back to generic paths when history is missing.
+    """
+    g = _historical_growth(revenue_history, fcf_history)
     if g is None:
         return _GROWTH_PATHS
-    # A modest floor: a cash-generative company with temporarily flat revenue
-    # (buybacks lift per-share cash flow faster than revenue) should not be valued
-    # as a no-growth business. Cap keeps the upside credible.
+    # A modest floor and cap keep both ends credible: a cash-generative company
+    # with temporarily flat revenue is not a no-growth business, and no company
+    # compounds at 20%+ for a decade without an absurd terminal value.
     g = max(0.05, min(0.20, g))
+    stable = min(_STABLE_GROWTH_CAP, max(0.02, g * 0.5))
+    path = lambda high: Val.three_stage_growth_path(high, stable, _HIGH_YEARS, _TRANSITION_YEARS)
     return {
-        "downside": _taper(max(0.02, g - 0.03), 0.02),
-        "base": _taper(g, max(0.04, g * 0.6)),
-        # A modest premium over history, capped, so the upside stays credible
-        # rather than compounding into an absurd terminal value.
-        "upside": _taper(min(0.18, g + 0.05), max(0.05, g * 0.8)),
+        "downside": path(max(0.02, g - 0.03)),
+        "base": path(g),
+        # A modest premium over history, capped, so the upside stays credible.
+        "upside": path(min(0.18, g + 0.05)),
     }
 
 
 def _build_dcf(income: St.Statement, balance: St.Statement, cashflow: St.Statement,
-               revenue_history: Optional[List[float]] = None) -> Dict[str, Any]:
+               revenue_history: Optional[List[float]] = None,
+               fcf_history: Optional[List[float]] = None,
+               market_price: Optional[float] = None) -> Dict[str, Any]:
     inp = Val.build_inputs(income, balance, cashflow)
-    fcf = _base_free_cash_flow(inp, cashflow)
+    fcf = _base_free_cash_flow(inp, cashflow, fcf_history)
     shares = inp.shares_diluted
     net_debt = float(inp.net_debt) if _finite(inp.net_debt) else 0.0
     if not (_finite(fcf) and _finite(shares) and shares > 0):
@@ -255,8 +301,8 @@ def _build_dcf(income: St.Statement, balance: St.Statement, cashflow: St.Stateme
                 "reason": "A cash-flow DCF needs reported free cash flow and a share count.",
                 "inputs_provenance": inp.provenance, "input_issues": inp.issues,
                 "disclaimer": Val.DISCLAIMER}
-    paths = _growth_paths(revenue_history)
-    hist_growth = _historical_growth(revenue_history)
+    paths = _growth_paths(revenue_history, fcf_history)
+    hist_growth = _historical_growth(revenue_history, fcf_history)
     # The whole scenario grid: three growth paths x the WACC band. The base value
     # is the central path at the default WACC; the range spans the whole grid.
     values: List[float] = []
@@ -278,6 +324,14 @@ def _build_dcf(income: St.Statement, balance: St.Statement, cashflow: St.Stateme
     if _finite(base_ps) and base_ps > 0 and low is not None and high is not None:
         low = max(low, base_ps * 0.4)
         high = min(high, base_ps * 2.5)
+    # Reverse DCF: the stage-1 growth today's price implies, so a reader can judge
+    # the market's expectation directly instead of debating our assumptions.
+    stable = min(_STABLE_GROWTH_CAP, max(0.02, (hist_growth or 0.06) * 0.5))
+    implied_growth = None
+    if _finite(market_price) and float(market_price) > 0:
+        implied_growth = Val.implied_fcf_growth(
+            float(market_price), fcf, _DEFAULT_WACC, _DEFAULT_TERMINAL_GROWTH,
+            net_debt, shares, _HIGH_YEARS, _TRANSITION_YEARS, stable)
     return {
         "valid": bool(base.get("valid")),
         "method": "free_cash_flow_to_equity",
@@ -290,10 +344,13 @@ def _build_dcf(income: St.Statement, balance: St.Statement, cashflow: St.Stateme
         "base_free_cash_flow": _clean(fcf),
         "scenarios": scenarios,
         "historical_revenue_growth": _clean(hist_growth),
+        "implied_growth": _clean(implied_growth),
         "assumptions": {
-            "method": "free_cash_flow_to_equity",
+            "method": "three_stage_free_cash_flow_to_equity",
             "wacc": _DEFAULT_WACC, "terminal_growth": _DEFAULT_TERMINAL_GROWTH,
-            "horizon_years": _HORIZON_YEARS, "wacc_grid": _WACC_GRID, "growth_paths": paths,
+            "horizon_years": _HORIZON_YEARS, "high_growth_years": _HIGH_YEARS,
+            "transition_years": _TRANSITION_YEARS, "stable_growth": _clean(stable),
+            "wacc_grid": _WACC_GRID, "growth_paths": paths,
             "growth_anchored_on_history": hist_growth is not None,
         },
         "inputs_provenance": inp.provenance,
@@ -304,6 +361,7 @@ def _build_dcf(income: St.Statement, balance: St.Statement, cashflow: St.Stateme
 
 def build_fundamentals(ticker: str, *, instrument: Optional[Dict[str, Any]] = None,
                        market_cap: Optional[float] = None,
+                       market_price: Optional[float] = None,
                        fetch: Callable[[str], Optional[Dict[str, Any]]] = _fetch_yfinance_statements
                        ) -> Dict[str, Any]:
     """Assemble the fundamentals block (ratios + scenario DCF) for the guided flow.
@@ -337,7 +395,8 @@ def build_fundamentals(ticker: str, *, instrument: Optional[Dict[str, Any]] = No
     ratios = _build_ratios(values, market_cap)
 
     try:
-        dcf = _build_dcf(income, balance, cashflow, revenue_history=raw.get("revenue_history"))
+        dcf = _build_dcf(income, balance, cashflow, revenue_history=raw.get("revenue_history"),
+                         fcf_history=raw.get("fcf_history"), market_price=market_price)
     except Exception as e:
         logger.warning("DCF assembly failed %s: %s", ticker, type(e).__name__)
         dcf = {"valid": False, "reason": "A DCF could not be assembled from the available statements.",

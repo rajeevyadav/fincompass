@@ -300,6 +300,80 @@ def dcf_from_free_cash_flow(base_fcf: float, growth_rates: List[float], wacc: fl
             "projected_fcf": proj, "horizon_years": n, "disclaimer": DISCLAIMER}
 
 
+def three_stage_growth_path(g_high: float, g_stable: float,
+                            high_years: int = 5, transition_years: int = 5) -> List[float]:
+    """A Damodaran three-stage growth vector.
+
+    Stage 1 (high growth): ``high_years`` at the constant high rate ``g_high``.
+    Stage 2 (transition): ``transition_years`` in which growth declines linearly
+    from ``g_high`` toward the stable rate ``g_stable``. Stage 3 (stable) is the
+    perpetual terminal captured separately by the caller's terminal growth.
+
+    The linear glide of stage 2 is Damodaran's own recommendation: a firm does
+    not step from hyper-growth to maturity in a single year, so the transition
+    is smoothed rather than cliff-edged.
+    """
+    try:
+        gh, gs = float(g_high), float(g_stable)
+        hy, ty = max(0, int(high_years)), max(1, int(transition_years))
+    except (TypeError, ValueError):
+        return []
+    path = [gh] * hy
+    # Steps 1..ty walk from g_high down to g_stable (inclusive of the endpoint).
+    for i in range(1, ty + 1):
+        path.append(gh + (gs - gh) * i / ty)
+    return path
+
+
+def implied_fcf_growth(price_per_share: float, base_fcf: float, wacc: float,
+                       terminal_growth: float, net_debt: float, shares_diluted: float,
+                       high_years: int = 5, transition_years: int = 5,
+                       stable_growth: Optional[float] = None,
+                       lo: float = -0.20, hi: float = 0.80) -> Optional[float]:
+    """Reverse DCF: the constant stage-1 growth that makes the three-stage model
+    reproduce the current market price.
+
+    This inverts the question a DCF usually answers. Instead of asserting a growth
+    rate and printing a value, it reads today's price and reports the growth the
+    market is implicitly paying for — so a reader can judge that expectation on its
+    own merits rather than argue with our assumptions. Returns ``None`` when the
+    price is not reachable inside ``[lo, hi]`` or inputs are unusable.
+    """
+    try:
+        px, fcf0 = float(price_per_share), float(base_fcf)
+        w, tg = float(wacc), float(terminal_growth)
+        nd, sh = float(net_debt), float(shares_diluted)
+    except (TypeError, ValueError):
+        return None
+    gs = float(stable_growth) if stable_growth is not None else tg
+    if not (math.isfinite(px) and px > 0 and math.isfinite(fcf0) and fcf0 > 0
+            and math.isfinite(sh) and sh > 0 and w > tg):
+        return None
+
+    def value(g_high: float) -> float:
+        path = three_stage_growth_path(g_high, gs, high_years, transition_years)
+        r = dcf_from_free_cash_flow(fcf0, path, w, tg, nd, sh)
+        return float(r["value_per_share"]) if r.get("valid") else float("nan")
+
+    v_lo, v_hi = value(lo), value(hi)
+    if not (math.isfinite(v_lo) and math.isfinite(v_hi)):
+        return None
+    if not (min(v_lo, v_hi) <= px <= max(v_lo, v_hi)):
+        return None  # market price is outside what any growth in the band produces
+    for _ in range(80):
+        mid = 0.5 * (lo + hi)
+        vm = value(mid)
+        if not math.isfinite(vm):
+            return None
+        if abs(vm - px) / px < 1e-5:
+            return mid
+        if vm < px:  # higher growth lifts value
+            lo = mid
+        else:
+            hi = mid
+    return 0.5 * (lo + hi)
+
+
 def _register_all() -> None:
     register("valuation.dcf.fcff.v1", name="DCF (unlevered FCFF)", category="valuation",
              formula="EV = sum(FCFF_t / (1+WACC)^t) + PV(terminal); FCFF = EBIT*(1-tax) + D&A - CapEx - dNWC",

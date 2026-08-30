@@ -540,8 +540,16 @@ function dcfGaugeHtml(dcf, lastPrice, cur) {
   const arrow = off ? (rawX > 98 ? " ▶" : " ◀") : "";
   const tri = px == null ? "" : `<polygon points="${(px - 1.6).toFixed(1)},6.5 ${(px + 1.6).toFixed(1)},6.5 ${px.toFixed(1)},11" class="gauge-tri gauge-tri-${cls}"/>`;
   const sentence = `Our rough model estimates this company is worth about <strong>${cur} ${_money(lo)}–${_money(hi)}</strong> a share.${havePrice ? ` It's trading near <strong>${cur} ${_money(price)}</strong> — ${detail}, so it looks <strong>${verdict}</strong>.` : ""}`;
+  // Reverse DCF: turn the price around and read the growth the market is paying
+  // for. This is the honest way to frame an "expensive" name — the reader judges
+  // whether that expectation is plausible instead of arguing with our inputs.
+  const ig = Number(dcf.implied_growth);
+  const impliedHtml = Number.isFinite(ig)
+    ? `<p class="plain-read">Turned around: at today's price the market is pricing in about <strong>${_fmtPct(ig)}</strong> free-cash-flow growth every year for the next five years. Ask yourself whether that's realistic for this business — that single number is what you're really betting on.</p>`
+    : "";
   return `
     <p class="plain-read">${sentence}</p>
+    ${impliedHtml}
     <div class="value-gauge" role="img" aria-label="Estimated fair-value range versus current price">
       <svg viewBox="0 0 100 22" preserveAspectRatio="none" width="100%" height="46">
         <rect x="0" y="12" width="${bandL.toFixed(1)}" height="7" class="zone-cheap"/>
@@ -552,13 +560,15 @@ function dcfGaugeHtml(dcf, lastPrice, cur) {
       <div class="gauge-legend meta"><span>◀ cheaper</span><span>fair-value estimate</span><span>pricier ▶</span></div>
       ${havePrice ? `<div class="gauge-verdict verdict-${cls}">▲ Current price ${cur} ${_money(price)}${arrow} — ${esc(verdict)}</div>` : ""}
     </div>
-    <p class="meta">Built from the company's reported free cash flow and its own recent growth, over ten years, discounted at ${_fmtPct(dcf.assumptions?.wacc)}. This is a <strong>conservative</strong> estimate: models that assume higher growth or use an exit multiple produce higher numbers. A DCF is <strong>one input, not a verdict</strong> — change the growth a few points or the discount rate 1% and it swings a lot.</p>
+    <p class="meta">Built from the company's reported free cash flow and its own recent growth using a <strong>three-stage model</strong> — five high-growth years, a five-year glide down to a stable rate, then a perpetual terminal capped near the risk-free rate — discounted at ${_fmtPct(dcf.assumptions?.wacc)}. This is a <strong>conservative</strong> estimate: models that assume higher growth or use an exit multiple produce higher numbers. A DCF is <strong>one input, not a verdict</strong> — change the growth a few points or the discount rate 1% and it swings a lot.</p>
     <p class="meta">${esc(dcf.disclaimer || "")}</p>
     <details class="advanced-only"><summary>Assumptions and figures</summary>
       <div class="forecast-grid">
         <div class="kpi"><div class="k-label">Intrinsic value / share</div><div class="k-value">${cur} ${_money(mid)}</div></div>
         <div class="kpi"><div class="k-label">WACC</div><div class="k-value">${_fmtPct(dcf.assumptions?.wacc)}</div></div>
         <div class="kpi"><div class="k-label">Terminal growth</div><div class="k-value">${_fmtPct(dcf.assumptions?.terminal_growth)}</div></div>
+        ${Number.isFinite(ig) ? `<div class="kpi"><div class="k-label">Market-implied growth</div><div class="k-value">${_fmtPct(ig)}</div></div>` : ""}
+        <div class="kpi"><div class="k-label">Stages</div><div class="k-value">${dcf.assumptions?.high_growth_years || 5}+${dcf.assumptions?.transition_years || 5}+∞</div></div>
       </div></details>`;
 }
 

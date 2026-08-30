@@ -37,6 +37,7 @@ def save_model(
     dataset_manifest: Dict[str, Any],
     profile_name: str = "default",
     root: Path = MODEL_ROOT,
+    lineage: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     root.mkdir(parents=True, exist_ok=True)
     created = datetime.now(timezone.utc).isoformat()
@@ -56,6 +57,10 @@ def save_model(
         "features": model.feature_names,
         "validation": validation_report,
     }
+    # Retrain lineage: a candidate is a NEW artifact; it records its predecessor
+    # and never overwrites it.
+    if lineage:
+        base["lineage"] = dict(lineage)
     tmp_path = root / f".{profile_name}.tmp.joblib"
     joblib.dump(model, tmp_path, compress=3)
     model_digest = sha256(tmp_path.read_bytes()).hexdigest()
@@ -158,7 +163,11 @@ def set_active_model(
     if _verified_model_path(manifest, root) is None:
         raise ValueError("model artifact is missing or its SHA-256 does not match the manifest")
 
+    previous = get_active_pointer(root)
+    previous_model_id = previous.get("model_id") if previous else None
+
     clean_manifest = {k: v for k, v in manifest.items() if k != "manifest_file"}
+    activated_at = datetime.now(timezone.utc).isoformat()
     pointer = {
         "schema_version": "1.0.0-active-model1",
         "model_id": manifest["model_id"],
@@ -167,14 +176,49 @@ def set_active_model(
         "validation_tier": manifest["validation_tier"],
         "profile_name": manifest.get("profile_name"),
         "experiment_id": experiment_id,
-        "activated_at": datetime.now(timezone.utc).isoformat(),
+        "previous_model_id": previous_model_id,
+        "activated_at": activated_at,
         "activated_by": str(activated_by or "local_user"),
     }
     path = _active_path(root)
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(pointer, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     tmp.replace(path)
+    # Append an auditable activation-history entry (previous -> new, explicit action).
+    _append_activation_history(root, {
+        "previous_model_id": previous_model_id,
+        "new_model_id": manifest["model_id"],
+        "activated_at": activated_at,
+        "activated_by": str(activated_by or "local_user"),
+        "experiment_id": experiment_id,
+    })
     return pointer
+
+
+ACTIVATION_HISTORY_FILENAME = "activation_history.json"
+
+
+def _append_activation_history(root: Path, entry: Dict[str, Any]) -> None:
+    path = root / ACTIVATION_HISTORY_FILENAME
+    try:
+        history = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else []
+        if not isinstance(history, list):
+            history = []
+    except Exception:
+        history = []
+    history.append(entry)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(history, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    tmp.replace(path)
+
+
+def get_activation_history(root: Path = MODEL_ROOT) -> List[Dict[str, Any]]:
+    path = root / ACTIVATION_HISTORY_FILENAME
+    try:
+        history = json.loads(path.read_text(encoding="utf-8")) if path.is_file() else []
+        return history if isinstance(history, list) else []
+    except Exception:
+        return []
 
 
 def clear_active_model(root: Path = MODEL_ROOT) -> bool:

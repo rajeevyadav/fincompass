@@ -218,6 +218,25 @@ def test_guided_flow_is_plan_driven_and_one_button_live():
     assert 'addEventListener("click", runGuidedFlow)' in js
 
 
+def test_model_comparison_is_plain_and_hides_ids_metrics():
+    cmp = _run("FCP.describeModelComparison({training_cutoff:'2022-06-30',horizon_months:12,benchmark:'^GSPC',validation_tier:'validated_research',freshness:{status:'stale'}},{training_cutoff:'2026-08-28',horizon_months:12,benchmark:'^GSPC',validation_tier:'validated_research',freshness:{status:'current'}})")
+    labels = [r["label"] for r in cmp["rows"]]
+    assert "Market data through" in labels and "Freshness" in labels
+    blob = " ".join(r["current"] + " " + r["newer"] for r in cmp["rows"])
+    assert "S&P 500" in blob and "^GSPC" not in blob            # friendly benchmark
+    assert "roc_auc" not in blob.lower() and "brier" not in blob.lower()  # no raw metrics
+
+
+def test_update_model_and_explicit_replacement_wiring_present():
+    js = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
+    assert "/api/v4/models/${encodeURIComponent(modelId)}/update" in js
+    assert "guidedUpdateModel" in js and "renderCandidateComparison" in js
+    assert "data-use-newer" in js and "data-keep-current" in js
+    assert "Use newer model" in js and "Keep current model" in js
+    # replacement activates only on explicit user action (Use newer), not on validation
+    assert "guidedUseNewerModel" in js
+
+
 def test_forecast_card_uses_translation_layer_and_hides_metrics_by_default():
     """The Guided Forecast card leads with meaning and demotes metrics to a disclosure."""
     js = (ROOT / "static" / "app.js").read_text(encoding="utf-8")

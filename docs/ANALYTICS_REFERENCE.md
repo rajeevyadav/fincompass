@@ -2,7 +2,7 @@
 
 Auto-derived from the in-code formula registry (analytics/registry.py). Every metric is a native, provider-independent reimplementation verified by hand-calculated unit tests. No external analytics package or paid provider is required at runtime.
 
-Ratios consume ONLY canonical statement fields (see analytics/statements.py) — provider vocabulary never reaches a formula. A non-positive or missing denominator yields NaN (never a silently-zero input). Value-at-Risk is a confidence-level loss threshold, not a maximum possible loss.
+Ratios and DCF consume ONLY canonical statement fields (see analytics/statements.py) — provider vocabulary never reaches a formula. A DCF intrinsic value is a scenario/assumption estimate, NOT a probability or price target. VaR is a confidence-level loss threshold, not a maximum possible loss. Non-positive or missing denominators yield NaN.
 
 | Metric | ID | Version | Formula | Inputs | Units | Supported assets | Reference |
 |---|---|---|---|---|---|---|---|
@@ -47,3 +47,7 @@ Ratios consume ONLY canonical statement fields (see analytics/statements.py) —
 | Gaussian VaR | `risk.var.gaussian.v1` | 1 | -(mean + z_{1-conf} * std) | returns, confidence | ratio_percent | equity, etf, index | standard definition |
 | Historical VaR | `risk.var.historical.v1` | 1 | -quantile(r, 1-confidence) | returns, confidence | ratio_percent | equity, etf, index | empirical quantile |
 | Annualized volatility | `risk.volatility.v1` | 1 | std(r, ddof=1) * sqrt(P) | returns | ratio_percent | equity, etf, index | standard definition |
+| DCF (unlevered FCFF) | `valuation.dcf.fcff.v1` | 1 | EV = sum(FCFF_t / (1+WACC)^t) + PV(terminal); FCFF = EBIT*(1-tax) + D&A - CapEx - dNWC | revenue, ebit, tax_rate, da, capex, nwc, wacc | currency | equity | standard unlevered DCF; intrinsic value is not a probability or price target |
+| EV to equity per share | `valuation.equity_bridge.v1` | 1 | (EV - net_debt) / diluted_shares | enterprise_value, net_debt, shares_diluted | currency_per_share | equity | standard definition |
+| Terminal value (exit multiple) | `valuation.terminal.exit_multiple.v1` | 1 | exit_multiple * EBITDA_H | ebitda_terminal, exit_multiple | currency | equity | standard definition |
+| Terminal value (perpetual growth) | `valuation.terminal.perpetual.v1` | 1 | FCFF_H*(1+g)/(WACC-g) | fcff_terminal, wacc, terminal_growth | currency | equity | standard definition |

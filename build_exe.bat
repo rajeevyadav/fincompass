@@ -23,7 +23,12 @@ pyinstaller --noconfirm --clean --onefile --windowed --name FinCompass --version
   --add-data "docs;docs" ^
   --add-data "PRIVACY.md;." ^
   --collect-submodules uvicorn ^
-  --collect-submodules sklearn ^
+  --collect-all sklearn ^
+  --collect-all scipy ^
+  --collect-all yfinance ^
+  --collect-submodules pandas ^
+  --collect-submodules numpy ^
+  --copy-metadata scikit-learn ^
   --hidden-import uvicorn.logging ^
   --hidden-import uvicorn.loops.auto ^
   --hidden-import uvicorn.protocols.http.auto ^

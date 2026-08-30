@@ -4,6 +4,7 @@ a5753492ee87cf052624d5607d24eb5111075e9fdfe2ec960a9a7d3500d6d7f3  ./.gitattribut
 9fc9e47719f12680d387a6750e5b6234dea53ecdf747c8533978f794166a399b  ./.githooks/commit-msg
 414a93b83b9321ed94cdedac7807f09a0ac94e9d57e75052a2793b98a62af2c6  ./.github/hooks/check-no-ai-trailer.sh
 c56e268212eb00222231b39286fc046f1f0f2a58ad9f58a6d8732bf316237735  ./.github/hooks/check-restricted-files.sh
+71e265ff8d5d97b81faaa08dd7decc7026a133cd91415bd474f8ddb73202efc3  ./.github/workflows/build-packages.yml
 cb1492c470d434582f48a97a9656dd11b62caeeac33a7f874fb63c57f945fc14  ./.github/workflows/ci.yml
 210b8f8bb3a3c61b3647d433b355a6a580d5fb69b3cb2d5c8470612f699b8988  ./.github/workflows/restricted-folders-guard.yml
 879af9960b19b99d411b1eb903e9bb7e6679d91ba7326a57f5013b35499548fa  ./.gitignore
@@ -55,7 +56,7 @@ fbfedfb2baaeba5d54824ec037cb6f3507e3d8cb2961c37635846162bf866230  ./analytics/va
 e0157a9c42dca4899d5f15a8ad8e77bab41eae08f0bc675189ffc21881bc56ad  ./api.py
 d2030cef07a5af539115e7e94a0d31dc8767aa9443d119f219a909c6196ffd3e  ./assets/banner.svg
 b4cfabc0415a16045f62946f6a0bb333e566c23d0d7beac26c322d74ef58feec  ./build-model.bat
-4388adb03d7f6962d87911eba5ed3e5c0f92030db82828863cfdf79ea0f8b83b  ./build_exe.bat
+0c5e3cc46ec9a898553574592151b1b3588b64306231411f732866a665dbf049  ./build_exe.bat
 49675cadcf348dca8ca2b98bc1d63ad4f47f6d67f7283d3a37aeccfa737736d1  ./build_installer.bat
 fdc1530e44653a9cbd314eb13948095b9d0f41807fb84c6696604b7d19785e15  ./config.py
 2b0e8d78f7f6178fe73098d1799aba313e7427e2a3a330673e1d38d60eb1feae  ./config/forecast-exploratory.json
@@ -121,7 +122,7 @@ cbc444c89537af9131192ba1f14ed9488841feabdf122e7a572b79c00a9c10f2  ./forecasting/
 39b5dda1786629d52cf682e09a16a1dd4258b751b249f99a43529ab96247d2aa  ./forecasting/registry.py
 76aee6202b288154ee393013fcfdc9ffb1a2c301814b2d718510df1c417462ee  ./forecasting/sec_fundamentals.py
 6be484802bd00ee3f998d82487f49e672064313ba75aecf3522486b5d4d698b3  ./forecasting/split.py
-f918d9dc1feca111d3093332b5b71645e05618b584809b8e1dbf55aaacbdedb6  ./installer/FinCompass.iss
+8e85ca6d8033b2fe1d5d40b4f036f7dd183bdb217fc43f589bfbdee309ea35d4  ./installer/FinCompass.iss
 96100b98a4507931845836498fe9c76b6248b28f0223389c866131195af793bb  ./legal/DISCLAIMER.md
 02639abe647a2e1dfb620bed3ae6d0092f2a561bdfe29da3b6363cbd9481e153  ./legal/TERMS.md
 bd3e72bbd2f4d0ddf5fd7c65348aec27f08ba2f0eb7a42412039ccebf28f1213  ./models/PRIVATE_MODEL_README.md

@@ -13,6 +13,13 @@ Ratios and DCF consume ONLY canonical statement fields (see analytics/statements
 | Macaulay duration | `fixedincome.macaulay_duration.v1` | 1 | sum((t/freq) * PV(CF_t)) / price | face, coupon_rate, ytm, years, freq | years | fixed_income | standard definition |
 | Modified duration | `fixedincome.modified_duration.v1` | 1 | Macaulay / (1 + ytm/freq) | face, coupon_rate, ytm, years, freq | years | fixed_income | standard definition |
 | Yield to maturity | `fixedincome.ytm.v1` | 1 | yield solving price = sum(CF_t/(1+ytm/freq)^t) via bisection | price, face, coupon_rate, years, freq | ratio | fixed_income | internal rate of return of the bond cash flows |
+| Option price (Black-Scholes-Merton) | `options.bsm_price.v1` | 1 | call = S e^-qT N(d1) - K e^-rT N(d2); put via -d1,-d2; d1=(ln(S/K)+(r-q+σ²/2)T)/(σ√T) | option_type, spot, strike, rate, vol, expiry, div_yield | currency | option | Black-Scholes-Merton; not a forecast or probability of profit |
+| Delta | `options.delta.v1` | 1 | e^-qT N(d1) [call]; e^-qT (N(d1)-1) [put] | option_type, spot, strike, rate, vol, expiry, div_yield | ratio | option | standard definition |
+| Gamma | `options.gamma.v1` | 1 | e^-qT n(d1) / (S σ√T) | spot, strike, rate, vol, expiry, div_yield | per_currency | option | standard definition |
+| Implied volatility | `options.implied_vol.v1` | 1 | vol solving BSM(price)=market_price via bisection | option_type, market_price, spot, strike, rate, expiry, div_yield | ratio | option | inversion of the BSM price; an implied, not forecast, volatility |
+| Rho (per 1.00 rate) | `options.rho.v1` | 1 | K T e^-rT N(d2) [call]; -K T e^-rT N(-d2) [put] | option_type, spot, strike, rate, vol, expiry, div_yield | currency_per_rate | option | standard definition |
+| Theta (per year) | `options.theta.v1` | 1 | -S e^-qT n(d1) σ/(2√T) -/+ r K e^-rT N(±d2) +/- q S e^-qT N(±d1) | option_type, spot, strike, rate, vol, expiry, div_yield | currency_per_year | option | standard definition |
+| Vega (per 1.00 vol) | `options.vega.v1` | 1 | S e^-qT n(d1) √T | spot, strike, rate, vol, expiry, div_yield | currency_per_vol | option | standard definition |
 | Annualized return | `performance.annualized_return.v1` | 1 | prod(1+r)^(P/N) - 1 | returns | ratio_percent | equity, etf, index | standard definition |
 | Beta | `performance.beta.v1` | 1 | cov(asset, market) / var(market) | asset_returns, market_returns | ratio | equity, etf, index | standard definition |
 | Calmar ratio | `performance.calmar.v1` | 1 | annualized_return / |max_drawdown| | returns | ratio | equity, etf, index | standard definition |

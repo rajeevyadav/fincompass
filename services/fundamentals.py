@@ -231,7 +231,10 @@ def _growth_paths(revenue_history: Optional[List[float]]) -> Dict[str, List[floa
     g = _historical_growth(revenue_history)
     if g is None:
         return _GROWTH_PATHS
-    g = max(0.02, min(0.20, g))  # clamp to a defensible band
+    # A modest floor: a cash-generative company with temporarily flat revenue
+    # (buybacks lift per-share cash flow faster than revenue) should not be valued
+    # as a no-growth business. Cap keeps the upside credible.
+    g = max(0.05, min(0.20, g))
     return {
         "downside": _taper(max(0.02, g - 0.03), 0.02),
         "base": _taper(g, max(0.04, g * 0.6)),

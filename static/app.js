@@ -552,6 +552,7 @@ function dcfGaugeHtml(dcf, lastPrice, cur) {
       <div class="gauge-legend meta"><span>◀ cheaper</span><span>fair-value estimate</span><span>pricier ▶</span></div>
       ${havePrice ? `<div class="gauge-verdict verdict-${cls}">▲ Current price ${cur} ${_money(price)}${arrow} — ${esc(verdict)}</div>` : ""}
     </div>
+    <p class="meta">Built from the company's reported free cash flow and its own recent growth, over ten years, discounted at ${_fmtPct(dcf.assumptions?.wacc)}. This is a <strong>conservative</strong> estimate: models that assume higher growth or use an exit multiple produce higher numbers. A DCF is <strong>one input, not a verdict</strong> — change the growth a few points or the discount rate 1% and it swings a lot.</p>
     <p class="meta">${esc(dcf.disclaimer || "")}</p>
     <details class="advanced-only"><summary>Assumptions and figures</summary>
       <div class="forecast-grid">

@@ -1,0 +1,10 @@
+{
+  "name": "FinCompass",
+  "short_name": "FinCompass",
+  "description": "Local-first systematic financial research, available in a stateless hosted edition.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "icons": []
+}

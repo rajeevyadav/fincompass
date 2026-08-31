@@ -39,6 +39,7 @@ from services.cache import cache
 from services.data_fetcher import fetcher
 from services.macro_fetcher import get_health_snapshot as get_fred_health
 from services.guardrails import GuardrailMiddleware, effective_rate_limit_backend, validate_ticker
+from services.cloud_auth import CloudAuthMiddleware, cloud_config_payload
 from services.scoring import generate_thesis, get_label_color
 from services.posture import build_posture
 from services.model_builder import start_model_build, get_model_build_status
@@ -70,6 +71,7 @@ app = FastAPI(
     redoc_url=None,
 )
 app.add_middleware(GuardrailMiddleware)
+app.add_middleware(CloudAuthMiddleware)
 
 
 @app.get("/docs", include_in_schema=False)
@@ -288,6 +290,9 @@ _PREFS_PATH = _UI_DATA_DIR / "ui_prefs.json"
 
 
 def _read_prefs() -> Dict[str, str]:
+    from services.cloud_auth import hosted_mode
+    if hosted_mode():
+        return {}
     try:
         data = _json.loads(_PREFS_PATH.read_text(encoding="utf-8"))
         return {str(k): str(v) for k, v in data.items()} if isinstance(data, dict) else {}
@@ -296,6 +301,9 @@ def _read_prefs() -> Dict[str, str]:
 
 
 def _write_prefs(update: Dict[str, Any]) -> Dict[str, str]:
+    from services.cloud_auth import hosted_mode
+    if hosted_mode():
+        return {}
     prefs = _read_prefs()
     for k, v in list(update.items())[:200]:
         key = str(k)[:80]
@@ -320,6 +328,22 @@ def get_prefs():
 def put_prefs(payload: Dict[str, Any] = Body(default={})):
     return _write_prefs(payload if isinstance(payload, dict) else {})
 
+
+
+@app.get("/api/cloud/config")
+def cloud_config():
+    """Public hosted-edition configuration. Contains no secrets or user data."""
+    return cloud_config_payload()
+
+
+@app.get("/api/cloud/session")
+def cloud_session(request: Request):
+    claims = getattr(request.state, "auth_user", None) or {}
+    return {
+        "authenticated": bool(claims),
+        "email": claims.get("email"),
+        "email_verified": claims.get("email_verified"),
+    }
 
 
 @app.get("/api/health", response_model=HealthOut)

@@ -351,3 +351,13 @@ ul.assump li { margin: .25rem 0; font-size: .92em; }
 table.mini { width: 100%; border-collapse: collapse; margin: .5rem 0; font-size: .9em; }
 table.mini th, table.mini td { text-align: right; padding: 3px 8px; border-bottom: 1px solid var(--line, #26324a); }
 table.mini th:first-child, table.mini td:first-child { text-align: left; }
+
+/* Glossary & Reference page */
+.glossary-entry { border: 1px solid var(--line, #26324a); border-radius: 10px; padding: .5rem .8rem; margin: .5rem 0; }
+.glossary-entry summary { cursor: pointer; }
+.glossary-entry .pill { font-size: .72em; padding: 1px 8px; border: 1px solid var(--line, #26324a); border-radius: 999px; margin-left: 6px; opacity: .8; }
+.glossary-fields { margin: .4rem 0 0; }
+.glossary-fields dt { font-weight: 600; font-size: .85em; margin-top: .4rem; opacity: .85; }
+.glossary-fields dd { margin: .1rem 0 0; font-size: .92em; }
+.k-label.glossary-link { cursor: help; }
+.k-label.glossary-link:hover { text-decoration: underline dotted; }

@@ -31,12 +31,24 @@ const METRIC_TOOLTIPS = {
   "Pending labels": "Live observations waiting for their forecast horizon to finish before the model can learn from them.",
   "Pending observation": "Whether the current view has queued an observation for later learning.",
 };
+// Glossary-derived tooltips, keyed by a normalized label so KPI labels like
+// "Historical VaR (95%)" or "Sharpe" match the registry term. Populated once the
+// glossary loads; the hand-written METRIC_TOOLTIPS above take precedence.
+const GLOSSARY_TIPS = {};
+function _normLabel(s) {
+  return String(s || "").toLowerCase().replace(/\([^)]*\)/g, "").replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+}
 function applyMetricTooltips() {
   try {
     document.querySelectorAll(".k-label").forEach((el) => {
       if (el.dataset.tipDone) return;
-      const tip = METRIC_TOOLTIPS[el.textContent.trim()];
-      if (tip) { el.title = tip; el.classList.add("has-tip"); }
+      const label = el.textContent.trim();
+      const g = GLOSSARY_TIPS[_normLabel(label)];
+      const tip = METRIC_TOOLTIPS[label] || (g && g.tooltip);
+      if (tip) {
+        el.title = tip; el.classList.add("has-tip");
+        if (g) { el.dataset.glossaryId = g.id; el.classList.add("glossary-link"); }
+      }
       el.dataset.tipDone = "1";
     });
   } catch (_) {}
@@ -207,7 +219,77 @@ function showPage(page) {
   if (page === "live") { if (!state.liveStatusLoaded) loadLiveStatus(); scheduleLiveTimer(); } else if (state.liveTimer) { clearInterval(state.liveTimer); state.liveTimer=null; }
   if (page === "settings" && !state.settingsLoaded) loadSettings();
   if (page === "method" && !state.methodLoaded) loadMethodology();
+  if (page === "reference") loadGlossary();
   window.requestAnimationFrame(redrawCharts);
+}
+
+// The searchable Glossary & Reference page, rendered from resources/glossary.json.
+// The same registry feeds inline KPI tooltips, so definitions never drift.
+async function loadGlossary() {
+  if (!state.glossary) {
+    try {
+      const r = await api("/api/v2/glossary");
+      state.glossary = (r && r.terms) ? r : { terms: [], categories: [] };
+    } catch (e) { state.glossary = { terms: [], categories: [] }; }
+    // Feed the tooltip map so KPI labels get hover text + a link to their entry.
+    (state.glossary.terms || []).forEach((t) => {
+      if (t.tooltip) GLOSSARY_TIPS[_normLabel(t.term)] = { tooltip: t.tooltip, id: t.id };
+    });
+    document.querySelectorAll(".k-label").forEach((el) => { delete el.dataset.tipDone; });
+    applyMetricTooltips();
+    const sel = $("glossary-category");
+    if (sel && sel.options.length <= 1) {
+      (state.glossary.categories || []).forEach((c) => {
+        const o = document.createElement("option"); o.value = c; o.textContent = c; sel.appendChild(o);
+      });
+    }
+    const search = $("glossary-search"), cat = $("glossary-category");
+    if (search) search.addEventListener("input", renderGlossary);
+    if (cat) cat.addEventListener("change", renderGlossary);
+  }
+  renderGlossary();
+}
+
+function renderGlossary(focusId) {
+  const box = $("glossary-out"); if (!box) return;
+  const terms = (state.glossary && state.glossary.terms) || [];
+  const q = _normLabel(($("glossary-search") || {}).value || "");
+  const cat = (($("glossary-category") || {}).value || "");
+  const match = terms.filter((t) => {
+    if (cat && t.category !== cat) return false;
+    if (!q) return true;
+    return (_normLabel(t.term).includes(q) || _normLabel(t.plain_meaning).includes(q)
+      || _normLabel(t.category).includes(q) || _normLabel(t.tooltip).includes(q));
+  });
+  if (!terms.length) { box.innerHTML = `<p class="meta">The glossary is unavailable.</p>`; return; }
+  box.innerHTML = `<p class="meta">${match.length} of ${terms.length} terms.</p>` + match.map((t) => `
+    <details class="glossary-entry"${typeof focusId === "string" && t.id === focusId ? " open" : ""} id="g-${esc(t.id)}">
+      <summary><strong>${esc(t.term)}</strong> <span class="pill">${esc(t.category)}</span></summary>
+      <p class="plain-read">${esc(t.plain_meaning)}</p>
+      <dl class="glossary-fields">
+        ${t.why_it_matters ? `<dt>Why it matters</dt><dd>${esc(t.why_it_matters)}</dd>` : ""}
+        ${t.fincompass_use ? `<dt>How FinCompass uses it</dt><dd>${esc(t.fincompass_use)}</dd>` : ""}
+        ${t.limitation ? `<dt>Limitation</dt><dd>${esc(t.limitation)}</dd>` : ""}
+        ${t.technical_definition ? `<dt class="advanced-only">Technical definition</dt><dd class="advanced-only">${esc(t.technical_definition)}${t.formula ? ` <code>${esc(t.formula)}</code>` : ""}</dd>` : ""}
+      </dl>
+    </details>`).join("") || `<p class="meta">No terms match “${esc(($("glossary-search")||{}).value||"")}”.</p>`;
+}
+
+// Clicking a KPI label that has a glossary entry opens the Reference page at it.
+if (typeof document !== "undefined" && document.addEventListener) {
+  document.addEventListener("click", (e) => {
+    const el = e.target && e.target.closest && e.target.closest(".k-label.glossary-link[data-glossary-id]");
+    if (!el) return;
+    const id = el.dataset.glossaryId;
+    showPage("reference");
+    const s = $("glossary-search"); if (s) s.value = "";
+    const c = $("glossary-category"); if (c) c.value = "";
+    loadGlossary().then(() => {
+      renderGlossary(id);
+      const node = document.getElementById(`g-${id}`);
+      if (node) node.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  });
 }
 
 function initTabs() {

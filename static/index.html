@@ -63,6 +63,7 @@
       <button role="tab" aria-selected="false" aria-controls="page-live" id="tab-btn-live" data-page="live">Live</button>
       <button role="tab" aria-selected="false" aria-controls="page-settings" id="tab-btn-settings" data-page="settings">Settings</button>
       <button role="tab" aria-selected="false" aria-controls="page-method" id="tab-btn-method" data-page="method">Methodology</button>
+      <button role="tab" aria-selected="false" aria-controls="page-reference" id="tab-btn-reference" data-page="reference">Reference</button>
     </nav>
 
     <main id="main">
@@ -255,6 +256,17 @@
 
       <section id="page-method" role="tabpanel" aria-labelledby="tab-btn-method" hidden>
         <div id="method-out" class="card" aria-live="polite">Loading methodology…</div>
+      </section>
+
+      <section id="page-reference" role="tabpanel" aria-labelledby="tab-btn-reference" hidden>
+        <div class="search-row">
+          <div class="search-row-wrap">
+            <label for="glossary-search" class="sr-only">Search the glossary</label>
+            <input type="text" id="glossary-search" placeholder="Search terms — e.g. Sharpe, WACC, calibration" autocomplete="off">
+          </div>
+          <select id="glossary-category" aria-label="Filter by category"><option value="">All categories</option></select>
+        </div>
+        <div id="glossary-out" class="card" aria-live="polite">Loading glossary…</div>
       </section>
     </main>
 

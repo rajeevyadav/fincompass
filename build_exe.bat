@@ -21,6 +21,7 @@ pyinstaller --noconfirm --clean --onefile --windowed --name FinCompass --version
   --add-data "adaptive_models;adaptive_models" ^
   --add-data "legal;legal" ^
   --add-data "docs;docs" ^
+  --add-data "resources;resources" ^
   --add-data "PRIVACY.md;." ^
   --collect-submodules uvicorn ^
   --collect-all sklearn ^

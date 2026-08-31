@@ -4,7 +4,7 @@ a5753492ee87cf052624d5607d24eb5111075e9fdfe2ec960a9a7d3500d6d7f3  ./.gitattribut
 9fc9e47719f12680d387a6750e5b6234dea53ecdf747c8533978f794166a399b  ./.githooks/commit-msg
 414a93b83b9321ed94cdedac7807f09a0ac94e9d57e75052a2793b98a62af2c6  ./.github/hooks/check-no-ai-trailer.sh
 c56e268212eb00222231b39286fc046f1f0f2a58ad9f58a6d8732bf316237735  ./.github/hooks/check-restricted-files.sh
-a8212639ca35397932c3c342c1ee37c5e30b60ae9d90127b0e18c1cbc766a703  ./.github/workflows/build-packages.yml
+f53e4e0c3e127dde483d48f99c9ec6989a85563735e6a901f988db3a0e79047d  ./.github/workflows/build-packages.yml
 cb1492c470d434582f48a97a9656dd11b62caeeac33a7f874fb63c57f945fc14  ./.github/workflows/ci.yml
 a774c765452340ac935dbafac6945d5f256c727fc5e8bccb35f4c9f16ac50911  ./.github/workflows/pages.yml
 210b8f8bb3a3c61b3647d433b355a6a580d5fb69b3cb2d5c8470612f699b8988  ./.github/workflows/restricted-folders-guard.yml
@@ -54,11 +54,11 @@ dbcddba58d6f9ed0ebd9b67a74190a6b3161eceeaf1252e67d1efcece0d67550  ./analytics/ri
 98c5735916c8a4aecc1ef18ebfaac11005b9efbe0ca0707e52ec1b21c661e8ad  ./analytics/statements.py
 72937a6d58385ad1156268b35872e584c4652c65231bc34945b662e2d7afb4be  ./analytics/technicals.py
 67fd1f841bb39c97f5a97abfae924b731dc00d2cb609320800f46ac735e8a5a0  ./analytics/valuation.py
-aab2061e8bbfe9757e46dd079ddec4bfb1734fd4bdc78f7647fb0b88b822237a  ./api.py
+7dafe3221bf971e3e6ee5ed787982f05ef051798f1b0e58715825f29776190f7  ./api.py
 d2030cef07a5af539115e7e94a0d31dc8767aa9443d119f219a909c6196ffd3e  ./assets/banner.svg
 8e8dbbb7c377f1e2ca63ba2f7b481990125de19c6536c6a64f9c40a598ab5e56  ./assets/pipeline.svg
 b4cfabc0415a16045f62946f6a0bb333e566c23d0d7beac26c322d74ef58feec  ./build-model.bat
-0c5e3cc46ec9a898553574592151b1b3588b64306231411f732866a665dbf049  ./build_exe.bat
+398e8b19c818a1067deb1b4ae249fe65083a492c3af54b91d3eb52a09be242f9  ./build_exe.bat
 49675cadcf348dca8ca2b98bc1d63ad4f47f6d67f7283d3a37aeccfa737736d1  ./build_installer.bat
 fdc1530e44653a9cbd314eb13948095b9d0f41807fb84c6696604b7d19785e15  ./config.py
 2b0e8d78f7f6178fe73098d1799aba313e7427e2a3a330673e1d38d60eb1feae  ./config/forecast-exploratory.json
@@ -183,6 +183,7 @@ c19677d5acb65662a3ca353f1715ef17ff954a22179a2fb6b67c397bf6df9349  ./requirements
 818785c9a0ab9a1becbe86c66c0ac5b81235ed65cb9e09060f42137abefb1bfc  ./requirements-dev.txt
 ec4b8b0bcb32cbebc801ea55f5540c6fd74db3cf693e1e75831a13e4376d6b3c  ./requirements-scale.txt
 07000bd8944faa41563b9cfc5df958bc2d989cfa8f3a068b5dce4603d90af1d1  ./requirements.txt
+fe776cd5eadea97ce5a1d6d9345e7d00fee1890cda701cacb24213e99452f60e  ./resources/glossary.json
 07bbdbcc53388d63aa59ad91727337a0c318b3ce40469e8215707c87c2ccfb88  ./run.bat
 d5f41c8ed55e948729908c5e9bd8f93c7a80e56bf1818f4895b5b9175f0a78ef  ./run.sh
 59f2b21907b8c44d57591a53c2980e49a50d2b5105c477e53d728112e86aff8e  ./run_fincompass.py
@@ -215,9 +216,9 @@ d46d52d634de6a594c5a293d81b0ed0fe566790ea8e0ac4ed19ef6048235b849  ./services/tra
 d2030cef07a5af539115e7e94a0d31dc8767aa9443d119f219a909c6196ffd3e  ./site/assets/banner.svg
 8e8dbbb7c377f1e2ca63ba2f7b481990125de19c6536c6a64f9c40a598ab5e56  ./site/assets/pipeline.svg
 2c8cdf687060326e3698094958d57129e949421889923775c9ad50fd64c468fb  ./site/index.html
-4a0f53857d52d3f4f86f98c55cf188315ebbe3a32aa66d3c75498aa56e799bca  ./static/app.css
-ac9e1030f92f8442a329835d20351c5438e23ac1e0c522f1077a1397c17b07d0  ./static/app.js
-b3b2760bb50488443d97273f368e4e3d7853806605d0125a9757ef5686bc2ac7  ./static/index.html
+4377ae65662753ac8bb1abdf316085bbf5e2abd916832a72f7e867a176533e1a  ./static/app.css
+9a5daf88dc16cc31be2bf387ce3d12885cf47d5a8beedd438adb1e4ea950b7e6  ./static/app.js
+4a4c94e676db303c738bc5f3d672d2e71238166b943564914fc7dbcc0fa9ae40  ./static/index.html
 a9f4b017fa5a7a5f6eca72ce8ff36f02d2130e333ef29e91077eae601b8d64c0  ./static/vendor/swagger-ui-bundle.js
 fb0f48c3ed5f8b978174aac9103b150ca5cacb40b637590b390794809925e4df  ./static/vendor/swagger-ui.css
 93a199b51a5f40fa5a5eb6d53092da128273eee3f1dd604ea5c64e673662daa6  ./tests/test_action_policy.py
@@ -240,6 +241,7 @@ e254934dfc78eba6d23d2a6e85c2914d30d64480497dc830d97346b205dae7d0  ./tests/test_b
 5cd06767c29248e9221141f1328a69a61f10d7806844ba3d8b24ccda3bf1e855  ./tests/test_forecast_local_data.py
 40454c38b62e7ab1238be300165a4ba6cfe7e8e1cba327163ead4b1ac0ef4bf9  ./tests/test_forecasting.py
 ae208a436241993809cc7726ca400b9fecdb698ef0c6e8d3077e935ffcd40575  ./tests/test_frontend.py
+59ed10ad26d25f136134cb906c0d21ac63813a3d50a5f2516e53377b30b3e613  ./tests/test_glossary.py
 0516061fdf397e4ac8de57eddb6bbf69badb47c1805bd5553bc6bc43372e7b3a  ./tests/test_guardrails.py
 3324efec7d8d9f92e09611625b4b6d387afaf9a628b022861e7af888b42697ed  ./tests/test_live_isolation.py
 e5796d5fdf9e553aa54bba1462f8729eea77a98940e964e410be784d71f45f4d  ./tests/test_live_market_data.py

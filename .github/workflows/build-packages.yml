@@ -59,6 +59,7 @@ jobs:
             --add-data "adaptive_models${SEP}adaptive_models" \
             --add-data "legal${SEP}legal" \
             --add-data "docs${SEP}docs" \
+            --add-data "resources${SEP}resources" \
             --add-data "PRIVACY.md${SEP}." \
             --collect-submodules uvicorn \
             --collect-all sklearn \

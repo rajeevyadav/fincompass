@@ -1,9 +1,19 @@
-"""Declared, versioned action policy that sits ON the forecast probability.
+"""Declared, versioned interpretation policy that sits ON the forecast probability.
 
 This is deliberately NOT part of any trainer and never changes the probability
-``p``. It maps one already-produced forecast to one of five citizen-safe verbs.
-The constants are frozen as a named policy version; changing a threshold is a new
-policy version (``action_policy_id``), never a silent tweak.
+``p``. It maps one already-produced forecast to one of five plain-language
+postures. The constants are frozen as a named policy version; changing a
+threshold is a new policy version (``action_policy_id``), never a silent tweak.
+
+Scientific boundary (stated here, in the UI, and in the documentation):
+
+  * The interpretation policy does NOT change the forecast probability.
+  * It is NOT part of model validation; Brier/AUC/calibration say nothing about
+    these thresholds. The 0.58/0.42 probability bars and the 20% position bar are
+    declared *policy assumptions*, separately versioned, not statistical results.
+  * It does not incorporate individualized taxes, transaction costs, risk
+    tolerance, liquidity needs, or portfolio optimisation unless those inputs are
+    explicitly supplied.
 
 Governance:
   * A Limited-evidence (Bayesian baseline) forecast can only ever justify Watch —
@@ -12,21 +22,24 @@ Governance:
     reduce action in v1.
   * Analytics (DCF, RSI, Sharpe) do not vote here; only probability, evidence
     tier, applicability/data, a safety flag, and an optional position weight.
-  * The same policy result must be shown to the beginner and the mathematician;
-    the mathematician additionally sees which branch fired.
+  * The same policy result is shown in the plain-language summary and in the
+    research rationale; the research rationale additionally names the branch that
+    fired, the thresholds, and the inputs used.
 """
 from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
 POLICY_ID = "action_policy_v1"
+POLICY_TYPE = "interpretation_policy"
 
 # Frozen constants for action_policy_v1. A change here is a NEW policy version.
+# These are declared policy assumptions, not thresholds established by validation.
 DCA_MIN_PROB = 0.58          # research-tier probability at/above which DCA is allowed
 TRIM_MAX_PROB = 0.42         # research-tier probability at/below which Trim is advised
 DEFAULT_MAX_NAME_WEIGHT = 0.20  # a single position larger than this is "too big"
 
-# The five citizen verbs — the only actions this policy may return.
+# The five postures — the only actions this policy may return.
 DONT_DECIDE = "dont_decide"
 WATCH = "watch"
 DCA_SMALL = "dca_small"
@@ -43,15 +56,15 @@ _TIER_RANK = {
 }
 _RESEARCH_RANK = 2
 
-# Citizen-facing sentences, keyed by verb (from the directive's action table).
-_CITIZEN_SENTENCE = {
+# Plain-language posture sentences, keyed by verb.
+_PLAIN_SENTENCE = {
     DONT_DECIDE: "FinCompass will not tell you what to do.",
     WATCH: "There is a number. It is not strong enough to act.",
     DCA_SMALL: "If you already meant to own a slice of the market, add a little on a schedule.",
     HOLD: "Keep the plan you have. Do nothing this week.",
     TRIM: "Own less. You do not have to sell all of it.",
 }
-_CITIZEN_LABEL = {
+_POSTURE_LABEL = {
     DONT_DECIDE: "Don't decide", WATCH: "Watch", DCA_SMALL: "DCA a little",
     HOLD: "Hold", TRIM: "Trim",
 }
@@ -65,10 +78,12 @@ def decide_action(p: Optional[float], tier: Optional[str], *,
                   data_ok: bool = True, safety_broken: bool = False,
                   position_weight: Optional[float] = None,
                   max_name_weight: float = DEFAULT_MAX_NAME_WEIGHT) -> Dict[str, Any]:
-    """Return the citizen action for one forecast, plus the branch that fired.
+    """Return the interpretation-policy posture for one forecast, plus the branch
+    that fired.
 
     ``p`` is the probability of outperformance; ``tier`` is the internal
-    validation tier. The result never depends on any analytics metric.
+    validation tier. The result never depends on any analytics metric and never
+    changes ``p``.
     """
     rank = tier_rank(tier)
     # Order matters and is part of the policy contract.
@@ -89,9 +104,10 @@ def decide_action(p: Optional[float], tier: Optional[str], *,
         verb, branch = HOLD, "research_prob_near_half"
     return {
         "action": verb,
-        "action_label": _CITIZEN_LABEL[verb],
-        "citizen_sentence": _CITIZEN_SENTENCE[verb],
+        "action_label": _POSTURE_LABEL[verb],
+        "plain_language_summary": _PLAIN_SENTENCE[verb],
         "action_policy_id": POLICY_ID,
+        "policy_type": POLICY_TYPE,
         "branch": branch,
         "inputs": {
             "probability_outperform": (float(p) if p is not None else None),
@@ -101,5 +117,9 @@ def decide_action(p: Optional[float], tier: Optional[str], *,
         },
         "thresholds": {"dca_min_prob": DCA_MIN_PROB, "trim_max_prob": TRIM_MAX_PROB,
                        "max_name_weight": max_name_weight},
+        "policy_note": ("A practical posture, not model output. It does not change the "
+                        "probability, is not part of model validation, and uses declared, "
+                        "separately versioned assumptions rather than your individual taxes, "
+                        "costs, or risk tolerance."),
         "disclaimer": "Not advice. A guess can be wrong.",
     }

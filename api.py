@@ -840,6 +840,22 @@ def user_manual_pdf():
     return FileResponse(str(p), media_type="application/pdf", filename="FinCompass-User-Manual.pdf")
 
 
+@app.get("/api/v2/glossary")
+def glossary_v2():
+    """The structured glossary/reference registry. One source feeds both the
+    inline KPI tooltips and the searchable Reference page, so a definition never
+    drifts between the two."""
+    p = Path("resources/glossary.json")
+    if not p.exists():
+        return {"available": False, "reason": "Glossary is unavailable.", "terms": []}
+    try:
+        data = _json.loads(p.read_text(encoding="utf-8"))
+        data["available"] = True
+        return data
+    except (ValueError, OSError):
+        return {"available": False, "reason": "Glossary could not be read.", "terms": []}
+
+
 @app.exception_handler(HTTPException)
 async def http_exc_handler(request: Request, exc: HTTPException):
     rid = _rid(request)

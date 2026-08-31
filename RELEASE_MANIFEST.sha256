@@ -6,7 +6,7 @@ a5753492ee87cf052624d5607d24eb5111075e9fdfe2ec960a9a7d3500d6d7f3  ./.gitattribut
 c56e268212eb00222231b39286fc046f1f0f2a58ad9f58a6d8732bf316237735  ./.github/hooks/check-restricted-files.sh
 f53e4e0c3e127dde483d48f99c9ec6989a85563735e6a901f988db3a0e79047d  ./.github/workflows/build-packages.yml
 cb1492c470d434582f48a97a9656dd11b62caeeac33a7f874fb63c57f945fc14  ./.github/workflows/ci.yml
-a774c765452340ac935dbafac6945d5f256c727fc5e8bccb35f4c9f16ac50911  ./.github/workflows/pages.yml
+3d45fcd988ffc063c99ac207270cd04ac1775eca7d2a163aa286cc8b64b7448e  ./.github/workflows/pages.yml
 210b8f8bb3a3c61b3647d433b355a6a580d5fb69b3cb2d5c8470612f699b8988  ./.github/workflows/restricted-folders-guard.yml
 998da1107b2dcad0bd1d54b6b9ba51c13d109cda9726010fa97b3279fd5d3eaf  ./.gitignore
 89ce29688e4bad6461db17297939ca4d045dbf15bb20b7518c69f7d39fd8506b  ./.pre-commit-config.yaml
@@ -267,7 +267,7 @@ eab785ca97efbf6242971f6b494af0b2f966f2b330826ca26c91cd481894b354  ./services/sco
 d46d52d634de6a594c5a293d81b0ed0fe566790ea8e0ac4ed19ef6048235b849  ./services/training_readiness.py
 d2030cef07a5af539115e7e94a0d31dc8767aa9443d119f219a909c6196ffd3e  ./site/assets/banner.svg
 8e8dbbb7c377f1e2ca63ba2f7b481990125de19c6536c6a64f9c40a598ab5e56  ./site/assets/pipeline.svg
-903ef740515b01c6d98a50fcabde67cfb9ac64a1bb2f65e8fab8e7f4c6bc68a8  ./site/index.html
+b1a71b79c68480a976a10c1b767cc5863e7a81712f8ebd5281d9e0b1c797fb08  ./site/index.html
 4377ae65662753ac8bb1abdf316085bbf5e2abd916832a72f7e867a176533e1a  ./static/app.css
 9a67bc0c3c23a16a88ecf4f0cff1810d36ed86abef9054651584156501a8893f  ./static/app.js
 234f20c32358d3bf026e9fea6bfe167b5f62006339b9321d2fbca5865c39c261  ./static/cloud_auth.css
@@ -339,6 +339,8 @@ aee732aa22fa0f01c28d18b06f1ea77f1252adf980477be5a4ffa91f89bbfbda  ./tests/test_t
 16c642ef0f4e5ff51f88810fe8f1f37d3572adcc5f6d6a5e0378ab3729d2539e  ./tests/test_v2_lifecycle.py
 23567b084195e545a186a490ab4bb3d1af08305a9d1051ee77aa6ea6428f8cd0  ./tests/test_v2_planning.py
 45761ee269861f51d3e23a0daf1e45e14b432fa878f2eefa4b42c61d00f4e3c3  ./tests/test_valuation.py
+b7bd1874c152f2ffd55382d0e8e80a9498690234614ca9551f1d3fe611a7c8fa  ./tests/test_web_app.py
+fbc3996241a0f06385e130dd015a13f2215be00f3d97dd34833a77a60323acf8  ./tests/test_web_engine_parity.py
 c03424298acca56dabd25a10719ea94d1fec6e7336970a5ab41b9a47a2c11339  ./tools/audit_forecast_dataset.py
 c73d8592b6539f5391e3b22a7dce65ea1bd7be76c58001f27831b192cc70f5f5  ./tools/audit_summary.py
 16c658bd43de06fe53847369a07bafcaea50c1033af92c95ce8868d155d535ed  ./tools/backtest_adaptive_stream.py
@@ -356,3 +358,7 @@ abc31dff2d5b42350f7d84c3cc87c2d292b1592986dd6f9f1e57838f1ea486ad  ./tools/seed_m
 8f8d1d206f5055f8494e3acb0b28bda4a1aac473d546b006868f7731999bd01c  ./tools/train_forecast.py
 4d57db3130c13eef6ed58b8fbb95cb31476accd1fe0128e44db8115b9e9b33b8  ./tools/verify_release.py
 62ca2a9afd98d4deae933659689045ae13694c3823bcd3eedd51a26b6df1a9c1  ./version_info.txt
+ceaa2a82a1e680629b7aec9d888be3b9b2011932df2edf6475aff1e3b3c51ea1  ./web/app.js
+05735b61756e1611d2f026f9ad108e7624572c99077573a14fc9814e256d6881  ./web/engine.js
+fe776cd5eadea97ce5a1d6d9345e7d00fee1890cda701cacb24213e99452f60e  ./web/glossary.json
+ebee120fe8c4d049802b2909912f5624f9d7e14694fea077304c8349b941626c  ./web/index.html

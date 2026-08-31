@@ -6,7 +6,7 @@ name: Deploy landing page
 on:
   push:
     branches: [main]
-    paths: ["site/**", ".github/workflows/pages.yml"]
+    paths: ["site/**", "web/**", "resources/glossary.json", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -28,8 +28,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+      # Assemble the published site: the landing page plus the client-side
+      # browser app under /app (its glossary comes from the single registry).
+      - name: Assemble site
+        run: |
+          mkdir -p _site/app
+          cp -r site/* _site/
+          cp -r web/* _site/app/
+          cp resources/glossary.json _site/app/glossary.json
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: site
+          path: _site
       - id: deployment
         uses: actions/deploy-pages@v4

@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FinCompass Web — free valuation & analytics in your browser</title>
+<meta name="description" content="Free, no-install stock analytics: three-stage DCF with reverse DCF, Black-Scholes options with Greeks and a payoff diagram, bond analytics, portfolio risk, and a searchable finance glossary. Runs entirely in your browser.">
+<meta name="color-scheme" content="dark light">
+<style>
+  :root { --bg:#0f1729; --panel:#182338; --ink:#e6edf6; --muted:#9fb0c5; --line:#26324a; --blue:#3f7cc0; --green:#2e9e5b; --warn:#d98634; --good:#2e9e5b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.6 "Segoe UI",Helvetica,Arial,sans-serif; }
+  a { color:#7db1f0; }
+  .wrap { max-width:920px; margin:0 auto; padding:20px 16px 64px; }
+  header { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+  .logo { font-weight:800; font-size:1.5em; letter-spacing:.2px; }
+  .logo span { color:var(--green); }
+  .sub { color:var(--muted); font-size:.95em; }
+  .tabs { display:flex; flex-wrap:wrap; gap:6px; margin:16px 0; border-bottom:1px solid var(--line); }
+  .tabs button { background:none; border:none; color:var(--muted); padding:9px 14px; cursor:pointer; font-size:1em; border-bottom:2px solid transparent; }
+  .tabs button.active { color:var(--ink); border-bottom-color:var(--blue); font-weight:600; }
+  .panel { display:none; } .panel.active { display:block; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:12px 0; }
+  form.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; align-items:end; }
+  label { display:flex; flex-direction:column; gap:4px; font-size:.9em; color:var(--muted); }
+  input, select { background:#0b1220; border:1px solid var(--line); border-radius:8px; color:var(--ink); padding:8px 10px; font-size:1em; }
+  .btn { background:var(--blue); color:#04121f; border:none; border-radius:9px; padding:9px 16px; font-weight:700; cursor:pointer; }
+  .btn:hover { filter:brightness(1.08); }
+  .out { margin-top:14px; }
+  .plain { font-size:1.08em; margin:.3rem 0 .6rem; }
+  .meta { color:var(--muted); font-size:.9em; }
+  .kpis { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin:10px 0; }
+  .kpi { background:#0b1220; border:1px solid var(--line); border-radius:9px; padding:8px 10px; }
+  .kpi .k { color:var(--muted); font-size:.8em; } .kpi .v { font-size:1.15em; font-weight:600; }
+  .kpi .k[title] { cursor:help; border-bottom:1px dotted var(--muted); display:inline-block; }
+  .verdict { padding:8px 12px; border-radius:9px; font-weight:600; margin:8px 0; display:inline-block; }
+  .verdict.good { background:rgba(46,158,91,.16); color:#7fe0a6; } .verdict.warn { background:rgba(217,134,52,.16); color:#f0b36b; } .verdict.neutral { background:rgba(63,124,192,.16); color:#9cc4ee; }
+  svg.chart { width:100%; max-width:460px; height:auto; }
+  table.mini { width:100%; border-collapse:collapse; font-size:.92em; margin:6px 0; }
+  table.mini th, table.mini td { text-align:right; padding:4px 8px; border-bottom:1px solid var(--line); }
+  table.mini th:first-child, table.mini td:first-child { text-align:left; }
+  .bars .row { display:flex; align-items:center; gap:8px; margin:4px 0; }
+  .bars .bar { flex:1; height:12px; background:#0b1220; border-radius:6px; overflow:hidden; }
+  .bars .fill { height:100%; background:var(--blue); }
+  .disclaimer { color:var(--muted); font-size:.82em; margin-top:12px; border-top:1px solid var(--line); padding-top:10px; }
+  .glossary-controls { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .glossary-controls input, .glossary-controls select { flex:1 1 200px; }
+  details.g { border:1px solid var(--line); border-radius:9px; padding:8px 12px; margin:6px 0; background:var(--panel); }
+  details.g summary { cursor:pointer; }
+  .pill { font-size:.72em; border:1px solid var(--line); border-radius:999px; padding:1px 8px; margin-left:6px; color:var(--muted); }
+  dl.gf dt { font-weight:600; font-size:.85em; margin-top:.35rem; color:var(--muted); }
+  dl.gf dd { margin:.1rem 0 0; }
+  footer { margin-top:28px; color:var(--muted); font-size:.85em; text-align:center; border-top:1px solid var(--line); padding-top:14px; }
+  .cta { display:inline-block; background:var(--green); color:#04120a; font-weight:700; padding:8px 14px; border-radius:9px; text-decoration:none; }
+  @media (prefers-color-scheme:light) { :root { --bg:#f4f7fb; --panel:#fff; --ink:#0f1729; --muted:#5a6a80; --line:#dbe3ef; } input,select,.kpi,details.g,.bars .bar { background:#f0f4fa; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="logo">Fin<span>Compass</span> Web</div>
+      <div class="sub">Free valuation &amp; analytics — runs entirely in your browser. No install, no account, no data leaves this page.</div>
+    </div>
+    <a class="cta" href="https://github.com/rajeevyadav/fincompass#readme">Get the full app ↗</a>
+  </header>
+
+  <nav class="tabs" id="tabs">
+    <button data-tab="dcf" class="active">DCF valuation</button>
+    <button data-tab="options">Options</button>
+    <button data-tab="bonds">Bonds</button>
+    <button data-tab="portfolio">Portfolio</button>
+    <button data-tab="reference">Reference</button>
+  </nav>
+
+  <section id="tab-dcf" class="panel active">
+    <div class="card">
+      <h3>Three-stage DCF (with reverse DCF)</h3>
+      <p class="meta">Values a company from its free cash flow: five high-growth years, a five-year glide to a stable rate, then a perpetual terminal. Enter the figures you have; every number is yours and stays in your browser.</p>
+      <form class="grid" id="f-dcf">
+        <label>Base free cash flow <input name="fcf" type="number" step="any" value="100"></label>
+        <label>High growth (yr 1-5) <input name="ghigh" type="number" step="any" value="0.12"></label>
+        <label>Stable growth <input name="gstable" type="number" step="any" value="0.03"></label>
+        <label>Discount rate (WACC) <input name="wacc" type="number" step="any" value="0.09"></label>
+        <label>Terminal growth <input name="tg" type="number" step="any" value="0.025"></label>
+        <label>Net debt <input name="netdebt" type="number" step="any" value="-50"></label>
+        <label>Diluted shares <input name="shares" type="number" step="any" value="15"></label>
+        <label>Current price (optional) <input name="price" type="number" step="any" placeholder="for reverse DCF"></label>
+        <button class="btn" type="submit">Value it</button>
+      </form>
+      <div class="out" id="o-dcf"></div>
+    </div>
+  </section>
+
+  <section id="tab-options" class="panel">
+    <div class="card">
+      <h3>Option pricing (Black-Scholes) + Greeks</h3>
+      <p class="meta">European call/put value, the Greeks, and a profit/loss-at-expiry diagram. The premium shown is the model value from your inputs.</p>
+      <form class="grid" id="f-opt">
+        <label>Type <select name="type"><option value="call">Call</option><option value="put">Put</option></select></label>
+        <label>Spot <input name="spot" type="number" step="any" value="100"></label>
+        <label>Strike <input name="strike" type="number" step="any" value="100"></label>
+        <label>Risk-free rate <input name="rate" type="number" step="any" value="0.05"></label>
+        <label>Volatility <input name="vol" type="number" step="any" value="0.2"></label>
+        <label>Years to expiry <input name="expiry" type="number" step="any" value="1"></label>
+        <label>Dividend yield <input name="div" type="number" step="any" value="0"></label>
+        <button class="btn" type="submit">Price it</button>
+      </form>
+      <div class="out" id="o-opt"></div>
+    </div>
+  </section>
+
+  <section id="tab-bonds" class="panel">
+    <div class="card">
+      <h3>Bond analytics</h3>
+      <p class="meta">Price, yield, and interest-rate sensitivity. A Treasury yield is a risk-free reference — a corporate bond needs a credit spread on top, so enter the actual required yield.</p>
+      <form class="grid" id="f-bond">
+        <label>Face value <input name="face" type="number" step="any" value="1000"></label>
+        <label>Coupon rate <input name="coupon" type="number" step="any" value="0.05"></label>
+        <label>Yield (YTM) <input name="ytm" type="number" step="any" value="0.05"></label>
+        <label>Years to maturity <input name="years" type="number" step="any" value="10"></label>
+        <label>Coupons / year <input name="freq" type="number" step="1" value="2"></label>
+        <button class="btn" type="submit">Compute</button>
+      </form>
+      <div class="out" id="o-bond"></div>
+    </div>
+  </section>
+
+  <section id="tab-portfolio" class="panel">
+    <div class="card">
+      <h3>Two-asset portfolio risk</h3>
+      <p class="meta">How much a two-holding mix swings, and where the risk comes from. Volatility is how much the value bounces around — not how much it will gain or lose.</p>
+      <form class="grid" id="f-pf">
+        <label>Weight A <input name="wa" type="number" step="any" value="0.5"></label>
+        <label>Weight B <input name="wb" type="number" step="any" value="0.5"></label>
+        <label>Volatility A <input name="va" type="number" step="any" value="0.2"></label>
+        <label>Volatility B <input name="vb" type="number" step="any" value="0.3"></label>
+        <label>Correlation <input name="corr" type="number" step="any" value="0"></label>
+        <button class="btn" type="submit">Compute</button>
+      </form>
+      <div class="out" id="o-pf"></div>
+    </div>
+  </section>
+
+  <section id="tab-reference" class="panel">
+    <div class="card">
+      <h3>Glossary &amp; Reference</h3>
+      <div class="glossary-controls">
+        <input id="g-search" type="text" placeholder="Search — e.g. Sharpe, WACC, calibration, duration">
+        <select id="g-cat"><option value="">All categories</option></select>
+      </div>
+      <div id="o-glossary">Loading glossary…</div>
+    </div>
+  </section>
+
+  <footer>
+    Educational research tool, <strong>not financial advice</strong>. Calculations are arithmetic identities for the inputs you enter, not forecasts or guarantees.
+    <br>Open source (MIT) · <a href="https://github.com/rajeevyadav/fincompass">FinCompass on GitHub</a> · For the probabilistic Forecast and live data, get the free desktop app.
+  </footer>
+</div>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

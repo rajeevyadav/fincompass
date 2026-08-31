@@ -1674,7 +1674,7 @@ async function pollResearchRefresh(){
       const select=$("build-recipe"); if(select)select.value=wanted; renderRecipeReadiness();
       const recipe=state.modelLabRecipes.find((row)=>row.recipe_id===wanted);
       if(recipe?.readiness?.trainable){await startModelBuild();}
-      else{const out=$("guided-model-message");if(out)out.innerHTML=`<strong>Data update finished, but the recommended recipe is still not trainable.</strong> Check provider status or switch to Research mode to inspect the missing symbols.`;}
+      else{const out=$("guided-model-message");if(out)out.innerHTML=`<strong>The newer model was not ready, so FinCompass kept the current model. Your forecast remains available.</strong> <span class="advanced-only meta">Data update finished but the recommended recipe is still not trainable — switch to Research mode to inspect the missing symbols.</span>`;}
     }
   }catch(error){
     _researchPollTimer=null;_guidedRecipeAfterRefresh=null;
@@ -1707,7 +1707,9 @@ async function guidedUpdateAndTrain(){
     else{await pollResearchRefresh();}
   }catch(error){
     _guidedRecipeAfterRefresh=null;if(btn)btn.disabled=false;
-    if($("guided-model-message"))$("guided-model-message").innerHTML=`<span class="error">${esc(error.message)}</span>`;
+    // A maintenance failure never removes the working forecast: the active model
+    // is untouched and any candidate build is separate and non-activating.
+    if($("guided-model-message"))$("guided-model-message").innerHTML=`<strong>The update could not run, so FinCompass kept the current model. Your forecast remains available.</strong> <span class="advanced-only meta">Technical reason: ${esc(error.message)}</span>`;
   }
 }
 

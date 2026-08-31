@@ -343,3 +343,11 @@ body.mode-research .guided-only { display: none !important; }
 .pf-be-lbl { fill: #b5730f; }
 .pf-spot-lbl { fill: #2f6fed; font-weight: 600; }
 .pf-loss { color: #d64545; }
+
+/* Disclosure lists and mini tables for analytics assumptions (options premium
+   basis, bond figures, portfolio risk decomposition). */
+ul.assump { margin: .4rem 0; padding-left: 1.1rem; }
+ul.assump li { margin: .25rem 0; font-size: .92em; }
+table.mini { width: 100%; border-collapse: collapse; margin: .5rem 0; font-size: .9em; }
+table.mini th, table.mini td { text-align: right; padding: 3px 8px; border-bottom: 1px solid var(--line, #26324a); }
+table.mini th:first-child, table.mini td:first-child { text-align: left; }

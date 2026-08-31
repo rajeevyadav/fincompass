@@ -24,3 +24,24 @@ def test_hosted_config_has_no_private_user_store(monkeypatch):
 def test_env_toggle_does_not_persist(monkeypatch):
     # After a hosted-mode test, the flag must be off again (live env read).
     assert cloud_auth.hosted_mode() is False
+
+
+def test_hosted_csp_frame_ancestors(monkeypatch):
+    # Cloud Run stays strict by default; an embedder (e.g. a Hugging Face Space)
+    # can open framing, and bare keywords are quoted automatically.
+    import importlib
+    monkeypatch.setenv("FINCOMPASS_HOSTED_MODE", "1")
+    import config
+    importlib.reload(config)
+    import services.guardrails as g
+    importlib.reload(g)
+    try:
+        assert "frame-ancestors 'none'" in g._csp_for("/")
+        monkeypatch.setenv("FINCOMPASS_FRAME_ANCESTORS", "self https://huggingface.co https://*.hf.space")
+        csp = g._csp_for("/")
+        assert "frame-ancestors 'self' https://huggingface.co https://*.hf.space" in csp
+    finally:
+        monkeypatch.delenv("FINCOMPASS_HOSTED_MODE", raising=False)
+        monkeypatch.delenv("FINCOMPASS_FRAME_ANCESTORS", raising=False)
+        importlib.reload(config)
+        importlib.reload(g)

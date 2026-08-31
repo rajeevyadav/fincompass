@@ -223,9 +223,9 @@ def _cagr(series_newest_first: Optional[List[float]]) -> Optional[float]:
         return None
 
 
-def _base_free_cash_flow(inp: Val.DCFInputs, cashflow: St.Statement,
-                         fcf_history: Optional[List[float]] = None) -> Optional[float]:
-    """The base free cash flow the DCF grows forward.
+def _base_free_cash_flow_detail(inp: Val.DCFInputs, cashflow: St.Statement,
+                                fcf_history: Optional[List[float]] = None) -> Dict[str, Any]:
+    """The base free cash flow the DCF grows forward, with full provenance.
 
     Prefers a multi-year average of reported free cash flow (up to three years) so
     a single unusually high or low year does not set the whole valuation; this is
@@ -233,32 +233,61 @@ def _base_free_cash_flow(inp: Val.DCFInputs, cashflow: St.Statement,
     reported FCF, then to operating cash flow minus capex. Using reported FCF
     avoids the large understatement of the EBIT reconstruction, which omits the
     non-cash charges and working-capital swings that operating cash flow reflects.
+
+    The returned detail names the method, how many years were averaged, and how
+    many negative years were excluded from the average - a normalization that can
+    bias the base upward for genuinely cyclical or cash-burning companies, so it
+    must be visible rather than silent.
     """
     hist = [float(x) for x in (fcf_history or []) if _finite(x)]
-    positive = [x for x in hist[:3] if x > 0]
+    window = hist[:3]
+    positive = [x for x in window if x > 0]
+    excluded_negative = len(window) - len(positive)
     if len(positive) >= 2:
-        return sum(positive) / len(positive)
+        return {"base_free_cash_flow": sum(positive) / len(positive),
+                "base_method": "mean_of_recent_positive_reported_fcf",
+                "years_available": len(hist), "years_used": len(positive),
+                "negative_years_excluded": excluded_negative,
+                "cyclical_caution": excluded_negative > 0}
     fcf = cashflow.get("free_cash_flow")
     if _finite(fcf):
-        return float(fcf)
+        return {"base_free_cash_flow": float(fcf), "base_method": "latest_reported_fcf",
+                "years_available": len(hist), "years_used": 1,
+                "negative_years_excluded": 0, "cyclical_caution": False}
     ocf = cashflow.get("operating_cash_flow")
     if _finite(ocf) and _finite(inp.capex):
-        return float(ocf) - float(inp.capex)  # inp.capex is a positive magnitude
-    return None
+        return {"base_free_cash_flow": float(ocf) - float(inp.capex),
+                "base_method": "operating_cash_flow_minus_capex",
+                "years_available": len(hist), "years_used": 1,
+                "negative_years_excluded": 0, "cyclical_caution": False}
+    return {"base_free_cash_flow": None, "base_method": None, "years_available": len(hist),
+            "years_used": 0, "negative_years_excluded": 0, "cyclical_caution": False}
 
 
-def _historical_growth(revenue_history: Optional[List[float]],
-                       fcf_history: Optional[List[float]] = None) -> Optional[float]:
-    """The growth rate the DCF anchors on.
+def _base_free_cash_flow(inp: Val.DCFInputs, cashflow: St.Statement,
+                         fcf_history: Optional[List[float]] = None) -> Optional[float]:
+    return _base_free_cash_flow_detail(inp, cashflow, fcf_history)["base_free_cash_flow"]
+
+
+def _historical_growth_detail(revenue_history: Optional[List[float]],
+                              fcf_history: Optional[List[float]] = None):
+    """The growth rate the DCF anchors on, and which series it came from.
 
     Prefers free-cash-flow CAGR, which captures buybacks and margin expansion that
     revenue growth alone misses (the reason a cash-rich, flat-revenue name was
     previously undervalued). Falls back to revenue CAGR when FCF history is thin.
+    Returns ``(growth, source)`` where source is ``"fcf_cagr"``/``"revenue_cagr"``/None.
     """
     g_fcf = _cagr(fcf_history)
     if g_fcf is not None:
-        return g_fcf
-    return _cagr(revenue_history)
+        return g_fcf, "fcf_cagr"
+    g_rev = _cagr(revenue_history)
+    return (g_rev, "revenue_cagr") if g_rev is not None else (None, None)
+
+
+def _historical_growth(revenue_history: Optional[List[float]],
+                       fcf_history: Optional[List[float]] = None) -> Optional[float]:
+    return _historical_growth_detail(revenue_history, fcf_history)[0]
 
 
 def _growth_paths(revenue_history: Optional[List[float]],
@@ -293,7 +322,8 @@ def _build_dcf(income: St.Statement, balance: St.Statement, cashflow: St.Stateme
                fcf_history: Optional[List[float]] = None,
                market_price: Optional[float] = None) -> Dict[str, Any]:
     inp = Val.build_inputs(income, balance, cashflow)
-    fcf = _base_free_cash_flow(inp, cashflow, fcf_history)
+    base_detail = _base_free_cash_flow_detail(inp, cashflow, fcf_history)
+    fcf = base_detail["base_free_cash_flow"]
     shares = inp.shares_diluted
     net_debt = float(inp.net_debt) if _finite(inp.net_debt) else 0.0
     if not (_finite(fcf) and _finite(shares) and shares > 0):
@@ -302,7 +332,7 @@ def _build_dcf(income: St.Statement, balance: St.Statement, cashflow: St.Stateme
                 "inputs_provenance": inp.provenance, "input_issues": inp.issues,
                 "disclaimer": Val.DISCLAIMER}
     paths = _growth_paths(revenue_history, fcf_history)
-    hist_growth = _historical_growth(revenue_history, fcf_history)
+    hist_growth, growth_source = _historical_growth_detail(revenue_history, fcf_history)
     # The whole scenario grid: three growth paths x the WACC band. The base value
     # is the central path at the default WACC; the range spans the whole grid.
     values: List[float] = []
@@ -316,14 +346,20 @@ def _build_dcf(income: St.Statement, balance: St.Statement, cashflow: St.Stateme
                 values.append(float(rr["value_per_share"]))
     base = Val.dcf_from_free_cash_flow(fcf, paths["base"], _DEFAULT_WACC,
                                        _DEFAULT_TERMINAL_GROWTH, net_debt, shares)
+    # The raw scenario surface, before any display bounding. Research must see the
+    # unclipped mathematics; we constrain what is *shown*, not what is computed.
+    raw_low = min(values) if values else None
+    raw_high = max(values) if values else None
     # Keep the reported band within a sensible multiple of the central estimate so
-    # a single WACC-x-growth corner cannot present an absurd high or low.
+    # a single WACC-x-growth corner cannot present an absurd high or low. This is a
+    # display bound only, disclosed here with its exact factors.
     base_ps = base.get("value_per_share")
-    low = min(values) if values else None
-    high = max(values) if values else None
-    if _finite(base_ps) and base_ps > 0 and low is not None and high is not None:
-        low = max(low, base_ps * 0.4)
-        high = min(high, base_ps * 2.5)
+    low, high, clamp_applied = raw_low, raw_high, False
+    clamp_low_factor, clamp_high_factor = 0.4, 2.5
+    if _finite(base_ps) and base_ps > 0 and raw_low is not None and raw_high is not None:
+        low = max(raw_low, base_ps * clamp_low_factor)
+        high = min(raw_high, base_ps * clamp_high_factor)
+        clamp_applied = (low != raw_low) or (high != raw_high)
     # Reverse DCF: the stage-1 growth today's price implies, so a reader can judge
     # the market's expectation directly instead of debating our assumptions.
     stable = min(_STABLE_GROWTH_CAP, max(0.02, (hist_growth or 0.06) * 0.5))
@@ -332,11 +368,15 @@ def _build_dcf(income: St.Statement, balance: St.Statement, cashflow: St.Stateme
         implied_growth = Val.implied_fcf_growth(
             float(market_price), fcf, _DEFAULT_WACC, _DEFAULT_TERMINAL_GROWTH,
             net_debt, shares, _HIGH_YEARS, _TRANSITION_YEARS, stable)
+    terminal_value = base.get("terminal_value")
+    pv_terminal = base.get("pv_terminal_value")
+    ev = base.get("enterprise_value")
+    terminal_pct = (float(pv_terminal) / float(ev)) if (_finite(pv_terminal) and _finite(ev) and ev) else None
     return {
         "valid": bool(base.get("valid")),
         "method": "free_cash_flow_to_equity",
         "value_per_share": _clean(base.get("value_per_share")),
-        "enterprise_value": _clean(base.get("enterprise_value")),
+        "enterprise_value": _clean(ev),
         "equity_value": _clean(base.get("equity_value")),
         "currency": inp.currency,
         "range_low": _clean(low),
@@ -345,6 +385,25 @@ def _build_dcf(income: St.Statement, balance: St.Statement, cashflow: St.Stateme
         "scenarios": scenarios,
         "historical_revenue_growth": _clean(hist_growth),
         "implied_growth": _clean(implied_growth),
+        # Full raw scenario surface and the display bound applied to it.
+        "raw_scenario_range": {"low": _clean(raw_low), "high": _clean(raw_high)},
+        "display_range_clamp": {"applied": bool(clamp_applied),
+                                "low_factor": clamp_low_factor, "high_factor": clamp_high_factor,
+                                "note": "Shown range bounded to base x [0.4, 2.5]; raw scenario range is above."},
+        "base_fcf_normalization": {
+            "method": base_detail["base_method"],
+            "reported_fcf_history": [_clean(x) for x in (fcf_history or []) if _finite(x)],
+            "years_available": base_detail["years_available"],
+            "years_used": base_detail["years_used"],
+            "negative_years_excluded": base_detail["negative_years_excluded"],
+            "cyclical_caution": base_detail["cyclical_caution"],
+        },
+        "growth_anchor": {"annual_rate": _clean(hist_growth), "source": growth_source},
+        "net_debt": _clean(net_debt),
+        "shares_diluted": _clean(shares),
+        "terminal_value": _clean(terminal_value),
+        "pv_terminal_value": _clean(pv_terminal),
+        "terminal_value_pct_of_ev": _clean(terminal_pct),
         "assumptions": {
             "method": "three_stage_free_cash_flow_to_equity",
             "wacc": _DEFAULT_WACC, "terminal_growth": _DEFAULT_TERMINAL_GROWTH,
@@ -352,6 +411,7 @@ def _build_dcf(income: St.Statement, balance: St.Statement, cashflow: St.Stateme
             "transition_years": _TRANSITION_YEARS, "stable_growth": _clean(stable),
             "wacc_grid": _WACC_GRID, "growth_paths": paths,
             "growth_anchored_on_history": hist_growth is not None,
+            "growth_source": growth_source,
         },
         "inputs_provenance": inp.provenance,
         "input_issues": inp.issues,

@@ -562,14 +562,42 @@ function dcfGaugeHtml(dcf, lastPrice, cur) {
     </div>
     <p class="meta">Built from the company's reported free cash flow and its own recent growth using a <strong>three-stage model</strong> — five high-growth years, a five-year glide down to a stable rate, then a perpetual terminal capped near the risk-free rate — discounted at ${_fmtPct(dcf.assumptions?.wacc)}. This is a <strong>conservative</strong> estimate: models that assume higher growth or use an exit multiple produce higher numbers. A DCF is <strong>one input, not a verdict</strong> — change the growth a few points or the discount rate 1% and it swings a lot.</p>
     <p class="meta">${esc(dcf.disclaimer || "")}</p>
-    <details class="advanced-only"><summary>Assumptions and figures</summary>
+    ${dcfResearchDetailsHtml(dcf, cur, mid, ig)}`;
+}
+
+// The full DCF scenario mathematics for Research: base normalization (including
+// any excluded negative years), the growth anchor and its source, the terminal
+// value and its share of enterprise value, and the raw scenario range before the
+// display bound — so an expert can challenge every assumption.
+function dcfResearchDetailsHtml(dcf, cur, mid, ig) {
+  const a = dcf.assumptions || {}, norm = dcf.base_fcf_normalization || {};
+  const anchor = dcf.growth_anchor || {}, raw = dcf.raw_scenario_range || {}, clamp = dcf.display_range_clamp || {};
+  const tpct = Number(dcf.terminal_value_pct_of_ev);
+  const srcLabel = anchor.source === "fcf_cagr" ? "free-cash-flow CAGR"
+    : anchor.source === "revenue_cagr" ? "revenue CAGR (FCF history too thin)" : "generic default";
+  const hist = Array.isArray(norm.reported_fcf_history) ? norm.reported_fcf_history : [];
+  const kpi = (l, v) => `<div class="kpi"><div class="k-label">${l}</div><div class="k-value">${v}</div></div>`;
+  return `<details class="advanced-only"><summary>Assumptions and full scenario mathematics</summary>
       <div class="forecast-grid">
-        <div class="kpi"><div class="k-label">Intrinsic value / share</div><div class="k-value">${cur} ${_money(mid)}</div></div>
-        <div class="kpi"><div class="k-label">WACC</div><div class="k-value">${_fmtPct(dcf.assumptions?.wacc)}</div></div>
-        <div class="kpi"><div class="k-label">Terminal growth</div><div class="k-value">${_fmtPct(dcf.assumptions?.terminal_growth)}</div></div>
-        ${Number.isFinite(ig) ? `<div class="kpi"><div class="k-label">Market-implied growth</div><div class="k-value">${_fmtPct(ig)}</div></div>` : ""}
-        <div class="kpi"><div class="k-label">Stages</div><div class="k-value">${dcf.assumptions?.high_growth_years || 5}+${dcf.assumptions?.transition_years || 5}+∞</div></div>
-      </div></details>`;
+        ${kpi("Intrinsic value / share", `${cur} ${_money(mid)}`)}
+        ${kpi("Base free cash flow", `${cur} ${_money(dcf.base_free_cash_flow)}`)}
+        ${kpi("WACC (central)", _fmtPct(a.wacc))}
+        ${kpi("WACC grid", (a.wacc_grid||[]).map(w=>_fmtPct(w)).join(" · "))}
+        ${kpi("Terminal growth", _fmtPct(a.terminal_growth))}
+        ${kpi("Stable growth", _fmtPct(a.stable_growth))}
+        ${kpi("Stages (high+transition+∞)", `${a.high_growth_years||5}+${a.transition_years||5}+∞`)}
+        ${kpi("Growth anchor", `${_fmtPct(anchor.annual_rate)} — ${srcLabel}`)}
+        ${Number.isFinite(ig) ? kpi("Market-implied growth", _fmtPct(ig)) : ""}
+        ${kpi("Net debt", `${cur} ${_money(dcf.net_debt)}`)}
+        ${kpi("Diluted shares", _money(dcf.shares_diluted))}
+        ${kpi("Terminal value", `${cur} ${_money(dcf.terminal_value)}`)}
+        ${kpi("Terminal % of EV", Number.isFinite(tpct) ? _fmtPct(tpct) : "—")}
+        ${kpi("Raw scenario range", `${cur} ${_money(raw.low)}–${_money(raw.high)}`)}
+        ${kpi("Shown range", `${cur} ${_money(dcf.range_low)}–${_money(dcf.range_high)}`)}
+      </div>
+      <p class="meta">Base FCF method: <strong>${esc(norm.method || "—")}</strong> over ${norm.years_used||0} of ${norm.years_available||0} reported years${norm.negative_years_excluded ? `, excluding ${norm.negative_years_excluded} negative year(s)` : ""}.${norm.cyclical_caution ? " <strong>Caution:</strong> excluding loss years can bias the base upward for cyclical or cash-burning companies." : ""} Reported FCF history (newest first): ${hist.length ? hist.map(v=>`${cur} ${_money(v)}`).join(", ") : "—"}.</p>
+      <p class="meta">${clamp.applied ? `The shown range is bounded to base × [${clamp.low_factor}, ${clamp.high_factor}]; the raw scenario range above is unclipped.` : "No display bound was applied; shown range equals the raw scenario range."} Terminal value is <strong>${Number.isFinite(tpct) ? _fmtPct(tpct) : "—"}</strong> of enterprise value — a high share means most of the estimate rests on the perpetual assumption.</p>
+    </details>`;
 }
 
 function analyticsPanelHtml(o) {

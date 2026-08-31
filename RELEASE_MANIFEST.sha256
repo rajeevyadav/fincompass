@@ -53,7 +53,7 @@ e8e4c98d7971787e8bd4626f73680df2ac62b9fa0d3644eaae19c096bfd070ea  ./analytics/re
 dbcddba58d6f9ed0ebd9b67a74190a6b3161eceeaf1252e67d1efcece0d67550  ./analytics/risk.py
 98c5735916c8a4aecc1ef18ebfaac11005b9efbe0ca0707e52ec1b21c661e8ad  ./analytics/statements.py
 72937a6d58385ad1156268b35872e584c4652c65231bc34945b662e2d7afb4be  ./analytics/technicals.py
-fc06dfd3cbabd1e242fbb40804e8b0fc7636a886c40303c4c38b9f9968129e5d  ./analytics/valuation.py
+67fd1f841bb39c97f5a97abfae924b731dc00d2cb609320800f46ac735e8a5a0  ./analytics/valuation.py
 aab2061e8bbfe9757e46dd079ddec4bfb1734fd4bdc78f7647fb0b88b822237a  ./api.py
 d2030cef07a5af539115e7e94a0d31dc8767aa9443d119f219a909c6196ffd3e  ./assets/banner.svg
 8e8dbbb7c377f1e2ca63ba2f7b481990125de19c6536c6a64f9c40a598ab5e56  ./assets/pipeline.svg
@@ -194,7 +194,7 @@ e8e6d301b0db29e556fe8cb948db38432423a042c6bb1c2e75c9512e440546c3  ./services/ben
 c89af336e8645b9213bd1bf3de3c5cd34afa7144f33055cf5be0b060ead2ffa1  ./services/data_fetcher.py
 3953b889501dca2d25a0b89b1b6234ccfb1a9773275f3ee2d0830e39ea8a51a6  ./services/forecast_plan.py
 ca4d1ac941b3e6b79fe534347fdb5890e0796ec49cdd432fcb26917edbebc2b3  ./services/forecast_service.py
-c0bec5b6cfa5da383f9c2206559410775d586501458f9e36b7eb135f13f80858  ./services/fundamentals.py
+7c49cd0369b9e9f831e1c88c5fa3eb3ca1fc7a105cc31e22f39168b8c3a777b9  ./services/fundamentals.py
 863ab1fd3bcb4e4f64131df6cf6d6143ddf6c5a4e14c3201df88f54a44ca65d2  ./services/guardrails.py
 eb4d5a820c875221494de9a7dbf9af937b2773e7629decb4521403f6c53b1ace  ./services/instrument_classification.py
 510dbb04f9fe1022c5ec26cf84c0ee82064d29a4c5be37be2f7c46637f92483d  ./services/macro_fetcher.py
@@ -216,7 +216,7 @@ d2030cef07a5af539115e7e94a0d31dc8767aa9443d119f219a909c6196ffd3e  ./site/assets/
 8e8dbbb7c377f1e2ca63ba2f7b481990125de19c6536c6a64f9c40a598ab5e56  ./site/assets/pipeline.svg
 2c8cdf687060326e3698094958d57129e949421889923775c9ad50fd64c468fb  ./site/index.html
 9189189a7f6dff0c0bd67983a59a7b043cb8db583b349e1ecb333fed2100a8a4  ./static/app.css
-0a2dd32c659347efa7c35569463c083c909a4d28c64cc0bb995a835676da0144  ./static/app.js
+f00399ef186d730bf9fa2519d6002ce93519e7355c79853f5e8e67b5a227eb54  ./static/app.js
 b3b2760bb50488443d97273f368e4e3d7853806605d0125a9757ef5686bc2ac7  ./static/index.html
 a9f4b017fa5a7a5f6eca72ce8ff36f02d2130e333ef29e91077eae601b8d64c0  ./static/vendor/swagger-ui-bundle.js
 fb0f48c3ed5f8b978174aac9103b150ca5cacb40b637590b390794809925e4df  ./static/vendor/swagger-ui.css
@@ -231,6 +231,7 @@ e254934dfc78eba6d23d2a6e85c2914d30d64480497dc830d97346b205dae7d0  ./tests/test_b
 3e5c7d2971ad4caf99c3fb2ed91441d5c2896209ba747d1d46670443f41c8dae  ./tests/test_cache.py
 9f7bd34e294fa4001b8d0d6e34c860f118ed8304ead9740b648d1a75d897d0b7  ./tests/test_comment_hygiene.py
 1d9bc2855f0a0ac80dc8b650b1353d17c4ea38031ca1b66c6e6636292de7143c  ./tests/test_data_fetcher.py
+0f33920dcafa946892c1736d4204e7c66d8eee37d59592ee4c7c5efe57579aef  ./tests/test_dcf_transparency.py
 2b2e96921c5ce08057d817979ffa3020671ab6cf08f3f781d66de2741e8e83f9  ./tests/test_delta_update.py
 73a154ee123d2d96c5e92dcfd5ae8b4f094948b920e52d15c54648bf6cdee585  ./tests/test_docs.py
 74b86c6cba2bd33186f6198dde4905da2e135b1abfc3090f15507c647c54448a  ./tests/test_factors.py

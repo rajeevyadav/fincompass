@@ -274,10 +274,21 @@ def audit_log(
 
 def _csp_for(path: str) -> str:
     if HOSTED_MODE and path != "/docs":
+        # frame-ancestors defaults to none (Cloud Run stays strict). A platform
+        # that embeds the app in an iframe (e.g. a Hugging Face Space) can set
+        # FINCOMPASS_FRAME_ANCESTORS to a space-separated list of embedders, e.g.
+        # "self https://huggingface.co https://*.hf.space". Bare CSP keywords are
+        # quoted automatically so the value needs no quotes in a Dockerfile ENV.
+        import os
+        raw = (os.getenv("FINCOMPASS_FRAME_ANCESTORS", "none").strip() or "none").split()
+        frame_ancestors = " ".join(
+            f"'{t.lower()}'" if t.lower() in {"none", "self"} and not t.startswith("'") else t
+            for t in raw
+        )
         return (
             "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
             "connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; "
-            "font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+            f"font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors {frame_ancestors}; form-action 'self'"
         )
     # FastAPI's generated docs currently use jsDelivr assets. The application
     # itself is fully local and gets the stricter self-only policy.

@@ -108,12 +108,54 @@ def forecast_ticker(ticker: str, model_id: Optional[str] = None, profile_name: O
         instrument, resolved_benchmark, requested_horizon, manifest,
         (selection.get("rejected") if selection else []) or [],
         len((selection.get("eligible") if selection else [manifest]) or []))
+    domain = manifest.get("applicability_domain") or {}
+    prov = manifest.get("dataset_provenance") or {}
+    # A self-contained, expert-facing evidence report: everything needed to audit
+    # the forecast without exposing private training intermediates. Fields mirror
+    # the model contract, evidence, assumptions, lineage, and reproducibility ids.
+    prob = prediction.get("probability_outperform")
+    ci = prediction.get("uncertainty_interval") or []
+    evidence_report = {
+        "report_type": "forecast_evidence_v1",
+        "ticker": ticker.upper(),
+        "as_of": asof,
+        "target_event": target.get("event"),
+        "benchmark": target.get("benchmark") or benchmark,
+        "horizon_months": target.get("horizon_months") or requested_horizon,
+        "probability_outperform": prob,
+        "uncertainty_interval": ci,
+        "evidence_tier": tier,
+        "model_id": manifest.get("model_id"),
+        "model_family": (manifest.get("training_contract") or {}).get("trainer_family"),
+        "applicability_domain": {k: domain.get(k) for k in
+                                 ("asset_classes", "regions", "security_types", "benchmark_family",
+                                  "target_horizon_months") if k in domain},
+        "training_period_start": domain.get("training_period_start") or prov.get("training_period_start"),
+        "training_cutoff": domain.get("training_period_end") or prov.get("training_period_end"),
+        "validation": {
+            "locked_test_metrics": (manifest.get("validation") or {}).get("locked_test_metrics"),
+            "gate": (manifest.get("validation") or {}).get("gate"),
+            "protocol": (manifest.get("validation") or {}).get("validation_protocol"),
+        },
+        "data_provenance": {k: prov.get(k) for k in
+                            ("feature_contract", "source_container", "sharing_status") if k in prov},
+        "training_contract": manifest.get("training_contract"),
+        "interpretation_policy": action,
+        "reproducibility": {"model_sha256": manifest.get("model_sha256"),
+                            "dataset_manifest_sha256": manifest.get("dataset_manifest_content_sha256"),
+                            "forecast_engine_version": manifest.get("forecast_engine_version")},
+        "why_selected": why_selected,
+        "limitations": ("Bundled sample is small and survivorship-incomplete; a Limited-evidence "
+                        "probability is calibrated where supported but stronger out-of-sample skill "
+                        "is not established. Not a recommendation, target price, or guarantee."),
+    }
     return {
         "available": True,
         "ticker": ticker.upper(),
         "as_of": asof,
         "model_id": manifest.get("model_id"),
         "validation_tier": tier,
+        "evidence_report": evidence_report,
         "target": target,
         "probability": prediction,
         "action": action,

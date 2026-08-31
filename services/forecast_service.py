@@ -14,7 +14,7 @@ from services.analyzer import get_price_history_cached
 from services.research_store import research_store
 from services.instrument_classification import classify_instrument, resolve_instrument
 from services.benchmark_resolver import resolve_benchmark
-from services.model_selection import select_model, applicability
+from services.model_selection import select_model, applicability, selection_rationale
 
 
 
@@ -39,9 +39,13 @@ def get_forecast_status() -> Dict[str, Any]:
 def forecast_ticker(ticker: str, model_id: Optional[str] = None, profile_name: Optional[str] = None, horizon_months: Optional[int] = None) -> Dict[str, Any]:
     instrument = resolve_instrument(ticker)
     resolved_benchmark = resolve_benchmark(instrument)
-    if instrument.get("asset_class") == "unknown" or not resolved_benchmark.get("supported"):
-        return {"available": False, "blocked_by_preflight": True, "reason_code": "UNSUPPORTED_INSTRUMENT", "message": "FinCompass can analyze this instrument, but no scientifically appropriate Forecast benchmark/model family is available yet.", "instrument": instrument, "benchmark": resolved_benchmark}
     requested_horizon = int(horizon_months or 12)
+    if instrument.get("asset_class") == "unknown" or not resolved_benchmark.get("supported"):
+        return {"available": False, "blocked_by_preflight": True, "reason_code": "UNSUPPORTED_INSTRUMENT",
+                "message": "FinCompass can analyze this instrument, but no scientifically appropriate Forecast benchmark/model family is available yet.",
+                "instrument": instrument, "benchmark": resolved_benchmark,
+                "why_unavailable": selection_rationale(instrument, resolved_benchmark, requested_horizon, None, [], 0)}
+    selection = None
     if model_id:
         model, manifest = load_model(model_id=model_id, profile_name=profile_name, minimum_tier="bayesian_baseline")
         if model is None or manifest is None:
@@ -50,9 +54,15 @@ def forecast_ticker(ticker: str, model_id: Optional[str] = None, profile_name: O
         if not verdict.get("supported"):
             return {"available": False, "blocked_by_preflight": True, **verdict, "instrument": instrument, "benchmark": resolved_benchmark}
     else:
-        selected = select_model(instrument, resolved_benchmark, requested_horizon).get("selected")
+        selection = select_model(instrument, resolved_benchmark, requested_horizon)
+        selected = selection.get("selected")
         if selected is None:
-            return {"available": False, "blocked_by_preflight": True, "reason_code": "NO_APPLICABLE_MODEL_FAMILY", "message": "FinCompass has no Forecast model family for this market and horizon yet. Analytics remain available.", "instrument": instrument, "benchmark": resolved_benchmark, "horizon_months": requested_horizon}
+            rationale = selection_rationale(instrument, resolved_benchmark, requested_horizon,
+                                            None, selection.get("rejected") or [], len(selection.get("eligible") or []))
+            return {"available": False, "blocked_by_preflight": True, "reason_code": "NO_APPLICABLE_MODEL_FAMILY",
+                    "message": "FinCompass has no Forecast model family for this market and horizon yet. Analytics remain available.",
+                    "instrument": instrument, "benchmark": resolved_benchmark, "horizon_months": requested_horizon,
+                    "why_unavailable": rationale}
         model, manifest = load_model(model_id=str(selected.get("model_id")), minimum_tier="bayesian_baseline")
         if model is None or manifest is None:
             return {"available": False, "message": "The selected model artifact is unavailable or failed integrity checks."}
@@ -91,6 +101,13 @@ def forecast_ticker(ticker: str, model_id: Optional[str] = None, profile_name: O
     # The interpretation policy is a declared posture applied to this probability.
     # It is not part of the model and never changes p. Limited evidence may only Watch.
     action = decide_action(prediction.get("probability_outperform"), tier, data_ok=True)
+    # Why this model was chosen, for the "Why this result?" disclosure. When a
+    # specific model_id was requested there is no competing selection to explain,
+    # so a single-factor rationale for that model is composed instead.
+    why_selected = selection_rationale(
+        instrument, resolved_benchmark, requested_horizon, manifest,
+        (selection.get("rejected") if selection else []) or [],
+        len((selection.get("eligible") if selection else [manifest]) or []))
     return {
         "available": True,
         "ticker": ticker.upper(),
@@ -100,6 +117,7 @@ def forecast_ticker(ticker: str, model_id: Optional[str] = None, profile_name: O
         "target": target,
         "probability": prediction,
         "action": action,
+        "why_selected": why_selected,
         "validation_summary": {
             "locked_test_metrics": (manifest.get("validation") or {}).get("locked_test_metrics"),
             "gate": (manifest.get("validation") or {}).get("gate"),

@@ -766,16 +766,94 @@ function portfolioRiskHtml(res, inp) {
   }
   const bigger = pct.length === 2 && Number.isFinite(pct[0]) && Number.isFinite(pct[1]) && Math.abs(pct[0] - pct[1]) > 8
     ? ` Holding ${pct[1] > pct[0] ? "B" : "A"} drives more of the risk (${Math.max(pct[0], pct[1]).toFixed(0)}%) — the more volatile holding dominates even at a similar weight.` : "";
+  // The exact decomposition for Research: each holding's weight, its marginal
+  // contribution to portfolio volatility, and its component (absolute) share.
+  const rc = res.risk_contributions || {};
+  const w = res.weights_normalized || [Number(inp?.wa), Number(inp?.wb)];
+  const rows = (rc.percent || []).map((p, i) => {
+    const nm = names[i] || String.fromCharCode(65 + i);
+    const mc = Array.isArray(rc.marginal) ? rc.marginal[i] : null;
+    const cc = Array.isArray(rc.component) ? rc.component[i] : null;
+    return `<tr><td>${nm}</td><td>${Number.isFinite(Number(w[i])) ? (Number(w[i]) * 100).toFixed(1) + "%" : "—"}</td>` +
+      `<td>${Number.isFinite(Number(mc)) ? Number(mc).toFixed(4) : "—"}</td>` +
+      `<td>${Number.isFinite(Number(cc)) ? (Number(cc) * 100).toFixed(2) + "%" : "—"}</td>` +
+      `<td>${Number.isFinite(Number(p)) ? (Number(p) * 100).toFixed(0) + "%" : "—"}</td></tr>`;
+  }).join("");
+  const details = `<details class="advanced-only"><summary>Risk decomposition &amp; assumptions</summary>
+    <table class="mini"><thead><tr><th>Holding</th><th>Weight</th><th>Marginal</th><th>Component</th><th>% of risk</th></tr></thead><tbody>${rows}</tbody></table>
+    <p class="meta">Portfolio volatility ±${Number.isFinite(vol) ? vol.toFixed(2) + "%" : "—"}. The covariance matrix is built directly from the volatilities and correlation you entered (not estimated from a return history), treated as a single annualized period. Marginal contribution is the change in portfolio volatility per unit of a holding's weight; component contribution is weight × marginal, and the components sum to total volatility. Under stressed markets correlations tend toward 1, so the diversification benefit shrinks when it is needed most.</p>
+  </details>`;
   return `
     <p class="plain-read">Together these two holdings typically swing about ±<strong>${Number.isFinite(vol) ? vol.toFixed(1) + "%" : "—"}</strong> over a year.${benefit}</p>
     <p class="plain-read">Where the risk comes from — each holding's share of that swing:${bigger}</p>
     <div class="risk-bars">${bars}</div>
-    <p class="meta">Volatility is how much the value bounces around, not how much it will gain or lose.</p>`;
+    <p class="meta">Volatility is how much the value bounces around, not how much it will gain or lose.</p>
+    ${details}`;
+}
+
+// Bond analytics with each figure named, and an explicit warning that a
+// Treasury yield is a risk-free reference — not the required yield for a
+// corporate or otherwise risky bond, which needs a credit spread on top.
+function bondAnalyticsHtml(res, inp, treasuryRef) {
+  const cur = "$";
+  const price = Number(res.price), face = Number(inp.face);
+  const disc = Number.isFinite(price) && Number.isFinite(face) && face
+    ? (price < face ? "at a discount" : price > face ? "at a premium" : "at par") : "";
+  const kpi = (l, v, tip) => `<div class="kpi"><div class="k-label${tip ? " has-tip" : ""}"${tip ? ` title="${esc(tip)}"` : ""}>${l}</div><div class="k-value">${v}</div></div>`;
+  const pctOrDash = (v) => Number.isFinite(Number(v)) ? _fmtPct(v) : "—";
+  const numOrDash = (v, d = 2) => Number.isFinite(Number(v)) ? num(v).toFixed(d) : "—";
+  // Spread only means something when the yield was taken from the Treasury curve.
+  let spreadHtml = "";
+  if (treasuryRef && Number.isFinite(treasuryRef.yield)) {
+    const spread = (Number(inp.ytm) - treasuryRef.yield) * 10000;
+    spreadHtml = `<p class="meta">Yield taken from the <strong>${esc(treasuryRef.tenor || "Treasury")}</strong> reference (${_fmtPct(treasuryRef.yield)}). At this YTM the spread over Treasury is <strong>${spread.toFixed(0)} bps</strong>.</p>`;
+  }
+  return `
+    <p class="plain-read">This bond is worth about <strong>${cur} ${numOrDash(price)}</strong> ${disc ? `— trading ${disc} to its ${cur} ${numOrDash(face, 0)} face value` : ""}. It pays a <strong>${pctOrDash(inp.coupon_rate)}</strong> coupon; priced to yield <strong>${pctOrDash(inp.ytm)}</strong> to maturity.</p>
+    <div class="forecast-grid">
+      ${kpi("Price", `${cur} ${numOrDash(price)}`)}
+      ${kpi("Coupon rate", pctOrDash(inp.coupon_rate), "The fixed annual interest the bond pays, as a percent of face value.")}
+      ${kpi("Yield to maturity", pctOrDash(inp.ytm), "The single rate that discounts all future payments back to today's price.")}
+      ${kpi("Current yield", pctOrDash(res.current_yield), "Annual coupon divided by current price — ignores capital gain to maturity.")}
+      ${kpi("Duration", `${numOrDash(res.macaulay_duration)} yr`, "Weighted-average time to receive the bond's cash flows.")}
+      ${kpi("Modified duration", numOrDash(res.modified_duration), "Approx % price change for a 1-percentage-point yield move.")}
+      ${kpi("Convexity", numOrDash(res.convexity), "Curvature of the price/yield relationship; refines the duration estimate.")}
+      ${kpi("DV01", numOrDash(res.dv01, 4), "Dollar price change for a 1 basis-point yield move.")}
+      ${kpi("Maturity", `${numOrDash(inp.years, 0)} yr`)}
+      ${kpi("Face value", `${cur} ${numOrDash(face, 0)}`)}
+    </div>
+    ${spreadHtml}
+    <p class="meta"><strong>A Treasury yield is not automatically the right yield for this bond.</strong> Treasury rates are risk-free references; a corporate or otherwise risky bond must be priced at the Treasury rate <em>plus a credit spread</em> for default risk, liquidity and other factors. Enter the actual required yield for a risky bond rather than a bare Treasury rate.</p>`;
+}
+
+// The assumptions and data behind an option price, so the number is not a black
+// box: what the premium represents, where each input came from, and the fact
+// that the payoff chart is at expiry while the model price is a present value.
+function optionAssumptionsHtml(form, body, res) {
+  const c = form._contractMeta || null;  // set by applyContract when a real contract is loaded
+  const ivSource = c ? "market implied volatility from the listed contract" : "the volatility you entered";
+  const premiumBasis = c
+    ? `the Black-Scholes value from these inputs (${_money(res.price)}); the contract's market quotes were last ${_money(c.last)}, bid ${_money(c.bid)}, ask ${_money(c.ask)}`
+    : `the Black-Scholes value from these inputs (${_money(res.price)})`;
+  const quote = c && c.source_note ? ` Quotes are ${esc(c.source_note).toLowerCase().replace(/\.$/, "")} (provider: Yahoo Finance).` : "";
+  return `<details class="advanced-only"><summary>Assumptions &amp; data behind this price</summary>
+    <ul class="assump">
+      <li><strong>Premium used:</strong> ${premiumBasis}. The payoff chart above is profit/loss <strong>at expiry</strong>; the Greeks and price are the option's <strong>present value before expiry</strong>.</li>
+      <li><strong>Risk-free rate:</strong> ${_fmtPct(body.rate)} — ${c ? "from the Treasury curve if you loaded it, else " : ""}the rate you entered. No tenor interpolation is applied.</li>
+      <li><strong>Dividend yield:</strong> assumed <strong>0%</strong> — this Black-Scholes form does not model dividends, which lowers call and raises put values for dividend-paying names.</li>
+      <li><strong>Volatility source:</strong> ${ivSource}.</li>
+      <li><strong>Time to expiry:</strong> ${num(body.expiry).toFixed(3)} years on an Actual/365.25 convention.</li>
+      <li><strong>Model:</strong> European Black-Scholes (no early exercise), single volatility, constant rate.</li>
+    </ul>${quote ? `<p class="meta">${quote}</p>` : ""}
+  </details>`;
 }
 
 async function submitCalculator(form) {
   const kind = form.getAttribute("data-calc");
   const out = form.querySelector(".calc-out");
+  // A manual price (no listed contract selected) must not reuse a prior contract's
+  // market quotes in the disclosure.
+  if (kind === "options" && !(form.querySelector('[name="chain_contract"]') || {}).value) form._contractMeta = null;
   const val = (n) => Number(form.querySelector(`[name="${n}"]`)?.value);
   try {
     let body, path;
@@ -798,9 +876,13 @@ async function submitCalculator(form) {
       .map(([k, v]) => `<div><strong>${esc(k.replaceAll("_", " "))}:</strong> ${num(v).toFixed(4)}</div>`).join("") || "—";
     if (kind === "options" && typeof res.price === "number") {
       out.innerHTML = optionPayoffHtml(body.option_type, val("strike"), res.price, val("spot")) +
+        optionAssumptionsHtml(form, body, res) +
         `<details class="advanced-only"><summary>Greeks and price</summary>${numbers}</details>`;
+    } else if (kind === "bond") {
+      out.innerHTML = bondAnalyticsHtml(res, {face: val("face"), coupon_rate: val("coupon_rate"), ytm: val("ytm"), years: val("years")}, form._treasuryRef) +
+        `<details class="advanced-only"><summary>All bond figures</summary>${numbers}</details>`;
     } else if (kind === "portfolio" && res.risk_contributions) {
-      out.innerHTML = portfolioRiskHtml(res, { wa: val("wa"), wb: val("wb"), va: val("va"), vb: val("vb") }) + `<details class="advanced-only"><summary>Figures</summary>${numbers}</details>`;
+      out.innerHTML = portfolioRiskHtml(res, { wa: val("wa"), wb: val("wb"), va: val("va"), vb: val("vb"), corr: val("corr") }) + `<details class="advanced-only"><summary>Figures</summary>${numbers}</details>`;
     } else {
       out.innerHTML = numbers;
     }
@@ -873,9 +955,11 @@ async function loadChainContracts(form) {
       return clean.slice(Math.max(0, iAtm - 12), iAtm + 13);
     };
     const calls = nearMoney(r.calls), puts = nearMoney(r.puts);
+    form._chainSourceNote = r.source_note || "";
     const opt = (type, row) => {
       const iv = row.implied_volatility, last = row.last, m = _moneyness(type, Number(row.strike), spot);
-      return `<option value='${esc(JSON.stringify({type, strike: row.strike, iv, last, expiry}))}'>${type.toUpperCase()}${m ? " " + m : ""} · strike ${num(row.strike)} · last ${last == null ? "—" : num(last).toFixed(2)} · IV ${iv == null ? "—" : (iv * 100).toFixed(0) + "%"}</option>`;
+      const meta = {type, strike: row.strike, iv, last, bid: row.bid, ask: row.ask, expiry};
+      return `<option value='${esc(JSON.stringify(meta))}'>${type.toUpperCase()}${m ? " " + m : ""} · strike ${num(row.strike)} · last ${last == null ? "—" : num(last).toFixed(2)} · bid ${row.bid == null ? "—" : num(row.bid).toFixed(2)} · ask ${row.ask == null ? "—" : num(row.ask).toFixed(2)} · IV ${iv == null ? "—" : (iv * 100).toFixed(0) + "%"}</option>`;
     };
     conSel.innerHTML = `<option value="">Contract…</option>` +
       `<optgroup label="Calls (near the money)">${calls.map((row) => opt("call", row)).join("")}</optgroup>` +
@@ -907,8 +991,11 @@ function applyContract(form) {
   const days = (new Date(c.expiry + "T00:00:00Z") - Date.now()) / 86400000;
   if (days > 0) set("expiry", (days / 365.25).toFixed(4));
   form.querySelector('[name="option_type"]').value = c.type;
+  // Carry the real quote through so the price disclosure can show last/bid/ask
+  // and name the data source, and distinguish model price from market premium.
+  form._contractMeta = {last: c.last, bid: c.bid, ask: c.ask, source_note: form._chainSourceNote || "Delayed public option quotes."};
   const note = form.querySelector(".chain-note");
-  if (note) note.textContent = `${c.type.toUpperCase()} · strike ${num(c.strike)} · market last ${c.last == null ? "—" : num(c.last).toFixed(2)} · priced below.`;
+  if (note) note.textContent = `${c.type.toUpperCase()} · strike ${num(c.strike)} · market last ${c.last == null ? "—" : num(c.last).toFixed(2)} · bid ${c.bid == null ? "—" : num(c.bid).toFixed(2)} · ask ${c.ask == null ? "—" : num(c.ask).toFixed(2)} · model price below.`;
   // Price and draw the payoff immediately — the user should not have to click.
   submitCalculator(form);
 }
@@ -933,7 +1020,13 @@ document.addEventListener("click", (e) => {
   else if (t.matches(".rate-chip")) {
     const form = t.closest(".calc-form");
     const y = t.getAttribute("data-rate"), yrs = t.getAttribute("data-years");
-    if (form && y) { form.querySelector('[name="ytm"]').value = Number(y).toFixed(4); if (yrs) form.querySelector('[name="years"]').value = yrs; }
+    if (form && y) {
+      form.querySelector('[name="ytm"]').value = Number(y).toFixed(4);
+      if (yrs) form.querySelector('[name="years"]').value = yrs;
+      // Remember the reference so the bond result can show the spread and warn
+      // that a Treasury yield is not the required yield for a risky bond.
+      form._treasuryRef = {yield: Number(y), tenor: (t.textContent || "").split(" · ")[0], years: Number(yrs)};
+    }
   }
 });
 

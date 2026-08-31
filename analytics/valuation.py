@@ -297,6 +297,7 @@ def dcf_from_free_cash_flow(base_fcf: float, growth_rates: List[float], wacc: fl
     equity = ev - nd
     return {"valid": True, "value_per_share": equity / sh, "enterprise_value": ev,
             "equity_value": equity, "terminal_value": terminal,
+            "pv_terminal_value": pv_terminal, "pv_explicit": pv,
             "projected_fcf": proj, "horizon_years": n, "disclaimer": DISCLAIMER}
 
 

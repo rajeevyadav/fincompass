@@ -128,3 +128,6 @@ FinCompass-Canonical-Documentation-Production/
 
 # Director handoff bundle — merged then deleted; never tracked
 FinCompass-Complete-Documentation-and-Implementation-Handoff/
+
+# Cloud hosting setup bundle — applied as an overlay, then deleted
+FinCompass-Cloud-Run-Firebase-Setup/

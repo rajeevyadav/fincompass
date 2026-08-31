@@ -23,7 +23,7 @@ from typing import Callable, Deque, Dict, Optional, Tuple
 from fastapi import HTTPException, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from config import AUDIT_IP_MODE, AUDIT_LOG_MAX_BYTES, DATA_DIR, DB_PATH, RATE_LIMIT_BACKEND, REDIS_URL
+from config import AUDIT_IP_MODE, AUDIT_LOG_ENABLED, AUDIT_LOG_MAX_BYTES, DATA_DIR, DB_PATH, HOSTED_MODE, RATE_LIMIT_BACKEND, REDIS_URL
 
 logger = logging.getLogger("FinCompass.Guardrails")
 
@@ -248,6 +248,8 @@ def audit_log(
     client_ip: str,
     extra: Optional[dict] = None,
 ) -> None:
+    if not AUDIT_LOG_ENABLED:
+        return
     try:
         DATA_DIR.mkdir(exist_ok=True)
         client_id = _audit_client_id(client_ip)
@@ -271,6 +273,12 @@ def audit_log(
 
 
 def _csp_for(path: str) -> str:
+    if HOSTED_MODE and path != "/docs":
+        return (
+            "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; "
+            "connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; "
+            "font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+        )
     # FastAPI's generated docs currently use jsDelivr assets. The application
     # itself is fully local and gets the stricter self-only policy.
     if path == "/docs":

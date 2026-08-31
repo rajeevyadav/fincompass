@@ -38,6 +38,8 @@ REDIS_URL = os.getenv("REDIS_URL", "").strip()
 # rotating daily hash; set AUDIT_IP_MODE=raw only when an operator explicitly
 # needs raw addresses for incident response.
 AUDIT_IP_MODE = os.getenv("AUDIT_IP_MODE", "hash").strip().lower()
+AUDIT_LOG_ENABLED = os.getenv("AUDIT_LOG_ENABLED", "1").strip().lower() not in {"0", "false", "no", "off"}
+HOSTED_MODE = os.getenv("FINCOMPASS_HOSTED_MODE", "0").strip().lower() in {"1", "true", "yes", "on"}
 AUDIT_LOG_MAX_BYTES = max(1_000_000, int(os.getenv("AUDIT_LOG_MAX_BYTES", "5000000")))
 
 # Paths

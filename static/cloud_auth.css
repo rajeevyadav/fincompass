@@ -1,0 +1,25 @@
+.fc-auth-button {
+  position: fixed; top: 12px; right: 14px; z-index: 1200;
+  max-width: min(44vw, 360px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.fc-auth-backdrop {
+  position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center;
+  background: rgba(5, 12, 24, .72); padding: 20px;
+}
+.fc-auth-backdrop[hidden] { display: none; }
+.fc-auth-panel {
+  position: relative; width: min(440px, 100%); border-radius: 16px; padding: 24px;
+  background: var(--card, #fff); color: var(--text, #101828); box-shadow: 0 22px 60px rgba(0,0,0,.28);
+}
+.fc-auth-panel h2 { margin: 0 36px 10px 0; }
+.fc-auth-panel label { display: grid; gap: 6px; margin: 14px 0; font-weight: 600; }
+.fc-auth-panel input { min-height: 42px; padding: 8px 10px; font: inherit; }
+.fc-auth-close { position: absolute; top: 10px; right: 12px; font-size: 26px; background: transparent; border: 0; }
+.fc-auth-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.fc-auth-privacy, .fc-auth-note { line-height: 1.45; }
+.fc-auth-note { font-size: .88rem; opacity: .78; }
+.fc-auth-message { min-height: 1.3em; color: #b42318; }
+@media (max-width: 560px) {
+  .fc-auth-actions { grid-template-columns: 1fr; }
+  .fc-auth-button { position: static; float: right; margin: 8px 10px; max-width: 90vw; }
+}

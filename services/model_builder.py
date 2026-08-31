@@ -78,6 +78,13 @@ def _write_diagnostic(output_root: Path, experiment_id: str, recipe: Dict[str, A
 BUILD_OUTPUT_DIR = DATA_DIR / "forecast-build"
 VALID_PROFILES = ("strict", "standard", "exploratory")
 DEFAULT_RECIPE_ID = "core-us-6m"
+
+# Model families that ship as research alternatives only: they have a real
+# offline trainer but no runtime retraining contract, are not Guided-eligible,
+# and must never be silently rerouted to a different trainer at build time. The
+# regime-aware HMM family is deliberately in this set; promoting it to a
+# maintained runtime family would require its own lineage/evidence contract.
+RESEARCH_ONLY_FAMILIES = frozenset({"bayesian_regime"})
 RECIPE_SETTING_OVERRIDE_ALLOWLIST = {"sample_step_trading_days", "embargo_trading_days"}
 
 
@@ -334,6 +341,13 @@ def _worker(
         # retained as a Limited-evidence (bayesian_baseline) candidate rather than
         # rejected.
         trainer_family = str(recipe.get("trainer_family") or "enhanced_ensemble")
+        if trainer_family in RESEARCH_ONLY_FAMILIES:
+            # The regime family ships as a research alternative only: it has no
+            # runtime retraining contract, so it must not be silently rerouted to
+            # a different trainer. Refuse explicitly; the update endpoint turns this
+            # into a "kept the current model" response rather than a failure.
+            raise ValueError(
+                f"The {trainer_family} family is research-only and cannot be retrained in-app.")
         if trainer_family == "bayesian_reference":
             model, report, predictions = train_validate_bayesian_reference(train, validation, test, frozen_manifest, settings)
         else:

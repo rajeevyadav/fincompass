@@ -125,3 +125,6 @@ docs/**/*.bbl
 
 # Canonical documentation source package (draw from selectively; not committed wholesale)
 FinCompass-Canonical-Documentation-Production/
+
+# Director handoff bundle — merged then deleted; never tracked
+FinCompass-Complete-Documentation-and-Implementation-Handoff/

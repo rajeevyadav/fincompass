@@ -21,7 +21,8 @@ def build_forecast_plan(ticker: str, horizon_months: int = 12) -> Dict[str, Any]
     selected_info = select_model(instrument, benchmark, horizon_months) if benchmark.get("supported") else {"selected": None, "eligible": [], "rejected": []}
     selected = selected_info.get("selected")
     preflight = evaluate_preflight(instrument, benchmark, selected, data_ready=data_ready)
-    freshness = evaluate_model_freshness(selected, instrument["symbol"]) if selected else None
+    benchmark_symbol = str(benchmark.get("symbol") or "") if benchmark.get("supported") else None
+    freshness = evaluate_model_freshness(selected, instrument["symbol"], benchmark_symbol) if selected else None
     # A pooled model can forecast a valid, in-domain instrument by fetching the
     # required history on demand — local store coverage is only needed for the
     # richer Live tracking, not for a one-shot forecast. So a producible forecast
@@ -45,8 +46,13 @@ def build_forecast_plan(ticker: str, horizon_months: int = 12) -> Dict[str, Any]
     # model's explicit training contract — never inferred. A stale-but-valid model
     # keeps forecasting; an update is optional maintenance, never a prerequisite.
     contract = (selected or {}).get("training_contract") or {}
-    stale = bool(freshness and freshness.get("status") in {"retrain_recommended", "stale"})
-    model_update_available = bool(contract.get("retrain_supported")) and stale
+    # An update is offered only when the model's own family corpus has actually
+    # accumulated new, label-matured data (retrainability) and the training
+    # contract permits retraining. The viewed ticker's own recency never enters
+    # this decision, so a new in-domain ticker cannot make the model look stale.
+    retrainability = (freshness or {}).get("retrainability") or {}
+    model_update_available = bool(contract.get("retrain_supported")) and bool(retrainability.get("update_available"))
+    model_update_recommended = bool(contract.get("retrain_supported")) and bool(retrainability.get("update_recommended"))
     return {
         "instrument": instrument,
         "horizon_months": int(horizon_months),
@@ -59,6 +65,7 @@ def build_forecast_plan(ticker: str, horizon_months: int = 12) -> Dict[str, Any]
         "can_forecast_now": action == "forecast",
         "data_update_available": (not data_ready),
         "model_update_available": model_update_available,
+        "model_update_recommended": model_update_recommended,
         "model_update_required": False,
         "training_contract": contract or None,
         "eligible_model_count": len(selected_info.get("eligible") or []),

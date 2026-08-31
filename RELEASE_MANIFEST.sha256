@@ -217,7 +217,7 @@ d2030cef07a5af539115e7e94a0d31dc8767aa9443d119f219a909c6196ffd3e  ./site/assets/
 8e8dbbb7c377f1e2ca63ba2f7b481990125de19c6536c6a64f9c40a598ab5e56  ./site/assets/pipeline.svg
 2c8cdf687060326e3698094958d57129e949421889923775c9ad50fd64c468fb  ./site/index.html
 4377ae65662753ac8bb1abdf316085bbf5e2abd916832a72f7e867a176533e1a  ./static/app.css
-cc1e4b39f9e887679b671f36b6096e169529ce80ce1ee2f1e0c132570882a9e7  ./static/app.js
+9a67bc0c3c23a16a88ecf4f0cff1810d36ed86abef9054651584156501a8893f  ./static/app.js
 4a4c94e676db303c738bc5f3d672d2e71238166b943564914fc7dbcc0fa9ae40  ./static/index.html
 a9f4b017fa5a7a5f6eca72ce8ff36f02d2130e333ef29e91077eae601b8d64c0  ./static/vendor/swagger-ui-bundle.js
 fb0f48c3ed5f8b978174aac9103b150ca5cacb40b637590b390794809925e4df  ./static/vendor/swagger-ui.css
@@ -276,6 +276,7 @@ afb4b508326e35f045d9c6a430e10c29832de561152a2556d7b74fcc6b674bf9  ./tests/test_s
 706398c4fa92e1e52b3fbaa757f9cb7c5c2da135125f6d2af2a6351d199b975d  ./tests/test_training_gate.py
 a5e69a3bf3b02071e8b14223f0a7f133813b449fc1b4cd9d54b0104602d2296d  ./tests/test_training_readiness.py
 aee732aa22fa0f01c28d18b06f1ea77f1252adf980477be5a4ffa91f89bbfbda  ./tests/test_training_status.py
+3f2ab047d57c6345916b84fcbd697389f45f24f9b0e3ac79678f577243d7ade3  ./tests/test_update_failsafe.py
 16c642ef0f4e5ff51f88810fe8f1f37d3572adcc5f6d6a5e0378ab3729d2539e  ./tests/test_v2_lifecycle.py
 23567b084195e545a186a490ab4bb3d1af08305a9d1051ee77aa6ea6428f8cd0  ./tests/test_v2_planning.py
 45761ee269861f51d3e23a0daf1e45e14b432fa878f2eefa4b42c61d00f4e3c3  ./tests/test_valuation.py

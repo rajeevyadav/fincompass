@@ -320,7 +320,9 @@ def release_manifest_scan():
         "forecasting/model.py", "forecasting/recipes.py", "tools/build_builtin_seed.py",
         "tools/generate_release_manifest.py", "tools/package_source.py", "tools/verify_release.py",
         "docs/USER_MANUAL.md", "docs/FinCompass-User-Manual.pdf",
-        "paper/main.tex", "paper/arxiv-manuscript-final.pdf",
+        "docs/FinCompass-User-Guide.pdf", "docs/user-guide/main.tex",
+        "paper/main.tex", "paper/FinCompass-Technical-Manuscript.pdf",
+        "paper/arxiv/main.tex",
     }
     missing = sorted(required - set(entries))
     if missing:

@@ -1,4 +1,4 @@
-"""action_policy_v1: table-driven verification of the five-verb citizen policy.
+"""action_policy_v1: table-driven verification of the five-verb interpretation policy.
 
 No model is trained here. The policy maps (probability, tier, safety, position,
 data) to exactly one verb, and Limited evidence may only ever Watch.
@@ -52,7 +52,7 @@ def test_result_declares_policy_id_and_branch():
     out = A.decide_action(0.61, "validated_research", position_weight=0.05)
     assert out["action_policy_id"] == "action_policy_v1"
     assert out["branch"] == "research_prob_at_or_above_bar"
-    assert out["citizen_sentence"] and out["disclaimer"] == "Not advice. A guess can be wrong."
+    assert out["plain_language_summary"] and out["disclaimer"] == "Not advice. A guess can be wrong."
 
 
 def test_changing_a_threshold_would_be_a_new_policy_version():

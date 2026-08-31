@@ -988,7 +988,7 @@ def model_lab_recipes_v4(request: Request):
         if row.get("live_eligible_target") is not False and (row.get("readiness") or {}).get("trainable")
     ]
     if live_ready:
-        # Keep the novice default stable and interpretable: prefer the core
+        # Keep the default selection stable and interpretable: prefer the core
         # six-month contract when it is ready, then rank other live-eligible
         # recipes by local target coverage. Research mode still exposes every
         # recipe explicitly.

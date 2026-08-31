@@ -92,7 +92,7 @@ The same probability `p`, rendered two ways.
 
 If Guided and Research ever disagree on `p`, the product is wrong.
 
-The citizen action is a declared, versioned [action policy](services/action_policy.py) that sits *on* the probability — it never changes `p`, never says "buy all", and never auto-sizes a position.
+The practical posture is a declared, versioned [interpretation policy](services/action_policy.py) that sits *on* the probability — it never changes `p`, is not part of model validation, never says "buy all", and never auto-sizes a position. Its thresholds are separately versioned policy assumptions, not statistical results.
 
 ---
 

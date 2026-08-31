@@ -88,8 +88,8 @@ def forecast_ticker(ticker: str, model_id: Optional[str] = None, profile_name: O
     asof = pd.Timestamp(sample.index[-1]).date().isoformat()
     target = manifest.get("target") or {}
     tier = manifest.get("validation_tier")
-    # The citizen action is a declared policy applied to this probability. It is
-    # not part of the model and never changes p. Limited evidence may only Watch.
+    # The interpretation policy is a declared posture applied to this probability.
+    # It is not part of the model and never changes p. Limited evidence may only Watch.
     action = decide_action(prediction.get("probability_outperform"), tier, data_ok=True)
     return {
         "available": True,

@@ -1,9 +1,9 @@
 \documentclass[11pt]{article}
 \usepackage[margin=0.85in]{geometry}
 \usepackage[T1]{fontenc}
-% newtx not in this TeX Live; use Computer Modern\n\usepackage{lmodern}
-% \usepackage{microtype}
-\usepackage{amsmath,amssymb,bm}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,bm}
 \usepackage{booktabs,longtable,tabularx,array,multirow}
 \usepackage{enumitem}
 \usepackage{graphicx}
@@ -15,6 +15,10 @@
 \usepackage{xurl}
 \usepackage{fancyhdr}
 \usepackage{caption}
+\usepackage{float}
+\usepackage{placeins}
+\usepackage{makecell}
+\graphicspath{{figures/}}
 \hypersetup{hidelinks,pdfauthor={Rajeev Yadav, Ph.D.},pdftitle={FinCompass: Bayesian Probabilistic Forecasting with Evidence-Tiered Validation and Governed Live Adaptation}}
 \setlength{\parindent}{1.1em}
 \setlength{\parskip}{0.25em}
@@ -37,58 +41,57 @@
 \maketitle
 
 \begin{abstract}
-Anyone who has shipped a forecasting tool has felt this tension. If every fitted model is accepted, the system risks presenting unstable scores as probabilities. If every model that misses a demanding predictive-skill threshold is discarded, the user may be left with no forecast even when a coherent, leakage-controlled, calibrated Bayesian model exists. This paper lays out a layered design that keeps four questions apart: whether the data and computation are valid, whether a probability model is estimable, whether stronger out-of-sample predictive evidence has been demonstrated, and whether the data provenance supports stronger market-grade claims. The implementation combines a regularized Bayesian logistic reference model, an experimental regime-aware Bayesian extension, a stronger nonlinear ensemble, explicit applicability contracts, purged chronological validation, calibration, proper scoring rules, block-bootstrap uncertainty, walk-forward stability, model freshness, immutable retraining candidates, explicit replacement, and a separately governed Live residual. The system also contains a provider-independent analytical layer for performance, risk, normalized statements, ratios, valuation, fixed income, options, portfolio analytics, factors and technical indicators. The analytical layer is deliberately kept separate from the forecasting feature set unless a feature is explicitly registered, point-in-time reviewed, trained and validated. Reference results are reported to demonstrate the software and governance framework rather than to claim durable alpha. The paper closes with implementation failure modes, acceptance criteria for new-ticker forecasting, and the distinction between a statistically usable probability, demonstrated predictive skill, and a trading recommendation.
+Financial forecasting software faces a practical scientific tension. If every fitted model is accepted, the system risks presenting unstable scores as probabilities. If every model that misses a demanding predictive-skill threshold is discarded, the user may be left with no forecast even when a coherent, leakage-controlled, calibrated Bayesian model exists. This manuscript develops a layered architecture for probabilistic market research that separates four questions: whether the data and computation are valid, whether a probability model is estimable, whether stronger out-of-sample predictive evidence has been demonstrated, and whether the data provenance supports stronger market-grade claims. The implementation combines a regularized Bayesian logistic reference model, an experimental regime-aware Bayesian extension, a stronger nonlinear ensemble, explicit applicability contracts, purged chronological validation, calibration, proper scoring rules, block-bootstrap uncertainty, walk-forward stability, model freshness, immutable retraining candidates, explicit replacement, and a separately governed Live residual. The system also contains a provider-independent analytical layer for performance, risk, normalized statements, ratios, valuation, fixed income, options, portfolio analytics, factors and technical indicators. The analytical layer is deliberately kept separate from the forecasting feature set unless a feature is explicitly registered, point-in-time reviewed, trained and validated. Reference results are reported to demonstrate the software and governance framework rather than to claim durable alpha. The paper closes with implementation failure modes, acceptance criteria for new-ticker forecasting, and the distinction between a statistically usable probability, demonstrated predictive skill, and a trading recommendation.
 \end{abstract}
 
 \noindent\textbf{Keywords:} Bayesian forecasting; probability calibration; Brier score; temporal validation; hidden Markov model; model governance; online learning; point-in-time data; financial analytics.
 
-\paragraph{How to Read This Paper.}
-The first half is the product argument: what a usable forecast is, what event is being estimated, and why validity, skill and market-grade evidence are different questions. The middle is the model stack and the validation contract. The last third is operational: freshness, retraining, Live adaptation, analytics that must not leak into the model, and the acceptance tests a reviewer can actually run. Tables in the results section are reference evidence for the software, not a claim that the bundled sample predicts markets in general.
-
 \section{Introduction}
-The first product question is deceptively simple: when is a model \emph{usable}? In many software systems the answer is implicitly binary. A model is trained, a validation gate is evaluated, and the model either passes or disappears. That binary is convenient for software. It is a poor scientific contract, because it folds several different questions into one switch.
+A financial forecasting application must answer a deceptively simple question: what does it mean for a model to be \emph{usable}? In many software systems the answer is implicitly binary. A model is trained, a validation gate is evaluated, and the model either passes or disappears. This is attractive from a software perspective because the state machine is simple. The scientific cost of that compression is well documented in forecast evaluation and in the financial backtesting literature \citep{gneiting2007proper,white2000reality,bailey2014overfit,bailey2017pbo,harvey2016crosssection}. It is less satisfactory scientifically because several distinct questions are compressed into one decision.
 
 A model can be invalid because the target leaks future information, because the chronological split is broken, because the optimizer does not converge, because the posterior covariance is non-finite, because the model is applied to an unsupported market, or because the probability output cannot be reconstructed from the declared features. Those are hard failures. They should block a forecast.
 
 A different situation occurs when the construction is valid but the model does not materially improve on an unconditional reference forecast. In that case the correct conclusion is not automatically ``the model does not exist.'' The more defensible conclusion is that the probability estimate has limited demonstrated predictive evidence. The system may still expose it as a baseline, provided that the limitation is explicit and stronger model tiers remain subject to stronger gates.
 
-The architecture follows from that distinction. The central principle is
+This paper describes the resulting architecture. The central principle is
 \begin{equation}
 \text{model validity}\neq\text{predictive skill}\neq\text{market-grade evidence}.
 \end{equation}
-The practical consequence is a model ladder rather than a single pass/fail state. The ladder begins with a simple reference probability, progresses through a regularized Bayesian model and a regime-aware research extension, and permits stronger nonlinear models only when they demonstrate incremental value under a protected temporal evaluation protocol.
+The practical consequence is a model ladder rather than a single pass/fail state. Shrinkage and regularization for the reference model follow the usual high-dimensional logic \citep{hoerl1970ridge,tibshirani1996lasso,gelman2013book}. Regime structure, when used, follows the classical hidden-Markov / Markov-switching tradition \citep{hamilton1989regime,rabiner1989hmm,ang2002regime}. Nonlinear components, when admitted, use ensemble learners with complexity control \citep{breiman2001random,friedman2001greedy}. The ladder begins with a simple reference probability, progresses through a regularized Bayesian model and a regime-aware research extension, and permits stronger nonlinear models only when they demonstrate incremental value under a protected temporal evaluation protocol.
 
-\section{Product Boundary and Analytical Planes}
+\section{Product boundary and analytical planes}
 \FC\ is organized into three deliberately separated analytical planes plus a deterministic analytics library.
 
 \begin{figure}[ht]
 \centering
-\begin{tikzpicture}[
-  font=\small,
-  box/.style={draw,rounded corners,align=center,minimum width=38mm,minimum height=11mm,inner sep=3pt},
-  arr/.style={-{Latex[length=2.2mm]},thick}
-]
+\begin{tikzpicture}[node distance=7mm and 10mm, every node/.style={font=\small}, box/.style={draw,rounded corners,align=center,minimum width=30mm,minimum height=9mm}, arr/.style={-{Latex[length=2mm]},thick}]
 \node[box] (current) {Current public\\fundamentals and macro};
-\node[box, right=16mm of current] (evidence) {Evidence engine\\0--10 research score};
-\node[box, below=14mm of current] (hist) {Historical point-in-time\\research corpus};
-\node[box, right=16mm of hist] (features) {Feature builder\\and dataset};
-\node[box, right=16mm of features] (anchor) {Forecast ladder\\locked test};
-\node[box, below=14mm of features] (events) {Market, filing and\\macro event store};
-\node[box, right=16mm of events] (live) {Governed Live\\frozen anchor + residual};
+\node[box, right=of current] (evidence) {Evidence engine\\0--10 research score};
+\node[box, below=12mm of current] (hist) {Historical point-in-time\\research corpus};
+\node[box, right=of hist] (features) {Feature builder\\temporal dataset};
+\node[box, right=of features] (anchor) {Forecast model ladder\\calibration + locked test};
+\node[box, below=12mm of anchor] (live) {Governed Live residual\\fresh events + delayed labels};
+\node[box, left=of live] (events) {Market / filing / macro\\event store};
 \draw[arr] (current)--(evidence);
 \draw[arr] (hist)--(features);
 \draw[arr] (features)--(anchor);
-\draw[arr] (anchor)--(live);
 \draw[arr] (events)--(live);
+\draw[arr] (anchor)--(live);
 \end{tikzpicture}
-\caption{Four planes stay separate: current evidence scoring, historical forecasting, governed Live, and (not drawn) deterministic analytics. Analytics never become Forecast features unless a versioned contract admits them.}
+\caption{High-level separation of evidence scoring, historical forecasting, and adaptive Live behavior. The deterministic analytics library supplies calculations but does not automatically become a forecast feature source.}
 \end{figure}
 
 The evidence engine summarizes currently observed information across Quality, Financial Durability, Safety, Valuation and Cycle. Its posterior is about an evidence score, not a future return. The forecast plane estimates the probability of a precisely defined forward event. The Live plane begins from a frozen forecast anchor and may apply a bounded residual only after a separate sequential validation gate becomes active. A fourth library provides deterministic analytics that are useful for interpretation but remain outside the model unless explicitly admitted through a feature-governance process.
 
-The split is not a slide-deck convenience. It prevents a common category error: treating every available analytical metric as a predictor. A DCF value, a Sharpe ratio, a technical indicator and a forecast probability answer different questions and have different data requirements.
+This separation is not merely organizational. It prevents a common category error: treating every available analytical metric as a predictor. A DCF value, a Sharpe ratio, a technical indicator and a forecast probability answer different questions and have different data requirements.
 
-\section{Forecast Target and Event Semantics}
+\section{Forecast target and event semantics}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.82\textwidth]{probability_meaning.png}
+\caption{Event semantics. $p$ is $\Prb(Y=1\mid\mathcal{F}_t)$ for a benchmark-relative, horizon-specific indicator, not an expected return.}
+\end{figure}
+
 Let $i$ index an instrument, $b$ a benchmark, $t$ the observation date, and $H$ the forecast horizon. Let $\tau_H(t)$ denote the exact horizon endpoint under the declared session convention. Define forward returns
 \begin{align}
 R_{i,t}^{(H)} &= \frac{P_i(\tau_H(t))}{P_i(t)}-1,\\
@@ -106,13 +109,13 @@ where $\mathcal{F}_t$ contains only information observable by time $t$.
 
 Three details are essential.
 
-\paragraph{Benchmark Dependence.} The probability is benchmark-relative. A 60\% probability of outperforming the S\&P 500 is not equivalent to a 60\% probability of a positive absolute return.
+\paragraph{Benchmark dependence.} The probability is benchmark-relative. A 60\% probability of outperforming the S\&P 500 is not equivalent to a 60\% probability of a positive absolute return.
 
-\paragraph{Horizon Dependence.} A six-month model and a twelve-month model estimate different events. One cannot substitute for the other merely because both are trained on the same security.
+\paragraph{Horizon dependence.} A six-month model and a twelve-month model estimate different events. One cannot substitute for the other merely because both are trained on the same security.
 
-\paragraph{Label Maturity.} A row observed at time $t$ has no supervised label until the exact endpoint $\tau_H(t)$ exists. A data refresh may create new features immediately, but it cannot manufacture a future outcome before the horizon matures. This distinction is central to both offline retraining and Live adaptation.
+\paragraph{Label maturity.} A row observed at time $t$ has no supervised label until the exact endpoint $\tau_H(t)$ exists. A data refresh may create new features immediately, but it cannot manufacture a future outcome before the horizon matures. This distinction is central to both offline retraining and Live adaptation.
 
-\section{Applicability as Part of the Scientific Contract}
+\section{Applicability as part of the scientific contract}
 Computational compatibility is not the same as scientific applicability. A model can calculate features for an instrument and still be inappropriate for that instrument. Every forecast artifact therefore declares an applicability domain including, at minimum:
 \begin{itemize}[itemsep=0.2em]
 \item asset class;
@@ -127,8 +130,8 @@ Computational compatibility is not the same as scientific applicability. A model
 
 The resolver first classifies the instrument, then chooses a benchmark policy, then searches only model families that match the declared domain. This design enables pooled family models without pretending that one universal model applies to every market. A newly entered US common stock can use a pooled US-equity family model even if the ticker was not itself in the original training set, but a Canadian equity, bond ETF, commodity proxy or cryptoasset must not silently inherit that model.
 
-\section{Data Architecture and Provenance}
-\subsection{Durable Local Research Store}
+\section{Data architecture and provenance}
+\subsection{Durable local research store}
 The forecasting pipeline uses a durable local research corpus that is separate from the current-data cache used by the evidence workspace. Acquisition and training are separate operations. Training never downloads data implicitly. This makes experiments reproducible and allows the user to inspect exactly what corpus was used.
 
 The update pattern is incremental:
@@ -144,13 +147,13 @@ The update pattern is incremental:
 
 The accumulated corpus is used for retraining. The delta alone is never treated as the full training set.
 
-\subsection{Point-in-Time Fundamentals}
+\subsection{Point-in-time fundamentals}
 A financial statement value becomes usable only when it was public. For SEC-derived features, filing availability dates are therefore more important than fiscal period-end dates. The as-of merge must use the filing timestamp so that a December year-end result filed in February is not available to a January forecast. This is a standard source of look-ahead bias in financial backtests.
 
-\subsection{Price-Basis Consistency}
+\subsection{Price-basis consistency}
 Mixing raw and adjusted prices can create artificial returns. The research store records the price basis and treats an overlap conflict as a data integrity event. If a symbol changes basis, the safe response is to rebuild that symbol on one coherent basis rather than append incompatible observations.
 
-\section{Feature Construction}
+\section{Feature construction}
 The reference forecasting features are deliberately compact. The exact contract is versioned. A typical monthly relative-return contract includes:
 \begin{itemize}[itemsep=0.15em]
 \item relative returns over multiple lookbacks;
@@ -168,7 +171,7 @@ All price features are backward-looking. The forward shift is confined to target
 
 The feature policy intentionally rejects the idea that hundreds of available analytics should automatically enter the model. Feature proliferation increases search degrees of freedom and therefore the risk of backtest overfitting \citep{white2000reality,harvey2016crosssection,bailey2017pbo}. A deterministic metric becomes a model feature only after it receives a versioned definition, point-in-time review, missing-data policy, experiment record and proper temporal validation.
 
-\section{Bayesian Reference Model}
+\section{Bayesian reference model}
 For standardized feature vector $x$, the reference model is
 \begin{equation}
 \Prb(Y=1\mid x,\beta)=\sigmoid(\beta_0+x^\top\beta).
@@ -204,7 +207,7 @@ Both are proper scoring rules \citep{brier1950verification,gneiting2007proper}. 
 
 Calibration should not be treated as a cosmetic post-processing step. A model can rank observations reasonably well and still produce poor probabilities. Conversely, a low AUC model can be well calibrated but provide little discriminatory value. A probability system should report both dimensions.
 
-\section{Regime-Aware Bayesian Model}
+\section{Regime-aware Bayesian model}
 Financial relationships can vary across market environments. The regime-aware extension introduces a latent state $S_t$ estimated from benchmark-only, backward-looking features. A simple three-state Gaussian hidden Markov model is sufficient for the first research layer:
 \begin{equation}
 S_t\in\{1,2,3\},\qquad \Prb(S_t\mid S_{t-1})=A_{S_{t-1},S_t}.
@@ -219,7 +222,7 @@ where $\pi_t$ contains filtered state probabilities. Filtering, not smoothing, i
 
 The regime model is not automatically preferred. It is a candidate in the model ladder and must demonstrate incremental value. This is important because adding latent states increases flexibility and can degrade calibration even when it improves fit.
 
-\section{Enhanced Nonlinear Model}
+\section{Enhanced nonlinear model}
 The enhanced model combines a Bayesian logistic component, histogram gradient boosting and a regularized random forest. Each component is calibrated on a dedicated chronological stage. Non-negative ensemble weights that sum to one are learned on a separate stacking stage, followed by a final calibration stage.
 
 The validation region is therefore partitioned into distinct roles rather than reused repeatedly. The locked test never participates in feature selection, calibration choice, weight fitting or threshold tuning.
@@ -231,18 +234,18 @@ The enhanced model is evaluated against two references:
 \end{enumerate}
 A more complex model is retained only when the extra complexity is justified by more robust predictive evidence.
 
-\section{Temporal Validation}
+\section{Temporal validation}
 Random train/test splitting is inappropriate for overlapping long-horizon financial labels. The system uses chronological partitions with target-end purging and an embargo. Rows whose forward label crosses a later fitting boundary are removed from the earlier partition.
 
 The locked test is a protected resource. Repeatedly changing features or hyperparameters in response to locked-test results turns the locked test into another validation set. The process therefore separates development from final evaluation and records the exact split dates and row counts.
 
-\subsection{Walk-Forward Stability}
+\subsection{Walk-forward stability}
 A single locked-test average can hide instability. Purged walk-forward evaluation checks whether the sign and magnitude of skill are reasonably persistent across later windows. The objective is not to guarantee future stability but to reject candidates whose apparent average performance is driven by one isolated period.
 
-\subsection{Block Bootstrap}
+\subsection{Block bootstrap}
 Long-horizon labels overlap in time and same-date cross-sectional observations are correlated. The bootstrap therefore resamples blocks of observation dates while keeping the same-date cross-section together. This provides uncertainty bounds that are more conservative than an iid row bootstrap \citep{kunsch1989jackknife,politis1994stationary}.
 
-\section{Validity Gates and Evidence Tiers}
+\section{Validity gates and evidence tiers}
 The model state machine separates hard validity from stronger evidence.
 
 \begin{longtable}{p{0.18\textwidth}p{0.42\textwidth}p{0.15\textwidth}p{0.15\textwidth}}
@@ -263,7 +266,7 @@ Predictive evidence includes Brier skill, log-loss skill, AUC, ECE, calibration 
 
 This distinction protects both usability and scientific honesty. It prevents the system from manufacturing a strong claim by weakening gates, while also preventing every weak-but-valid Bayesian model from being mislabeled as a software failure.
 
-\section{Model Selection and the Model Ladder}
+\section{Model selection and the model ladder}
 The default selection order is:
 \begin{equation}
 \text{validated market}\;>\;\text{validated research}\;>\;\text{Bayesian baseline}.
@@ -272,21 +275,21 @@ Selection is restricted to the exact applicability domain and requested horizon.
 
 The model ladder is important operationally because the user should not have to train a bespoke model for every new supported ticker. The model family is pooled. New ticker data are needed to construct current features; they are not necessarily needed to retrain the family model before a first forecast can be produced.
 
-\section{Freshness: Three Concepts, Not One}
+\section{Freshness: three concepts, not one}
 A robust implementation must separate three freshness questions.
 
-\subsection{Instrument-Data Freshness}
+\subsection{Instrument-data freshness}
 Can the current ticker and benchmark supply enough recent observations to construct today's features?
 
-\subsection{Model-Training Freshness}
+\subsection{Model-training freshness}
 How old is the actual training corpus used to fit the pooled family model?
 
-\subsection{Retrainability Freshness}
+\subsection{Retrainability freshness}
 How many new eligible family observations and matured labels exist after the model's training cutoff?
 
 These are not interchangeable. A newly entered ticker can have current data through 2026 while the family model was trained through 2022. The ticker's recency does not itself prove that a retrain is required before forecasting. A stale-but-hard-valid model can remain forecast-eligible with a warning while an update is recommended separately.
 
-\section{Retraining and Immutable Candidates}
+\section{Retraining and immutable candidates}
 Retraining uses the accumulated local corpus. If $D_0$ is the historical corpus and $\Delta D$ the verified update,
 \begin{equation}
 D_{new}=D_0\cup \Delta D\cup D_{accepted\ revisions}.
@@ -297,7 +300,7 @@ A retrain never overwrites the current model. If $M_1$ is current and retraining
 
 A retraining contract should be explicit in the manifest. Display names and profile names are not training recipes. The contract should declare the trainer family, recipe ID, horizon, benchmark family, feature contract and whether runtime retraining is supported.
 
-\section{Failure-Safe Guided Behavior}
+\section{Failure-safe Guided behavior}
 The user-facing workflow should be resilient to model-maintenance failure. The correct logic is:
 \begin{quote}
 If a hard-valid applicable model exists, Forecast remains available. Model maintenance may be recommended, but an unsuccessful optional update must fall back to the current model rather than strand the user.
@@ -305,32 +308,32 @@ If a hard-valid applicable model exists, Forecast remains available. Model maint
 
 This leads to a capability-oriented planner with fields such as \texttt{can\_forecast\_now}, \texttt{can\_start\_live\_now}, \texttt{model\_update\_available}, and \texttt{model\_update\_required}. A single maintenance action should not accidentally become a blocking prerequisite.
 
-\section{Live Architecture}
-\subsection{Frozen Anchor}
+\section{Live architecture}
+\subsection{Frozen anchor}
 Live begins from the selected forecast probability $p_0$. The anchor is frozen for that forecast instance.
 
-\subsection{Event Vector}
+\subsection{Event vector}
 Fresh market, filing and macro context is transformed into a separately governed event vector $z_t$. The adaptive candidate is
 \begin{equation}
 \logit(p_{cand,t})=\logit(p_0)+\delta(z_t).
 \end{equation}
 The residual is bounded in log-odds space, and the final probability is clipped to configured limits.
 
-\subsection{Delayed Learning}
+\subsection{Delayed learning}
 Fresh events can change the candidate immediately, but model parameters update only after the original forward target matures. Each pending observation stores the ticker, benchmark, base model ID, settings fingerprint, observation date, entry prices, anchor probability, candidate probability, feature vector, horizon and hurdle.
 
 When the exact horizon endpoint becomes available, the outcome is resolved using the H-th common trading session rather than whatever price happens to be latest at processing time. This preserves the original target definition.
 
-\subsection{Prequential Gate}
+\subsection{Prequential gate}
 Adaptive influence requires sufficient matured observations, sufficient unique observation dates, minimum elapsed span, date-balanced Brier/log-loss non-inferiority, acceptable calibration error, fresh sources and no active drift alert. Otherwise the applied residual is zero and the display falls back to the frozen anchor. This is a prequential predict-before-update design in the sense of \citet{dawid1984prequential}.
 
-\subsection{Baseline Live Tracking}
+\subsection{Baseline Live tracking}
 A Bayesian baseline can be tracked in Live without activating adaptive learning. In that mode the current and original forecast are identical, the system monitors freshness, and no pending adaptive label is created. This gives the user a coherent Live workspace without implying that a weak-evidence model has earned adaptive control.
 
-\section{Deterministic Analytics Library}
+\section{Deterministic analytics library}
 The analytical layer is provider-independent at the formula level. Providers or importers supply data; the kernel consumes canonical arrays or normalized statements. Each metric should expose a result envelope containing formula ID, period, as-of date, inputs, source references, quality flags and method version.
 
-\subsection{Performance Analytics}
+\subsection{Performance analytics}
 Examples include annualized geometric return, annualized volatility, Sharpe ratio, Sortino ratio, maximum drawdown, Calmar ratio, beta, tracking error and information ratio. These summarize historical behavior. They are not forecasts.
 
 For periodic returns $r_t$, geometric annualized return at $m$ periods per year is
@@ -342,16 +345,16 @@ Annualized volatility is
 \sigma_{ann}=s_r\sqrt{m}.
 \end{equation}
 
-\subsection{Risk Analytics}
+\subsection{Risk analytics}
 Historical and Gaussian VaR, historical expected shortfall, EWMA volatility, drawdown magnitude and drawdown duration are included. VaR is explicitly a threshold under a stated method and confidence level; it is not the maximum possible loss.
 
-\subsection{Technical Analytics}
+\subsection{Technical analytics}
 Moving averages, EMA, RSI, MACD, Bollinger Bands, ATR and related trend/volatility summaries are computed from price/volume histories. Their existence does not imply predictive value.
 
-\subsection{Normalized Statements and Ratios}
+\subsection{Normalized statements and ratios}
 Provider vocabulary is mapped into canonical income-statement, balance-sheet and cash-flow fields. Missing accounting items remain missing rather than being silently converted to zero. Derived fields are flagged as derived. Ratios include profitability, liquidity, leverage, efficiency, cash-flow and per-share measures. Non-positive or missing denominators return unavailable results rather than misleading finite values.
 
-\subsection{DCF Valuation}
+\subsection{DCF valuation}
 The unlevered FCFF identity is
 \begin{equation}
 FCFF_t=EBIT_t(1-T_t)+D\&A_t-CapEx_t-\Delta NWC_t.
@@ -362,24 +365,24 @@ EV=\sum_{t=1}^{N}\frac{FCFF_t}{(1+WACC)^t}+\frac{TV_N}{(1+WACC)^N}.
 \end{equation}
 The result is scenario dependent. Sensitivity to WACC, terminal growth and margin assumptions is therefore more informative than a single point estimate.
 
-\subsection{Fixed Income}
+\subsection{Fixed income}
 The library includes bond present value, current yield, yield to maturity, Macaulay duration, modified duration, convexity and DV01. Inputs and compounding conventions are explicit.
 
 \subsection{Options}
 European Black-Scholes-Merton pricing with continuous dividend yield and Delta, Gamma, Vega, Theta and Rho are included, together with implied-volatility inversion. These are model identities under stated assumptions, not probabilities of profit.
 
-\subsection{Portfolio Analytics}
+\subsection{Portfolio analytics}
 Portfolio return, covariance, volatility and Euler risk contributions are derived from explicit weights and historical returns or a covariance matrix. Individual security forecast probabilities are not naively averaged into a portfolio probability.
 
-\subsection{Factor Analytics}
+\subsection{Factor analytics}
 OLS factor estimation provides coefficients, standard errors, t-statistics, $R^2$, adjusted $R^2$, residuals, CAPM-style alpha/beta, named factor loadings and rolling beta. Statistical significance is not automatically investment significance, and in-sample exposure is not a forward forecast.
 
-\section{Evidence Score Versus Forecast Probability}
+\section{Evidence score versus forecast probability}
 The evidence engine and forecast engine estimate different objects. The evidence score aggregates contemporaneous evidence into a posterior distribution over a 0--10 research score. The forecast model estimates a forward event probability. A statement such as $\Prb(\text{score}\ge 8)=0.70$ must not be interpreted as a 70\% probability of future outperformance.
 
 This distinction is important in user interfaces because both outputs are percentages. The application should name the object explicitly whenever a probability is shown.
 
-\section{Reference Implementation Results}
+\section{Reference implementation results}
 The bundled reference corpus contains monthly data for eight US equities and the S\&P 500 benchmark through June 2022. It is suitable for software and research demonstrations but does not establish market-grade historical-universe controls. The following results therefore demonstrate the evidence-tier framework, not durable alpha.
 
 \begin{table}[ht]
@@ -418,7 +421,7 @@ The 24-month regime model shows slightly positive proper-score skill in this sam
 
 The stronger twelve-month enhanced model achieved approximately ROC AUC 0.576, Brier skill 0.036, log-loss skill 0.027 and ECE 0.045 on its declared locked test, allowing a validated-research classification under the configured gate. These are modest research results, not claims of universal validity or deployable alpha.
 
-\section{New-Ticker Acceptance Criterion}
+\section{New-ticker acceptance criterion}
 A practical forecasting product must be evaluated on the path a normal user actually takes. The minimum acceptance criterion for a supported new US common-stock ticker is:
 \begin{enumerate}[itemsep=0.2em]
 \item classify the instrument;
@@ -432,7 +435,7 @@ A practical forecasting product must be evaluated on the path a normal user actu
 
 If an optional model update fails scientifically, the current hard-valid forecast should remain available. This is a product-level safety property. A unit test that merely verifies the presence of an ``Update model'' button is not evidence that the workflow works.
 
-\section{Failure Modes and Defensive Behavior}
+\section{Failure modes and defensive behavior}
 Important failure modes include:
 \begin{longtable}{p{0.27\textwidth}p{0.31\textwidth}p{0.34\textwidth}}
 \toprule
@@ -452,7 +455,7 @@ Repeated locked-test tuning & Backtest overfitting & Protect locked test and rec
 \bottomrule
 \end{longtable}
 
-\section{Reproducibility and Artifact Governance}
+\section{Reproducibility and artifact governance}
 Every model artifact should bind:
 \begin{itemize}[itemsep=0.15em]
 \item serialized model hash;
@@ -471,7 +474,7 @@ Every model artifact should bind:
 
 Activation is separate from validation. A validated candidate is not automatically production-selected. Explicit activation history makes model changes auditable and reversible.
 
-\section{Interpretation Boundaries}
+\section{Interpretation boundaries}
 The system does not claim that a probability estimate is a recommendation, that a validated-research result is proof of alpha, that DCF is a target price, that VaR is the worst possible loss, that a factor loading is causal, or that a backtest result will persist.
 
 The central communication rule is proportionality between evidence and claim strength. A limited-evidence baseline should be useful without being overstated. A validated-research model can support a stronger description, but still within its dataset and applicability contract. A market-grade claim requires stronger historical-universe and point-in-time evidence.
@@ -498,50 +501,50 @@ The current reference evidence has important limitations:
 \end{itemize}
 
 
-\section{Related Methodological Foundations}
+\section{Related methodological foundations}
 The design draws on several established statistical ideas rather than a single forecasting algorithm.
 
-\subsection{Probability Forecasts and Proper Scoring}
+\subsection{Probability forecasts and proper scoring}
 A forecast probability should be evaluated as a probability, not only as a class label. The Brier score was introduced specifically for probabilistic verification \citep{brier1950verification}. Strictly proper scoring rules encourage honest probability statements because the expected score is optimized by reporting the forecaster's true predictive distribution \citep{gneiting2007proper}. This motivates the use of Brier and log-loss skill as first-class evidence rather than treating accuracy or AUC as sufficient.
 
 Calibration and sharpness are complementary. Calibration asks whether stated probabilities agree with observed frequencies, while sharpness rewards concentration subject to calibration \citep{gneiting2007calibration}. A model that always predicts the historical event rate can be well calibrated but uninformative. A model that issues extreme probabilities can appear sharp but be badly miscalibrated. The model ladder therefore compares both probability error and discrimination.
 
-\subsection{Bayesian Regularization}
+\subsection{Bayesian regularization}
 Gaussian shrinkage priors provide a direct way to control coefficient magnitude and stabilize estimation in correlated financial features. The Laplace approximation offers a practical local posterior approximation around the MAP solution. It is less computationally intensive than full MCMC while still supporting uncertainty propagation.
 
 The reference role is important. In a model-development program, a Bayesian logistic baseline establishes the performance that a more complex model must improve upon. Without a strong reference, a nonlinear model can appear impressive merely because it is compared with an unrealistically weak benchmark.
 
-\subsection{Nonlinear Ensembles}
+\subsection{Nonlinear ensembles}
 Random forests \citep{breiman2001random} and gradient boosting \citep{friedman2001greedy} can represent interactions and nonlinearities that a logistic model cannot. Their flexibility is useful but increases the risk of overfitting. Calibration is also not guaranteed. The enhanced architecture therefore calibrates components and learns ensemble weights only inside the development sample.
 
-\subsection{Hidden-State Market Models}
+\subsection{Hidden-state market models}
 Hidden Markov models provide a compact representation of changing market environments. They are attractive because financial returns and volatility exhibit regime-like behavior, but latent-state models are easy to over-interpret. The state labels have no causal meaning by themselves. The regime layer is therefore used as a filtered probabilistic feature rather than as a standalone trading rule.
 
-\subsection{Prequential Evaluation}
+\subsection{Prequential evaluation}
 The prequential principle evaluates a sequential forecaster through the sequence of predictions it actually made before observing outcomes \citep{dawid1984prequential}. This is particularly appropriate for Live adaptation. Each observation must be predicted, stored, allowed to mature, scored, and only then used for parameter updating.
 
-\subsection{Data Snooping and Multiple Testing}
+\subsection{Data snooping and multiple testing}
 Financial research is especially vulnerable to repeated search. Trying many signals, windows, transformations and model classes can generate apparently strong backtests by chance. White's Reality Check and later work on multiple testing and backtest overfitting highlight this problem \citep{white2000reality,harvey2016crosssection,bailey2017pbo}. The practical response in \FC\ is not a single statistical correction but a process: small prespecified reference features, protected locked tests, experiment recording, incremental model comparisons and separation of analytics from forecast features.
 
-\section{Data-Quality Taxonomy}
+\section{Data-quality taxonomy}
 A model tier should not depend only on test metrics. Data-quality limitations determine what claim is scientifically supportable.
 
-\subsection{Point-in-Time Availability}
+\subsection{Point-in-time availability}
 Every input must be associated with the time at which it became observable. Prices are generally straightforward at daily/monthly resolution, while statements and macro data require publication timestamps and revision awareness.
 
-\subsection{Survivorship Bias}
+\subsection{Survivorship bias}
 A training universe constructed from today's surviving companies can overstate historical performance because failed or delisted firms are missing. The validated-market tier therefore requires stronger historical-universe controls. A research model trained on a current/surviving sample can still be useful for software validation, but its evidence tier must reflect the limitation \citep{shumway1997delisting}.
 
-\subsection{Corporate Actions}
+\subsection{Corporate actions}
 Splits, dividends and other corporate actions affect return calculations. The model manifest should declare the price basis. A corpus with incomplete adjustment controls cannot support the strongest market-grade claim.
 
-\subsection{Currency and Market-Calendar Alignment}
+\subsection{Currency and market-calendar alignment}
 Cross-market models require explicit currency and calendar semantics. A Japanese equity benchmarked to a US ETF introduces exchange-rate and asynchronous-close effects. These choices belong in the target definition and cannot be hidden inside a generic ``global'' model.
 
-\subsection{Provider Revisions}
+\subsection{Provider revisions}
 Public providers may revise historical rows. The durable research store therefore journals overlap changes and retains source provenance. Silent replacement makes exact experiment reproduction impossible.
 
-\section{Engineering Architecture Mapped to Scientific Responsibilities}
+\section{Engineering architecture mapped to scientific responsibilities}
 The software structure should mirror the scientific boundaries.
 \begin{longtable}{p{0.28\textwidth}p{0.30\textwidth}p{0.34\textwidth}}
 \toprule
@@ -565,34 +568,28 @@ Analytics kernel & analytics modules & Deterministic calculations separated from
 
 This mapping helps prevent cross-layer shortcuts. For example, the planner should not invent training logic, and the registry should not infer a retraining recipe from a display label.
 
-\section{Model Maintenance as a State Machine}
+\section{Model maintenance as a state machine}
 A mature forecasting product needs an explicit maintenance state machine.
-\begin{figure}[ht]
-\centering
-\begin{tikzpicture}[
-  font=\small,
-  box/.style={draw,rounded corners,align=center,minimum width=32mm,minimum height=10mm,inner sep=3pt},
-  arr/.style={-{Latex[length=2.2mm]},thick}
-]
+\begin{center}
+\begin{tikzpicture}[node distance=8mm and 12mm, every node/.style={font=\small}, box/.style={draw,rounded corners,align=center,minimum width=26mm,minimum height=8mm}, arr/.style={-{Latex[length=2mm]},thick}]
 \node[box] (m1) {Current model $M_1$};
-\node[box, right=14mm of m1] (data) {Verified family\\data refresh};
-\node[box, right=14mm of data] (mature) {Matured labels\\only};
-\node[box, below=13mm of mature] (m2) {Immutable\\candidate $M_2$};
-\node[box, below=13mm of data] (eval) {Hard validity\\and evidence tier};
-\node[box, below=13mm of m1] (choice) {Keep $M_1$ or\\select $M_2$};
+\node[box, right=of m1] (data) {New verified data};
+\node[box, right=of data] (mature) {Matured family labels};
+\node[box, below=of mature] (m2) {Train candidate $M_2$};
+\node[box, left=of m2] (eval) {Hard validity +\\evidence classification};
+\node[box, left=of eval] (choice) {Keep $M_1$ or\\explicitly select $M_2$};
 \draw[arr] (m1)--(data);
 \draw[arr] (data)--(mature);
 \draw[arr] (mature)--(m2);
 \draw[arr] (m2)--(eval);
 \draw[arr] (eval)--(choice);
-\draw[arr,dashed] (m1)--(choice);
+\draw[arr,dashed] (m1) to[bend right=25] node[below]{remains usable during maintenance} (choice);
 \end{tikzpicture}
-\caption{Maintenance never overwrites $M_1$. The dashed path is the product safety property: Forecast stays available while a candidate is trained, rejected or not ready.}
-\end{figure}
+\end{center}
 
 The dashed path is important: maintenance must not destroy the current model. If the candidate is invalid, weak, interrupted or not ready, the current artifact remains available. A stronger candidate can be selected explicitly after comparison.
 
-\section{Why Model Update and Forecast Must be Decoupled}
+\section{Why model update and Forecast must be decoupled}
 A product can become unusable if a maintenance recommendation is treated as a prerequisite for inference. Consider a pooled model trained through 2022 and a new ticker with current prices through 2026. The ticker can provide today's feature vector even though the family model is old. If the planner interprets the ticker's current date as proof that the family model is stale and forces an update before Forecast, a retraining defect can block an otherwise valid probability.
 
 The correct design separates two statements:
@@ -602,7 +599,7 @@ The correct design separates two statements:
 \end{enumerate}
 Both can be true simultaneously.
 
-\section{Scientific Interpretation of the Reference Results}
+\section{Scientific interpretation of the reference results}
 The reference tables in this paper should be read as examples of evidence classification rather than a contest to maximize AUC.
 
 The Bayesian reference models show that a coherent model can have limited predictive value. Their existence is useful because they provide a stable reference and because they prevent the product from interpreting a weak test result as a software failure. At the same time, the negative or near-zero skill values are a warning against overstating the probabilities.
@@ -611,7 +608,7 @@ The regime-aware results show that additional structure does not guarantee impro
 
 The enhanced twelve-month result shows a modest improvement under the current research gate. Its role is not to prove that machine learning predicts markets reliably; its role is to demonstrate that the architecture can prefer a stronger exact-domain model when the evidence supports it.
 
-\section{Reproducibility Checklist for an External Reviewer}
+\section{Reproducibility checklist for an external reviewer}
 An independent reviewer should be able to reconstruct the following chain:
 \begin{enumerate}[itemsep=0.2em]
 \item identify the exact model manifest;
@@ -639,20 +636,20 @@ A probabilistic financial research system should not force a false choice betwee
 This architecture also clarifies the role of deterministic analytics: they support interpretation, scenario analysis and research, but they do not become forecast features merely because they are available. The resulting system is therefore less about finding one universally best algorithm and more about enforcing a transparent chain from data provenance to feature contract, probability model, validation evidence, applicability, model selection, maintenance and Live behavior.
 
 \appendix
-\section{Mathematical Reference}
-\subsection{Sharpe Ratio}
+\section{Mathematical reference}
+\subsection{Sharpe ratio}
 For periodic excess return $e_t=r_t-r_{f,t}$,
 \begin{equation}
 SR=\frac{\bar e}{s_e}\sqrt{m}.
 \end{equation}
 
-\subsection{Sortino Ratio}
+\subsection{Sortino ratio}
 With minimum acceptable return $MAR$ and downside deviation $DD$,
 \begin{equation}
 Sortino=\frac{R_{ann}-MAR}{DD}.
 \end{equation}
 
-\subsection{Portfolio VaRiance}
+\subsection{Portfolio variance}
 For weights $w$ and covariance matrix $\Sigma$,
 \begin{equation}
 \sigma_p^2=w^\top\Sigma w.
@@ -666,13 +663,13 @@ d_1 &= \frac{\ln(S/K)+(r-q+\tfrac12\sigma^2)T}{\sigma\sqrt{T}},\\
 d_2 &= d_1-\sigma\sqrt{T}.
 \end{align}
 
-\subsection{Bond Price}
+\subsection{Bond price}
 For face value $F$, coupon $C$, yield $y$, frequency $m$, and $n$ periods,
 \begin{equation}
 P=\sum_{k=1}^{n}\frac{C/m}{(1+y/m)^k}+\frac{F}{(1+y/m)^n}.
 \end{equation}
 
-\section{Suggested Model-Manifest Contract}
+\section{Suggested model-manifest contract}
 A retrainable artifact should include a machine-readable block of the form:
 \begin{verbatim}
 training_contract:
@@ -701,10 +698,10 @@ This prevents runtime retraining logic from inferring scientific behavior from a
 \end{description}
 
 
-\section{Formal Validation Definitions}
+\section{Formal validation definitions}
 This section collects the principal statistical quantities used by the forecast evidence contract.
 
-\subsection{Reference Probability and Brier Skill}
+\subsection{Reference probability and Brier skill}
 Let $\bar y_{dev}$ be the event rate estimated from the permitted development sample. The reference probability is $p_{ref}=\bar y_{dev}$. For a test set of size $n$,
 \begin{align}
 BS_{model} &= \frac{1}{n}\sum_{i=1}^n(p_i-y_i)^2,\\
@@ -713,27 +710,27 @@ BSS &= 1-\frac{BS_{model}}{BS_{ref}}.
 \end{align}
 Positive Brier skill indicates improvement over the reference probability on that sample. Negative skill indicates worse probability error than the reference. A small positive value should not be interpreted as economically large without uncertainty analysis.
 
-\subsection{Log-Loss Skill}
+\subsection{Log-loss skill}
 With mean log losses $LL_{model}$ and $LL_{ref}$,
 \begin{equation}
 LLS=1-\frac{LL_{model}}{LL_{ref}}.
 \end{equation}
 Because log loss strongly penalizes confident mistakes, it is useful for detecting models that appear directionally informative but are too aggressive in their probabilities.
 
-\subsection{Expected Calibration Error}
+\subsection{Expected calibration error}
 Partition predictions into bins $B_k$. If $\operatorname{conf}(B_k)$ is the mean forecast probability and $\operatorname{acc}(B_k)$ the observed event rate,
 \begin{equation}
 ECE=\sum_k\frac{|B_k|}{n}\left|\operatorname{acc}(B_k)-\operatorname{conf}(B_k)\right|.
 \end{equation}
 ECE is easy to understand but depends on binning. It is therefore interpreted alongside calibration slope/intercept and proper scores.
 
-\subsection{Calibration Slope and Intercept}
+\subsection{Calibration slope and intercept}
 A diagnostic logistic regression can relate the outcome to the logit of the forecast probability. Ideal calibration corresponds approximately to intercept zero and slope one. A slope below one often indicates over-dispersion or overconfidence; a negative slope is a severe warning that forecast ordering and outcome direction are inconsistent in the evaluation sample.
 
-\subsection{Average Precision and Class Imbalance}
+\subsection{Average precision and class imbalance}
 When the event rate differs substantially from 0.5, average precision can supplement ROC AUC because it emphasizes positive-class retrieval. Its baseline depends on event prevalence. It should not replace proper scoring rules for probability assessment.
 
-\section{Hard-Validity Checklist}
+\section{Hard-validity checklist}
 The following conditions are treated as model-existence conditions rather than predictive-skill conditions.
 \begin{longtable}{p{0.30\textwidth}p{0.62\textwidth}}
 \toprule
@@ -756,7 +753,7 @@ Provenance presence & The model must identify the source corpus and training-per
 \bottomrule
 \end{longtable}
 
-\section{Feature Dictionary for the Reference Family}
+\section{Feature dictionary for the reference family}
 The reference feature family is intentionally small enough to audit. The exact implementation contract is versioned, but the following classes capture the intended semantics.
 \begin{longtable}{p{0.26\textwidth}p{0.64\textwidth}}
 \toprule
@@ -780,7 +777,7 @@ Regime probabilities & Filtered probabilities of latent benchmark market states.
 
 A feature is not accepted merely because it has an intuitive story. The feature must have a point-in-time definition, reproducible computation, missing-data policy and protected evaluation record.
 
-\section{Training, Validation and Inference Lifecycle}
+\section{Training, validation and inference lifecycle}
 The lifecycle can be represented as a sequence of immutable evidence states.
 \begin{enumerate}[itemsep=0.2em]
 \item \textbf{Acquire or refresh data.} Update the durable research store independently of model fitting.
@@ -797,7 +794,7 @@ The lifecycle can be represented as a sequence of immutable evidence states.
 
 The important design property is that data acquisition, training, validation, model selection and Live adaptation are separable operations. A failure in one stage does not silently mutate another.
 
-\section{Runtime Retraining Contracts}
+\section{Runtime retraining contracts}
 A clean runtime system requires more than a saved model file. Every retrainable artifact must declare how it is to be rebuilt. The retraining contract is conceptually distinct from a display profile. It contains at least:
 \begin{itemize}[itemsep=0.15em]
 \item trainer family;
@@ -813,7 +810,13 @@ A clean runtime system requires more than a saved model file. Every retrainable 
 
 This prevents a common integration error in which a model profile such as ``Bayesian reference 12 month'' is mistakenly treated as the ID of a training recipe. Human-readable names are presentation metadata; they are not scientific execution contracts.
 
-\section{Guided Planner as a Capability Model}
+\section{Guided planner as a capability model}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.96\textwidth]{action_policy.png}
+\caption{The Guided action policy is a disclosure layer on $p$, not a portfolio optimizer \citep{markowitz1952portfolio}.}
+\end{figure}
+
 A single field called \texttt{recommended\_action} is insufficient when maintenance can fail independently of inference. A more robust planner separates capabilities from recommendations.
 \begin{verbatim}
 can_forecast_now: true
@@ -826,7 +829,7 @@ recommended_action: forecast
 \end{verbatim}
 This structure allows the UI to show a forecast immediately while still advising the user that the family model is aging. It also permits a failed optional update to fall back cleanly to the current model.
 
-\section{New-Ticker Pooled-Family Semantics}
+\section{New-ticker pooled-family semantics}
 A pooled model estimates a relationship learned across a training universe. When a new ticker is entered, there are two conceptually different datasets:
 \begin{enumerate}[itemsep=0.2em]
 \item the historical family corpus used to fit the model;
@@ -836,7 +839,13 @@ The new ticker need not become part of the training corpus before the model can 
 
 This distinction is essential to usability. If every new ticker forced a retrain, the product would collapse back into a per-ticker laboratory rather than a forecasting application.
 
-\section{Live State and Delayed-Outcome Data Model}
+\section{Live state and delayed-outcome data model}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{live_residual.png}
+\caption{Governed Live residual. Adaptation is prequential and delayed-label, following \citet{dawid1984prequential}.}
+\end{figure}
+
 A pending Live observation should retain enough information to resolve the future event exactly and update only the state lineage that produced it. A minimal record includes:
 \begin{itemize}[itemsep=0.15em]
 \item unique pending-label ID;
@@ -854,7 +863,7 @@ A pending Live observation should retain enough information to resolve the futur
 
 When the horizon matures, the outcome is computed from the exact common-session endpoint. The prediction is scored before the adaptive posterior is updated. This preserves a genuine out-of-sample sequence.
 
-\section{Analytical Result Contract}
+\section{Analytical result contract}
 A deterministic analytical number should not be returned as an unexplained float when provenance matters. A robust result object contains:
 \begin{verbatim}
 metric
@@ -870,12 +879,12 @@ method_version
 \end{verbatim}
 This contract makes it possible to distinguish, for example, a ratio calculated from reported values from one containing a derived denominator, or a DCF built from one currency from a valuation that would otherwise mix currencies.
 
-\section{Normalized Statement Semantics}
+\section{Normalized statement semantics}
 Financial statement normalization requires explicit accounting semantics. Provider aliases should map into canonical fields such as revenue, gross profit, operating income, taxes, D\&A, capital expenditure, working capital, debt, cash and diluted shares. A normalized value should carry status such as reported, mapped, derived, unavailable or not applicable.
 
 Derived identities must be conservative. For example, free cash flow can be derived from operating cash flow and capital expenditure when both are available, but a missing capex field must not be interpreted as zero. Similarly, total debt can be derived from short- and long-term components when the provider supplies them, but missing debt concepts should remain missing.
 
-\section{DCF Methodology in Greater Detail}
+\section{DCF methodology in greater detail}
 The DCF module deliberately separates historical statement normalization from forward assumptions. Historical inputs are evidence. Forward growth, margins, WACC and terminal assumptions are scenarios.
 
 For projection year $t$,
@@ -893,12 +902,12 @@ An exit-multiple terminal value uses a selected operating metric multiplied by a
 
 The tool should reject structurally invalid assumptions such as $g\ge WACC$ rather than returning a mathematically explosive valuation.
 
-\section{Options Methodology in Greater Detail}
+\section{Options methodology in greater detail}
 Black-Scholes-Merton assumes lognormal diffusion, continuous trading, frictionless markets, known rates/volatility under the model, and European exercise. The formula is useful as a theoretical benchmark, not a complete model of listed-option markets.
 
 The Greeks are local derivatives of the pricing equation. Gamma and Vega can become large near particular moneyness and expiry conditions. Theta is convention-sensitive and should state whether it is reported per year or converted to a daily basis. Implied volatility is recovered numerically by inverting the pricing function and must fail safely when the market price lies outside the bracketable theoretical range.
 
-\section{Factor-Model Methodology in Greater Detail}
+\section{Factor-model methodology in greater detail}
 For design matrix $X$ and return vector $y$, OLS estimates
 \begin{equation}
 \hat\beta=(X^\top X)^{-1}X^\top y
@@ -907,7 +916,7 @@ when the design has full rank. Standard errors depend on the residual variance m
 
 Rolling beta is similarly descriptive. Window length, return frequency and benchmark choice materially affect the estimate. Users should interpret rolling beta as a changing historical exposure rather than an intrinsic constant property of the security.
 
-\section{Release Acceptance Matrix}
+\section{Release acceptance matrix}
 A release claiming a complete forecasting workflow should demonstrate at least the following behavioral matrix.
 \begin{longtable}{p{0.35\textwidth}p{0.55\textwidth}}
 \toprule
@@ -927,7 +936,7 @@ Application restart & Local corpus, model registry and coherent user state persi
 \bottomrule
 \end{longtable}
 
-\section{Testing Philosophy}
+\section{Testing philosophy}
 A large unit-test count is not sufficient evidence for an end-to-end product. Source-string tests can prove that a button or endpoint name exists while missing an integration defect between the button, endpoint, manifest and trainer.
 
 The release test pyramid should therefore include:
@@ -942,83 +951,810 @@ The release test pyramid should therefore include:
 \item restart persistence tests.
 \end{enumerate}
 
-
-\section{What the Public Repository Implements}
-The public tree at \texttt{github.com/rajeevyadav/fincompass} (application \texttt{VERSION} 2.0.0) already contains the layers described in this paper. It is important to separate \emph{implemented} from \emph{empirically strong}.
-
-Implemented today:
-\begin{itemize}[itemsep=0.15em]
-\item evidence engine, instrument classification and benchmark resolution;
-\item durable local research store with overlap/tail refresh;
-\item backward-looking price features and optional SEC fundamental features;
-\item Bayesian reference artifacts at 6, 12, 24 and 36 months;
-\item regime-aware Bayesian artifacts as research alternatives;
-\item one 12-month enhanced ensemble at the research-validated tier;
-\item chronological purge/embargo, calibration, proper scores and block bootstrap;
-\item Live residual with delayed labels and a prequential gate;
-\item a deterministic analytics library that is not automatically a feature source.
-\end{itemize}
-
-Not yet closed as a product path, and therefore not a modelling problem first:
-\begin{itemize}[itemsep=0.15em]
-\item pooled-model freshness still risk being judged against the arbitrary target ticker;
-\item runtime retraining still risks inferring a recipe from a display profile;
-\item Model Lab recipes exist for 6-month and 12-month families, not for 24-month or 36-month retraining;
-\item Guided Start Live can still attempt baseline activation even though tracking-only Live exists in the backend.
-\end{itemize}
-
-The bundled locked-test tables should be read against that inventory. They demonstrate the tier machinery on a small surviving-name sample. They do not establish market-grade skill.
-
-\section{Path to Stronger Model Performance}
-Better performance will not come from replacing the Bayesian reference with a larger network on eight names. It comes from a larger honest sample, a tighter feature contract, and a model that must still beat the reference on proper scores.
-
-The working order is fixed.
-
-\paragraph{Close the user path first.}
-A new supported ticker must reach Forecast and Live without Model Lab. An optional update failure must leave the current Forecast standing. Until that is true, additional model families only multiply dead ends.
-
-\paragraph{Enlarge the training universe before the algorithm.}
-A 12-month relative-return classifier needs hundreds of names, including later delistings, and point-in-time membership of the benchmark family. Monthly rows on eight survivors overstate independence.
-
-\paragraph{Freeze one target.}
-Optimize first
-\[
-Y=\I\!\left[R_{i,t}^{(12)}-R_{\mathrm{SPX},t}^{(12)}>0\right]
-\]
-at month-end frequency. Other horizons and benchmarks are separate families.
-
-\paragraph{Admit features only with provenance.}
-The coded optional SEC features --- revenue growth, margins, leverage, free-cash-flow margin, ROA --- are the first candidates, merged on filing date. Technical indicators that already exist in the analytics library stay out of Forecast unless they survive an ablation on development data and a single locked-test read.
-
-\paragraph{Keep the ladder.}
-Every new corpus trains (1) the unconditional rate, (2) the Bayesian reference and (3) the enhanced ensemble on the same split. A new algorithm is added only after (3) beats (2) on Brier skill, log-loss skill, ECE and walk-forward sign, not on AUC alone.
-
-\paragraph{Tighten gates only after the sample is real.}
-The current research floor (\texttt{min\_auc} 0.50, \texttt{min\_brier\_skill} $-0.02$) is appropriate for a small demonstration corpus. On a larger corpus a Guided-default 12-month model should be required to show positive proper-score skill, a bootstrap lower bound near zero or better, multi-year walk-forward stability and an ECE small enough to read the number as a probability.
-
-\paragraph{Live last.}
-Adaptive skill is measured against the frozen anchor, not against the event rate. If the residual loses, the residual stays at zero.
-
-A companion playbook in the documentation package lists the 90-day sequence, the experiment log template and the repository files to touch.
-
-\section{Research Extensions}
+\section{Research extensions}
 Several extensions are scientifically interesting but should remain secondary to a reliable baseline workflow.
 
-\subsection{Hierarchical Market-Family Models}
+\subsection{Hierarchical market-family models}
 A hierarchical Bayesian model could partially pool coefficients across regions, sectors or capitalization groups while preserving domain-specific deviations. This may improve data efficiency, but only if cross-market currency, calendar and benchmark semantics are handled explicitly.
 
-\subsection{Dynamic Coefficients}
+\subsection{Dynamic coefficients}
 State-space or dynamic logistic models can allow coefficients to evolve over time. These approaches are attractive under nonstationarity but add process-noise choices and can increase uncertainty. They should be judged against the fixed-coefficient Bayesian reference.
 
-\subsection{Bayesian Model Averaging}
+\subsection{Bayesian model averaging}
 Rather than selecting one complex model, posterior or evidence-weighted model averaging could combine structurally different candidates. Such weighting must be trained inside development data and must not use the locked test.
 
-\subsection{Point-in-Time Factor and Macro Features}
+\subsection{Point-in-time factor and macro features}
 Broader fundamentals and macro variables can be added only when publication-time semantics are robust. Historical revised macro series or restated statements can create subtle hindsight bias if treated as contemporaneously available.
 
-\subsection{Cross-Sectional Portfolio Forecasting}
+\subsection{Cross-sectional portfolio forecasting}
 A future portfolio layer could model joint relative-return probabilities rather than averaging individual probabilities. This would require explicit dependence modeling, portfolio constraints and a separate validation target.
 
 \bibliographystyle{plainnat}
 \bibliography{refs}
+
+
+\clearpage
+\setcounter{section}{0}
+\renewcommand{\thesection}{\arabic{section}}
+\part{Extended Technical Reference}
+
+\section{System Objective, Claim Boundary, and Why the Architecture Is Layered}
+FinCompass is easiest to misunderstand when all outputs are treated as if they answer the same question. They do not. The application contains a current-evidence workspace, a probabilistic forward-event Forecast, a governed Live layer, and deterministic analytical calculators. Each layer has a different mathematical object, a different data contract, and a different failure mode. The architecture deliberately resists collapsing those objects into a single ``score.''
+
+The Forecast object is a probability of a declared event. The event is defined by an instrument, a benchmark, a horizon, an excess-return threshold, and a price-basis convention. The evidence score is a structured summary of currently observed fundamentals and market context. A DCF is a conditional valuation calculation under explicit cash-flow and discount-rate assumptions. A Sharpe ratio is a historical return-to-volatility statistic. A Black--Scholes value is a model price under a specified stochastic model and input set. None is a substitute for the other.
+
+This separation creates an important scientific advantage. If a valuation formula is later improved, the historical Forecast does not silently change. If a technical indicator is added to the analytics library, it does not become a forecasting feature simply because it is available. If Live observes a new filing, the event may affect a provisional adaptive residual without rewriting the historical training sample. The cost is additional software structure; the benefit is a far clearer evidentiary chain.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.92\textwidth]{model_ladder.png}
+\caption{Conceptual model ladder. Complexity is not a promotion criterion; each step must earn its own evidence.}
+\end{figure}
+
+\subsection{Four questions that must never be conflated}
+A release reviewer should be able to answer four questions independently:
+\begin{enumerate}[itemsep=0.35em]
+\item \textbf{Can the computation be trusted?} Are the inputs finite, aligned, point-in-time where required, and free from target leakage?
+\item \textbf{Is the probability model estimable?} Does optimization converge, is the posterior approximation finite, and can the model reproduce probabilities from its stored parameters?
+\item \textbf{Has predictive skill been demonstrated?} Does the model improve proper scoring rules and ranking/calibration diagnostics on data that were protected from development decisions?
+\item \textbf{How strong is the data provenance?} Does the historical universe include delistings, corporate actions, survivorship controls, vintage macro data, and other features required for stronger market-grade claims?
+\end{enumerate}
+The evidence tiers exist because these questions have different answers. A hard-valid Bayesian baseline can answer the first two positively while the third remains weak. A research-validated model adds stronger out-of-sample evidence. A market-validated model additionally requires stronger historical-data governance.
+
+\section{From Ticker Entry to a Forecast: Full Runtime Sequence}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.98\textwidth]{guided_workflow.png}
+\caption{Runtime sequence from ticker resolution to Forecast. Applicability is a scientific check, not only a computational one.}
+\end{figure}
+
+The user experiences a short path, but the runtime performs a sequence of checks that should remain deterministic and auditable. The intended sequence is:
+\begin{enumerate}[itemsep=0.25em]
+\item normalize and resolve the ticker;
+\item classify the instrument and market;
+\item resolve the benchmark family;
+\item identify installed model families matching asset class, region, security type, frequency, and horizon;
+\item rank eligible models by evidence tier and declared selection policy;
+\item verify artifact integrity and feature compatibility;
+\item obtain the price history needed to compute current features;
+\item construct only backward-looking features at the requested as-of date;
+\item apply the frozen calibration mapping;
+\item return the probability, target definition, evidence label, uncertainty information, and model-evidence record;
+\item optionally start Live using the appropriate tracking or adaptive mode.
+\end{enumerate}
+
+The key product principle is that entering a new ticker should not imply a new model-training job. A pooled US-equity model is fitted to a family of observations. A newly entered US common stock is an inference case if it lies inside the model's declared applicability domain and sufficient features can be constructed. Retraining is maintenance of the family model, not a prerequisite for each symbol.
+
+\subsection{What should block a forecast}
+A Forecast should fail closed when the asset class is unsupported, the benchmark cannot be resolved, the required feature contract cannot be constructed, the artifact fails integrity checks, the requested horizon has no applicable model, or a hard-validity condition is violated. By contrast, a stale training cutoff should normally generate a maintenance warning rather than erase a still-applicable Forecast. This distinction is essential to prevent a maintenance recommendation from becoming a product dead end.
+
+\section{Temporal Target Construction and Dependence Between Samples}
+The forward event creates overlapping labels. With a 12-month horizon and monthly observation dates, neighboring labels share most of the same future return interval. Treating those observations as independent would understate uncertainty.
+
+Let $t_k$ denote monthly observation dates. The label $Y_{t_k}^{(12m)}$ uses prices between $t_k$ and $t_k+12m$. The next label $Y_{t_{k+1}}^{(12m)}$ overlaps approximately eleven months of the same future path. This is why row-wise random splitting is inappropriate and why uncertainty calculations must preserve date clusters or blocks.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.94\textwidth]{temporal_split.png}
+\caption{Illustrative chronological development structure. Purge/embargo periods reduce leakage from overlapping target windows.}
+\end{figure}
+
+\subsection{Purge and embargo}
+A purge removes observations whose target end crosses a downstream partition boundary. An embargo provides an additional time gap between partitions. They address different leakage mechanisms. The purge is directly tied to overlapping future labels; the embargo is a conservative separation that reduces dependence at the boundary. Neither should be tuned after viewing the locked-test result.
+
+\subsection{Date weighting and cross-sectional breadth}
+If many securities are observed on the same date, the effective evidence is not simply the raw row count. A broad watchlist can create thousands of rows without creating thousands of independent market regimes. FinCompass therefore treats observation dates as an important unit in bootstrap and online evaluation. Equal-date weighting prevents a single crowded date from dominating a loss estimate simply because more symbols were present.
+
+\section{Bayesian Reference Model: Derivation and Numerical Interpretation}
+The reference model is a regularized Bayesian logistic regression. It is intentionally low capacity because the purpose of the reference tier is to provide a stable, interpretable probability benchmark before more flexible models are considered.
+
+For standardized feature vector $x_i$ and outcome $y_i\in\{0,1\}$,
+\begin{equation}
+\Pr(Y_i=1\mid x_i,\beta)=\sigma(\beta_0+x_i^\top\beta),\qquad \sigma(z)=\frac{1}{1+e^{-z}}.
+\end{equation}
+With independent Gaussian priors on slope coefficients,
+\begin{equation}
+\beta_j\sim\mathcal N(0,\tau_j^2),
+\end{equation}
+the log posterior is the logistic log-likelihood plus a quadratic shrinkage penalty. The maximum a posteriori estimate solves
+\begin{equation}
+\hat\beta=\arg\max_\beta\left[\sum_i y_i\log p_i+(1-y_i)\log(1-p_i)-\frac12\beta^\top\Lambda\beta\right].
+\end{equation}
+The Hessian at the mode provides a local curvature matrix. If $H$ is the negative Hessian, the Laplace approximation is
+\begin{equation}
+\beta\mid D\approx \mathcal N(\hat\beta,H^{-1}).
+\end{equation}
+This approximation is not full MCMC. It is a computationally efficient local Gaussian approximation around the posterior mode. Its usefulness depends on the posterior being sufficiently regular and unimodal in the neighborhood that matters.
+
+\subsection{Why standardization matters}
+Shrinkage priors act on coefficient scale. Without feature standardization, a prior variance that is sensible for a percentage-return feature may be inappropriate for a feature measured in raw currency units. Standardization therefore has both numerical and inferential meaning. The scaler is part of the artifact contract and must be reused exactly at inference time.
+
+\subsection{Posterior uncertainty is not outcome uncertainty}
+Sampling $\beta^{(s)}$ from the Laplace approximation and propagating it through the logistic link produces uncertainty in the estimated probability conditional on the model form and features. It does not describe the range of realized stock returns. This distinction should be explicit in both the manuscript and the interface.
+
+\section{Calibration: Turning Scores Into Probabilities}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.55\textwidth]{reliability_diagram.png}
+\caption{Reliability diagram. Calibration asks whether $p$ occurs about $p$ of the time \citep{degroot1983comparison,murphy1973reliability,platt1999probabilistic,niculescu2005predicting,guo2017calibration}.}
+\end{figure}
+
+Calibration is what makes a probability interpretable as a frequency statement. If a set of cases repeatedly receives probabilities near 0.70, a well-calibrated system should observe the event on roughly 70\% of comparable cases over a sufficiently large and representative sample. Calibration does not require every individual forecast to be correct; it requires statistical consistency across groups of predictions.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.72\textwidth]{calibration.png}
+\caption{Illustrative calibration diagram. The diagonal represents perfect agreement between stated probability and observed event frequency.}
+\end{figure}
+
+The calibration mapping is fitted on validation data that are later than the training block and earlier than the locked test. This protects the locked test from becoming another tuning set. Isotonic calibration is flexible and monotone but can overfit when the validation sample is small. Logistic or Platt-style calibration is smoother but imposes a parametric form. The chosen method should therefore be recorded with the artifact, along with the number of calibration rows and event rate.
+
+\section{Proper Scoring Rules and What Each Metric Actually Tests}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\textwidth]{brier_skill.png}
+\caption{Illustrative proper-score comparison. Brier and log loss are strictly proper; AUC is a ranking diagnostic, not a probability score \citep{brier1950verification,gneiting2007proper,gneiting2007calibration}.}
+\end{figure}
+
+No single metric can characterize a probabilistic classifier. FinCompass reports several complementary measures.
+
+\subsection{Brier score and Brier skill}
+For one observation, $BS=(p-y)^2$. The mean Brier score is sensitive to both discrimination and calibration. Brier skill expresses improvement relative to a declared reference forecast:
+\begin{equation}
+BSS=1-\frac{BS_{model}}{BS_{reference}}.
+\end{equation}
+Positive values indicate improvement; zero indicates parity; negative values indicate worse probability accuracy than the reference.
+
+\subsection{Log loss and log-loss skill}
+Log loss heavily penalizes confident wrong predictions. It is therefore useful for detecting models that produce sharp but unreliable probabilities. Skill should again be stated relative to a frozen reference, not merely as an absolute number.
+
+\subsection{ROC AUC and average precision}
+AUC measures ranking, not calibration. A model can have high AUC and poor probability calibration. Average precision is more sensitive to class imbalance and summarizes precision--recall behavior. Neither metric, by itself, establishes that probabilities are useful for decision-making.
+
+\subsection{Calibration slope and intercept}
+A calibration slope near one and intercept near zero are desirable. A slope below one often indicates predictions that are too extreme; a slope above one can indicate under-dispersion. Negative slopes are a serious warning that ranking direction may be unstable in the evaluation sample.
+
+\section{Regime-Aware Bayesian Modeling}
+The regime model asks whether the mapping from features to forward-event probability should depend on the prevailing market state. The state is latent; it is inferred from benchmark-level, backward-looking variables rather than labeled by hindsight.
+
+For a $K$-state Gaussian hidden Markov model, the transition matrix $A$ contains
+\begin{equation}
+A_{jk}=\Pr(S_t=k\mid S_{t-1}=j).
+\end{equation}
+Each state has an emission density for the observed benchmark feature vector $z_t$. The forward recursion computes filtered probabilities using only information available through $t$:
+\begin{equation}
+\alpha_t(k)\propto p(z_t\mid S_t=k)\sum_j A_{jk}\alpha_{t-1}(j).
+\end{equation}
+The normalized $\alpha_t$ values become regime probabilities. Smoothing, which conditions on future observations, is appropriate for retrospective descriptive analysis but not for historical forecast evaluation at time $t$.
+
+The regime probabilities may enter the Bayesian forecast as additional predictors or interactions. This increases model capacity. The regime model therefore does not inherit a stronger evidence tier automatically. It must outperform or meaningfully improve the reference under the same protected temporal protocol.
+
+\section{Enhanced Nonlinear Model and Complexity Control}
+The enhanced path permits nonlinear learners and ensembles, but it is governed by the principle that additional complexity must earn its place. Training, hyperparameter selection, stacking, and calibration must all occur before the locked test is opened.
+
+A practical selection rule is to prefer the simplest model whose performance is statistically indistinguishable from the best candidate within a predeclared tolerance. This discourages marginal complexity gains that are likely to be unstable out of sample. If Bayesian optimization or other automated search is used, it belongs inside the development/validation loop. The locked test must never be part of the optimization objective.
+
+\section{Evidence Tiers as a Governance State Machine}
+The evidence tier is not a marketing label. It is a machine-readable summary of what has been established.
+
+\begin{longtable}{p{0.18\textwidth}p{0.24\textwidth}p{0.25\textwidth}p{0.24\textwidth}}
+\toprule
+Tier & What has been established & What has not been established & Permitted role\\
+\midrule
+Invalid / unavailable & Hard validity or applicability failed & Reliable probability & No Forecast\\
+Bayesian baseline & Estimable, leakage-controlled probability model with declared calibration/validation record & Strong incremental predictive skill & Forecast; tracking-only Live\\
+Research validated & Stronger locked-test and stability gates passed on declared research corpus & Universal market performance; personalized utility & Forecast; eligible anchor for governed Live\\
+Market validated & Research validation plus stronger universe/provenance controls & Future guarantee & Strongest supported evidence tier\\
+\bottomrule
+\end{longtable}
+
+This design avoids a dangerous incentive: weakening thresholds until something passes. The baseline tier keeps a scientifically honest fallback available while allowing the research tier to remain demanding.
+
+\section{Runtime Retraining Architecture in the Current Implementation}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.96\textwidth]{freshness_clocks.png}
+\caption{Three freshness clocks. A pooled family model must not be marked stale merely because the open ticker has a later local price date.}
+\end{figure}
+
+The current repository has progressed beyond development-only Bayesian artifacts. The Model Lab now dispatches training according to a recipe's declared \texttt{trainer\_family}. Bayesian-reference recipes invoke the Bayesian trainer; enhanced recipes invoke the nonlinear ensemble trainer. Saved artifacts are stamped with a retraining contract containing the trainer family, recipe identifier, feature contract, benchmark family, horizon, and retrain-support flag.
+
+This is a strong architectural improvement because it removes display-name inference from the maintenance path. A model is retrained from an explicit contract rather than from a profile label that may have no one-to-one relationship with a training recipe.
+
+\subsection{Remaining asymmetry: regime retraining}
+The regime family remains a research artifact family without a first-class runtime retrainer. The current safe behavior is to keep the existing model rather than expose a nonfunctional update control. That is preferable to a false maintenance path, but the asymmetry should be documented until regime retraining is implemented or the family is intentionally kept research-only.
+
+\section{Freshness Semantics and a Remaining Technical Gap}
+The planner correctly stopped model age from blocking a valid Forecast. However, the current model-freshness helper still compares a model's training cutoff with the latest local data for the viewed ticker. For a pooled family model, that comparison is not a true measure of model-training freshness.
+
+A robust design should expose three fields:
+\begin{description}[style=nextline]
+\item[Instrument data freshness] Whether current ticker and benchmark data are recent enough to compute today's features.
+\item[Model training freshness] The age of the actual family corpus on which the model was fitted.
+\item[Retrainability] Whether enough new compatible observations and matured labels exist to justify or support a retrain.
+\end{description}
+The first is ticker-specific. The second and third are family/corpus-specific. Keeping them separate avoids telling a user that a pooled model is stale merely because an unseen ticker has current prices.
+
+\section{Live: Frozen Anchor, Candidate Residual, and Delayed Outcomes}
+Live is designed around an invariant: the anchor probability is reproducible and does not mutate silently. Fresh information can generate a provisional candidate adjustment, but application of that residual is separately gated.
+
+If $p_0$ is the frozen anchor and $\delta_t$ is the adaptive logit residual,
+\begin{equation}
+\logit(p_t^{candidate})=\logit(p_0)+\delta_t.
+\end{equation}
+The residual is bounded to prevent a thin online sample from overwhelming the historical anchor. The applied probability remains $p_0$ while the adaptive gate is inactive.
+
+\subsection{Predict-before-update ordering}
+When a pending label matures, the correct sequence is: score with the pre-outcome state, record losses, update drift statistics, reveal the outcome, then update the posterior. Reversing that order would let the realized outcome influence the probability that is supposedly being evaluated.
+
+\subsection{Tracking-only Live}
+A Bayesian baseline can enter Live without being promoted to an adaptive model. In tracking-only mode the system presents the original Forecast, data freshness, and monitoring context but does not learn an adaptive residual. This preserves usability without implying stronger evidence than the model has earned.
+
+\section{Decision Support Layer Versus Forecast Model}
+The repository contains a separate action-policy layer that maps a probability and evidence tier to plain-language verbs. Architecturally, keeping that mapping outside the trainer is correct: the policy does not change $p$ and is separately versioned. Scientifically, however, a decision policy introduces assumptions that are not contained in the probability model.
+
+A threshold such as 0.58 has no universal meaning without a utility function. The economically optimal action depends on expected return magnitude, downside distribution, transaction costs, taxes, investment horizon, position size, portfolio covariance, alternative opportunities, liquidity needs, and risk tolerance. Therefore any DCA/Hold/Trim layer should be described as an \emph{interpretation policy}, not as a consequence mathematically implied by the Forecast. If the thresholds are intended to be normative, they require separate decision-policy validation and sensitivity analysis.
+
+Source comments and interface copy should use durable product terminology such as \emph{Guided interpretation}, \emph{plain-language summary}, and \emph{Research rationale}. Accessibility should be achieved through clear explanations and progressive disclosure rather than persona labels.
+
+\section{Discounted Cash Flow: Current Three-Stage Implementation}
+The valuation implementation has evolved materially and should be documented as such. The current guided DCF prefers reported free cash flow, or operating cash flow minus capital expenditure when reported FCF is unavailable. It smooths the base using recent positive FCF observations when possible and estimates historical growth from FCF CAGR, falling back to revenue CAGR.
+
+The explicit forecast is three-stage: an initial high-growth period, a transition period, and a stable terminal phase. If $FCF_0$ is the normalized base and $g_t$ the stage-specific growth rate,
+\begin{equation}
+FCF_t=FCF_{t-1}(1+g_t).
+\end{equation}
+The present value of explicit cash flows is
+\begin{equation}
+PV_{explicit}=\sum_{t=1}^{N}\frac{FCF_t}{(1+r)^t}.
+\end{equation}
+The perpetual terminal value is
+\begin{equation}
+TV_N=\frac{FCF_{N+1}}{r-g_{stable}},\qquad r>g_{stable}.
+\end{equation}
+The implementation caps stable growth near a risk-free/economic-growth proxy so a mature firm is not assumed to outgrow the economy forever.
+
+\subsection{Reverse DCF}
+The reverse DCF inverts the valuation problem: given the current market price, what stage-one FCF growth rate would make the discounted cash flows consistent with that price under the remaining assumptions? This is often more informative than arguing over a single intrinsic-value estimate because it exposes the market expectation embedded in the price.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{dcf_sensitivity.png}
+\caption{Illustrative DCF sensitivity. Small changes in discount rate and terminal growth can materially change estimated value. The figure is conceptual, not a company valuation.}
+\end{figure}
+
+\subsection{Technical caution on range clamping}
+A displayed valuation range should not be cosmetically forced to remain near the central estimate merely because an unconstrained sensitivity corner looks implausible. If the implementation caps or trims a displayed range, the raw scenario values should remain available in Research Details and the transformation should be declared. Otherwise presentation can hide genuine sensitivity. A professional implementation may define admissible assumption ranges, but it should constrain assumptions rather than post-process economically valid outputs solely for visual convenience.
+
+\section{Options: Model Price, Market Contract, and Payoff Are Different Objects}
+The options desk now grounds calculations in real listed contracts when delayed public chain data are available. The user can select an expiry and strike, inherit the analyzed ticker, and use quoted premium and implied volatility as inputs. The analytical Black--Scholes--Merton model remains distinct from the market quote.
+
+For a European call,
+\begin{align}
+C&=S_0N(d_1)-Ke^{-rT}N(d_2),\\
+d_1&=\frac{\ln(S_0/K)+(r+\frac12\sigma^2)T}{\sigma\sqrt T},\\
+d_2&=d_1-\sigma\sqrt T.
+\end{align}
+The payoff at expiry for a long call purchased for premium $c$ is
+\begin{equation}
+\Pi(S_T)=\max(S_T-K,0)-c.
+\end{equation}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{option_payoff.png}
+\caption{Illustrative long-call payoff. Model value, quoted premium, and expiry payoff are related but distinct quantities.}
+\end{figure}
+
+Real option chains introduce additional data-quality issues: stale quotes, wide bid--ask spreads, illiquid strikes, American exercise features, discrete dividends, and volatility smiles. The calculator should therefore label the pricing model and market-data timestamp rather than implying that a formula price is the executable market price.
+
+\section{Rates and Fixed Income}
+The bond desk can use a current Treasury yield curve as a grounded reference when public data are available. A Treasury curve is not a corporate credit curve. Using a Treasury yield to value a corporate bond without a spread would understate required yield for credit risk. The UI should therefore treat the curve as a reference and require an explicit spread or user-supplied yield when pricing credit-sensitive instruments.
+
+For annual cash flows, bond price is
+\begin{equation}
+P=\sum_{t=1}^{n}\frac{C}{(1+y)^t}+\frac{F}{(1+y)^n}.
+\end{equation}
+Duration approximates first-order sensitivity to yield; convexity improves the approximation for larger moves. Neither measure captures default, liquidity, callability, or structural credit risk by itself.
+
+\section{Portfolio Risk: From Weight to Contribution}
+Portfolio volatility depends on covariance, not only security weights:
+\begin{equation}
+\sigma_p=\sqrt{w^\top\Sigma w}.
+\end{equation}
+A position with a modest weight can contribute disproportionately to total volatility if it is highly volatile or strongly correlated with the rest of the portfolio.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.72\textwidth]{portfolio_risk.png}
+\caption{Illustrative comparison of portfolio weight and volatility contribution. Equal capital weights need not produce equal risk contributions.}
+\end{figure}
+
+The user-facing explanation that ``volatility is bounce, not gain or loss'' is useful because it prevents a common interpretation error. The Research view should additionally disclose covariance estimation window, annualization convention, missing-data handling, and whether the covariance matrix required regularization.
+
+\section{Historical Risk, Drawdown, and Tail Measures}
+Volatility is symmetric; drawdown is path dependent. A portfolio can have modest annualized volatility and still experience a severe peak-to-trough loss if unfavorable returns cluster.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\textwidth]{drawdown.png}
+\caption{Illustrative drawdown. The statistic measures decline from the running peak, not loss relative to the initial investment only.}
+\end{figure}
+
+VaR answers a quantile question, while expected shortfall asks about the average loss conditional on being beyond that quantile. Both depend on the estimation method. Historical simulation, Gaussian approximations, and filtered-volatility methods can produce materially different tail estimates. The method identity must therefore be part of the result contract.
+
+\section{Evidence Score and Forecast Probability: A Critical Non-Equivalence}
+The evidence score summarizes present observations; the Forecast estimates a future event. The two can move differently without contradiction. A company can have strong current fundamentals but a high valuation and therefore only a modest probability of benchmark outperformance. Conversely, a company with mediocre fundamentals may have a favorable relative-return setup over a shorter horizon.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.72\textwidth]{evidence_vs_forecast.png}
+\caption{Illustrative conceptual relationship. Evidence score and Forecast probability are not expected to lie on a one-to-one curve.}
+\end{figure}
+
+This is also why analytics should not be allowed to ``vote'' on the Forecast after the fact. Doing so would create an unvalidated ensemble in the presentation layer.
+
+\section{Expert Auditability When Modeling Intermediates Are Not Distributed}
+A public user may not receive the internal experiment notebooks, every candidate dataset, or all intermediate model artifacts. That does not justify an opaque claim surface. The public evidence package should be strong enough that an expert can understand exactly what the installed model claims and challenge its assumptions.
+
+For each model, the inspectable evidence package should include:
+\begin{itemize}[itemsep=0.2em]
+\item model identity and artifact hash;
+\item target event, benchmark, horizon, threshold, price basis, and frequency;
+\item applicability domain and training-universe type;
+\item training, validation, and locked-test date ranges;
+\item row counts and distinct observation-date counts;
+\item feature dictionary and scaler/calibration identity;
+\item hard-validity results;
+\item proper-scoring metrics and declared reference forecast;
+\item discrimination and calibration diagnostics;
+\item block-bootstrap or other dependence-aware uncertainty;
+\item walk-forward stability results;
+\item data-quality limitations, survivorship controls, and point-in-time status;
+\item trainer family, recipe identifier, and retraining contract;
+\item lineage to parent/replacement models;
+\item Live eligibility and adaptive-state identity where applicable.
+\end{itemize}
+This level of disclosure does not reveal private training rows, but it prevents the user from being asked to trust a black-box probability with no methodological evidence.
+
+\section{User Experience as a Scientific Control}
+Interface design can create or prevent scientific misinterpretation. Progressive disclosure is therefore not merely cosmetic. The Guided layer should answer the user's question without exposing laboratory vocabulary; the Research layer should expose the evidence necessary for technical challenge.
+
+A robust three-level pattern is:
+\begin{enumerate}[itemsep=0.2em]
+\item \textbf{Meaning:} probability, event, horizon, benchmark, plain-language interpretation.
+\item \textbf{Context:} evidence strength, uncertainty, data/model freshness, Live mode.
+\item \textbf{Research details:} model ID, metrics, calibration, feature contract, lineage, hashes, provenance, and validation diagnostics.
+\end{enumerate}
+The same principle applies to DCF, options, risk, and factor analysis.
+
+\section{Glossary and Tooltip Architecture}
+The product should contain both inline tooltips and a searchable glossary. Tooltips answer the immediate question in one or two sentences; the glossary provides a short conceptual lesson; Research Details provides equations, implementation identity, and limitations.
+
+A glossary entry should contain five fields: \emph{plain meaning}, \emph{why it matters}, \emph{how FinCompass uses it}, \emph{important limitation}, and optionally a \emph{technical definition}. This format prevents the glossary from becoming a list of one-line dictionary definitions.
+
+\section{Current Repository Audit: Technical Status}
+The audited public baseline is commit \texttt{b7a1e769ee9d4a6fd951ee5cf040de1213443357}. The recent sequence materially improved the product: runtime Bayesian reference training is now first class; 6/12/24/36-month Bayesian recipes exist; model status counts are tier-explicit; Guided and Research presentation are separated; current option-chain and Treasury-reference data are surfaced; DCF logic was substantially revised; canonical documentation paths were consolidated; multi-platform packaging and release-asset publishing were added.
+
+The remaining technical items that should be treated as closure work rather than feature expansion are:
+\begin{enumerate}[itemsep=0.3em]
+\item separate pooled-model training freshness from viewed-ticker data freshness;
+\item decide whether regime-aware models remain research-only or receive a first-class runtime retrainer;
+\item complete a packaged new-ticker $\rightarrow$ Forecast $\rightarrow$ Start Live $\rightarrow$ restart acceptance test on all supported desktop platforms;
+\item use durable professional terminology in source comments and interface copy;
+\item ensure the action/interpretation policy is explicitly separated from model evidence and does not imply that probability thresholds are universal portfolio-optimal rules;
+\item expose the planned searchable glossary page in the application, not only tooltips and documentation;
+\item disclose any DCF output-range trimming separately from the raw scenario surface;
+\item verify that delayed market feeds, option chains, and Treasury references always display timestamp/source and degrade safely when unavailable.
+\end{enumerate}
+
+\section{Release and Packaging Reproducibility}
+The repository now builds standalone packages for Windows, macOS, and Linux using platform-native CI runners. This is the correct approach because PyInstaller artifacts are operating-system specific. A release should bind each binary/package to a source commit, release manifest, model inventory, and document set. The landing page and ``latest release'' links are useful only if the release workflow actually publishes artifacts for the tag and smoke tests the installed application.
+
+For scientific software, a binary smoke test should do more than launch a window. It should exercise at least one deterministic analytics call, one supported Forecast, one Live transition, persistence across restart, and a safe failure case for an unsupported instrument.
+
+\section{Extended Failure-Mode Analysis}
+\begin{longtable}{p{0.23\textwidth}p{0.28\textwidth}p{0.40\textwidth}}
+\toprule
+Failure & Scientific risk & Required behavior\\
+\midrule
+Unsupported asset mapped to equity model & False applicability & Fail closed with plain explanation\\
+New ticker has no local cache & Artificial workflow blockage & Fetch/compute current features or offer advisory update without forcing retrain\\
+Model family old & Maintenance conflated with validity & Forecast remains available if hard-valid; freshness shown separately\\
+Retrain cannot start & User loses working model & Keep current model and Forecast intact\\
+Candidate underperforms & Newest-model bias & Preserve current model; candidate remains inspectable\\
+Baseline enters Live & Accidental promotion to adaptive & Tracking-only mode, no adaptive learning\\
+Future filing leaked backward & Inflated historical skill & Point-in-time join by public availability date\\
+Random row split with overlapping labels & Optimistic test estimate & Purged chronological split and dependence-aware uncertainty\\
+Option quote stale & Misleading executable-price impression & Timestamp/source and bid--ask context\\
+DCF corner produces extreme value & Presentation hides sensitivity & Show assumption surface; constrain assumptions transparently, not silently\\
+\bottomrule
+\end{longtable}
+
+\section{What a Strong Independent Verification Should Reproduce}
+An independent reviewer should be able to rebuild at least one Bayesian reference family from a declared recipe, verify the dataset manifest/hash, reproduce the chronological split, recompute locked-test probabilities, recalculate metrics, and confirm that the registry gives the rebuilt artifact the correct evidence tier. The reviewer should then run a new in-domain ticker that was not in the training symbols and confirm that inference uses the pooled family without triggering per-ticker training.
+
+For Live, the reviewer should verify that baseline models never update an adaptive state, that validated anchors maintain model-specific state isolation, and that pending labels cannot update the model before their original horizon matures.
+
+\section{Expanded Technical Glossary}
+\begin{longtable}{p{0.19\textwidth}p{0.73\textwidth}}
+\toprule
+Term & Technical meaning in FinCompass\\
+\midrule
+Applicability domain & Machine-readable boundary defining the asset classes, regions, security types, benchmark family, feature frequency, horizon, and other conditions under which a model may be used.\\
+Artifact hash & Cryptographic digest binding the serialized artifact or manifest to exact bytes for integrity checking.\\
+Baseline probability & Reference probability used to judge whether a model improves proper scoring rules.\\
+Bayesian baseline & Hard-valid Bayesian probability model that is Forecast-eligible but has not established the stronger evidence required for research validation.\\
+Brier score & Mean squared error of a probability forecast, $(p-y)^2$, averaged over observations.\\
+Brier skill & Relative improvement in Brier score against a declared reference probability.\\
+Calibration & Agreement between predicted probabilities and empirical event frequencies.\\
+Calibration slope & Regression-based measure of probability dispersion; values far from one indicate over- or under-dispersion.\\
+Candidate model & Newly trained immutable artifact that has not automatically replaced the current model.\\
+Chronological split & Train/validation/test partition ordered in time rather than randomly shuffled.\\
+Corporate-action basis & Convention specifying whether historical prices incorporate splits/dividends and related adjustments.\\
+Delayed label & Outcome that becomes available only after the forecast horizon has matured.\\
+Drift & Evidence that current predictive behavior or loss distribution has changed relative to the anchor/reference regime.\\
+ECE & Expected calibration error; a bin-based summary of predicted-versus-observed probability differences.\\
+Embargo & Time gap inserted between partitions to reduce dependence/leakage near boundaries.\\
+Evidence tier & Governance classification describing the level of validity, out-of-sample evidence, and data provenance established for a model.\\
+Feature contract & Versioned definition of the exact predictors, transformations, frequencies, missing-data handling, and scaling expected by a model.\\
+Filtered regime probability & Hidden-state probability computed using information available only through the current time, unlike a smoothed retrospective probability.\\
+Forward event & Precisely defined future outcome whose probability is estimated by Forecast.\\
+Hard validity & Non-negotiable checks for estimability, temporal integrity, finite parameters/probabilities, and required data contracts.\\
+Isotonic calibration & Monotone nonparametric mapping from raw model scores/probabilities to calibrated probabilities.\\
+Locked test & Final protected evaluation partition not used for feature selection, hyperparameter tuning, model selection, stacking, or calibration.\\
+Log loss & Proper scoring rule that penalizes confident incorrect probabilities strongly.\\
+Market validated & Strongest evidence tier, requiring research validation plus stronger data provenance/universe controls.\\
+Matured label & Forward outcome whose exact horizon endpoint has occurred and can therefore be used for evaluation/training.\\
+Model family & Reusable forecasting architecture trained across a declared domain rather than tied to a single ticker.\\
+Model freshness & Age of the training corpus used to fit a model; should not be conflated with current ticker-data freshness.\\
+Pooled model & Model fitted using observations from multiple instruments within a declared applicability domain.\\
+Posterior & Distribution for model parameters after combining prior assumptions with observed training data.\\
+Prequential evaluation & Predict-then-observe evaluation in sequence, ensuring each outcome is scored before it is used for learning.\\
+Prior & Probability distribution encoding regularization or pre-data assumptions on model parameters.\\
+Proper scoring rule & Loss function designed so truthful probabilities minimize expected loss.\\
+Purge & Removal of observations whose forward-label interval overlaps a downstream partition boundary.\\
+Regime & Latent market state inferred from observed benchmark behavior.\\
+Research validated & Evidence tier indicating stronger locked-test and stability gates passed on the declared research corpus.\\
+Retraining contract & Manifest block that specifies the trainer family, recipe, feature contract, benchmark family, horizon, and whether in-app retraining is supported.\\
+Reverse DCF & Valuation inversion that estimates the growth assumption implied by the current market price under other model assumptions.\\
+Survivorship bias & Distortion caused by using only securities that survived to the present rather than the historical investable universe.\\
+Tracking-only Live & Live mode that monitors a frozen Forecast without adaptive learning or residual application.\\
+Walk-forward validation & Repeated chronological development evaluation over advancing time windows.\\
+\bottomrule
+\end{longtable}
+
+
+\setcounter{section}{0}
+\renewcommand{\thesection}{\arabic{section}}
+
+\clearpage
+\part{Technical Deep Dive and Verification Notes}
+\section{Why the Public Evidence Package Must Be Stronger When Intermediates Are Private}
+The public repository can legitimately exclude private experiment intermediates or datasets that cannot be redistributed. The consequence is not that users should trust opaque outputs. It is that the model manifest and validation report must carry enough information to reconstruct the claim boundary. A reviewer should be able to distinguish three kinds of reproducibility: computational reproducibility (same code and declared data yield the same result), evidentiary reproducibility (the reported metrics can be recomputed from released evaluation predictions or a permitted local rebuild), and historical-data reproducibility (the exact historical corpus is legally and technically available). These levels should never be conflated.
+
+Where raw training rows cannot be shared, at minimum release the target definition, feature contract, date ranges, row/date counts, scaling/calibration identity, locked-test metrics, dependence-aware uncertainty, data-quality flags, provenance classification, model/training contract, and cryptographic artifact identity. If even the evaluation predictions cannot be shared, the limitation should be explicit.
+
+\section{Statistical Dependence, Effective Sample Size, and Why Row Counts Can Mislead}
+Financial panel data combine time-series dependence with cross-sectional dependence. Two stocks observed on the same day share market shocks. Two 12-month labels observed one month apart share eleven months of forward returns. Therefore a dataset with 5,000 rows may contain far less than 5,000 independent pieces of evidence.
+
+A naive standard error based on independent Bernoulli observations can be severely optimistic. FinCompass's moving-date-block and same-date clustering strategy is a practical response: resample contiguous observation-date blocks and keep the cross-section together within a selected date. The exact block length is a modeling choice and should be sensitivity-tested. Very short blocks fail to preserve serial dependence; very long blocks produce few effective resamples.
+
+\section{Calibration Slope: Derivation and Diagnostic Meaning}
+A common calibration diagnostic fits a logistic recalibration model to held-out predictions. Let $q_i=\logit(p_i)$. Fit
+\begin{equation}
+\Pr(Y_i=1)=\sigma(a+bq_i).
+\end{equation}
+Then $a$ is calibration-in-the-large/intercept and $b$ is calibration slope. Ideal values are approximately $a=0$ and $b=1$. If $b<1$, predictions are often too extreme. If $b>1$, they may be too timid. A negative $b$ indicates a severe inversion problem on the evaluation sample. These diagnostics should be interpreted with confidence intervals and sample size, not as exact constants.
+
+\section{Reference Forecast Choice and Skill Inflation}
+Skill scores are only as meaningful as the reference forecast. A weak or badly chosen reference can make a mediocre model look impressive. For a binary event, a common reference is the development-set event rate, frozen before the locked test. Using the test-set event rate would leak information from the evaluation period and artificially strengthen the reference calibration. Conversely, using an implausibly naive 50\% reference when the event prevalence is structurally 70\% can overstate skill. The reference construction should therefore be explicitly documented.
+
+\section{Multiple Testing and the Researcher Degrees-of-Freedom Problem}
+Even when the final locked test is protected, repeated research cycles create a larger problem. If dozens of feature sets, horizons, assets, thresholds, calibrators, and hyperparameter searches are attempted, some will look strong by chance. The repository's discipline of keeping a compact feature contract and model ladder helps, but it does not eliminate research-program-level multiplicity.
+
+A stronger future protocol could maintain an experiment registry that records every serious candidate family, predeclares the primary scoring metric, and applies false-discovery or reality-check methods when broad feature mining is performed. This is especially important if automated feature generation or Bayesian hyperparameter optimization is expanded.
+
+\section{HMM Identifiability, Label Switching, and State Interpretation}
+Hidden Markov states have no inherent semantic labels. State 1 in one fit can correspond to state 3 in another fit. FinCompass therefore orders states after fitting using interpretable emission summaries. That post-fit ordering is for human readability and must not use future outcome labels. Otherwise ``risk-on'' and ``risk-off'' names could leak target information into interpretation.
+
+Gaussian emissions also assume a simplified shape. Financial returns exhibit fat tails and volatility clustering. A future regime model might use Student-$t$ emissions, stochastic-volatility state models, or hierarchical transition structures, but each increase in flexibility raises estimation and validation burden.
+
+\section{Online Bayesian Residual: Numerical Update Intuition}
+The adaptive residual can be interpreted as a small model on top of a frozen anchor. Let $x_t$ be the event vector and $\theta$ the residual coefficients. A Gaussian posterior approximation maintains a mean $m$ and covariance $P$. Each matured observation produces a local logistic likelihood update. Rank-one covariance formulas avoid repeatedly inverting the full matrix and therefore improve numerical stability and runtime efficiency.
+
+A forgetting factor/process-noise term can allow the posterior to adapt to changing relationships. However, forgetting also reduces effective historical information and can amplify noise. The residual is therefore bounded and gated by prequential losses and drift checks.
+
+\section{Data-Provider Revision Risk}
+Market and fundamental providers can revise historical values. A reproducible local research store should distinguish three events: new observations, corrections within the overlap window, and a systematic basis change. Small corrections can be journaled and reconciled. A systematic raw/adjusted basis mismatch is more dangerous because it can create discontinuities in returns and should trigger a clean rebuild of the affected symbol.
+
+For fundamentals, provider restatements create a different problem: the latest statement history may not represent what was known at the original forecast date. Strong point-in-time research therefore requires filing-vintage reconstruction, not simply downloading the provider's current historical table.
+
+\section{DCF Model-Risk Decomposition}
+The DCF output can be decomposed into uncertainty from base cash flow, growth, discount rate, stable growth, capital structure/share count, and model structure. The current implementation addresses some of this by smoothing base FCF, using company history, staged growth, a WACC range, and reverse DCF. It should still avoid implying that the displayed range is a statistical confidence interval. It is a scenario range.
+
+An expert Research view should ideally show a sensitivity matrix for growth versus discount rate, the share of value coming from terminal value, the raw scenario endpoints before any display trimming, and the implied growth from reverse DCF. If terminal value dominates, the user should be warned that the valuation is especially assumption sensitive.
+
+\section{Option-Chain Data and Model-Risk Decomposition}
+Listed option data introduce microstructure effects absent from a textbook Black--Scholes formula: bid--ask spreads, zero-bid contracts, stale last trades, discrete dividends, early exercise, volatility smile/skew, and jumps. Therefore the tool should distinguish four numbers: last trade, bid/ask mid, implied volatility, and model price. The payoff diagram at expiry is deterministic given strike/premium and is often the most intuitive first visual; Greeks belong underneath.
+
+\section{Portfolio Covariance Estimation Risk}
+Portfolio variance $w^T\Sigma w$ is only as good as the covariance estimate. Sample covariance can be unstable when the number of assets is large relative to the history length. A future expert option could provide shrinkage covariance (for example Ledoit--Wolf), exponentially weighted covariance, and stress correlations. These should remain analytical choices and must not silently affect Forecast probabilities.
+
+\section{Software Architecture Review at Commit b7a1e769}
+The repository now has several strong engineering properties: training is offline with respect to model builds; data acquisition is separated from fitting; experiment outputs are unique and diagnostic bundles are persisted; model activation is explicit; training contracts are stamped on saved artifacts; baseline and stronger tiers are distinguished; deterministic analytics return JSON-safe missing values; public feed failures degrade to unavailable states; documentation has one canonical source tree; and platform packaging is automated.
+
+The most important remaining architecture correction is the freshness function, which still derives model age from the currently viewed ticker's local coverage. That helper should be replaced or renamed so its semantics cannot be mistaken for family-corpus freshness. A second remaining asymmetry is regime retraining. A third is the action-policy language and its decision-theoretic claim boundary. These are smaller and more tractable than the earlier new-ticker/update dead end, but they are still worth closing before the code is described as fully finished.
+
+\section{Recommended Verification Additions}
+Add behavioral tests for: family-corpus freshness independent of inference ticker; a baseline retrain at each supported horizon; safe no-op/explicit unsupported status for regime retraining; Guided Forecast with no research-only fields in the primary card; glossary search and tooltip-to-glossary linking; option/Treasury source timestamps; raw-versus-guided DCF scenario transparency; action-policy explanation stating that it is separate from model validation; and packaged persistence across application restart.
+
+\section{Glossary Contract for the Application}
+The glossary should be generated from a structured source rather than hard-coded independently in JavaScript and documentation. A JSON/YAML glossary registry could contain term ID, display label, short tooltip, extended plain-language explanation, technical definition, formula ID, category, and limitation. The UI would render tooltips from the short field and the Glossary page from the extended fields; the user guide could be generated from the same registry. This avoids drift between three copies of definitions.
+
+
+\setcounter{section}{0}
+\renewcommand{\thesection}{\arabic{section}}
+
+\clearpage
+\part{Methods, Assumptions, and Expert Verification}
+
+\section{Formal Target Semantics Across Multiple Horizons}
+For each horizon $H$, the target is a different random variable. This matters because a model registry can contain 6-, 12-, 24-, and 36-month artifacts without those artifacts being interchangeable. The feature vector at time $t$ may be similar across horizons, but the label window, purge length, event prevalence, and economic interpretation change with $H$.
+
+If observation dates are monthly and the horizon is 36 months, a large fraction of neighboring labels overlap. This makes naive sample-size intuition especially misleading. It also means that a 36-month model can be much slower to accumulate genuinely new matured labels after deployment. Model maintenance logic should therefore be horizon-aware: ``new prices exist'' is not equivalent to ``new supervised evidence exists.''
+
+A rigorous manifest should record the exact endpoint convention. Calendar-month horizons, fixed trading-day horizons, and ``nearest available session'' rules can produce different labels near holidays or missing observations. The benchmark and asset must use the same endpoint convention to avoid accidental mismatches in relative return.
+
+\section{Feature Engineering: Stability Before Breadth}
+The reference feature set is intentionally compact because the dominant research risk in financial prediction is not lack of possible signals; it is the enormous number of plausible signals that can be tried. Momentum, reversal, volatility, drawdown, trend, valuation, quality, macro, positioning, and cross-sectional features can each be defined in many ways. Without disciplined governance, the effective search space becomes much larger than the nominal number of model parameters.
+
+A feature should therefore pass four tests before entering a production contract. First, its definition must be deterministic and versioned. Second, its historical availability must be point-in-time defensible. Third, its missingness and scaling rules must be specified. Fourth, it must demonstrate incremental value under a protected development protocol rather than being retained because it ``makes sense'' after inspection.
+
+Feature stability should also be tested. A feature whose sign flips repeatedly across walk-forward folds may be acting as a regime proxy rather than a stable predictor. That does not automatically make it useless, but it suggests that a regime interaction or hierarchical model may be more appropriate than one global coefficient.
+
+\section{Standardization, Missingness, and Inference-Time Reproducibility}
+Training-time standardization parameters are part of the model. If a feature is centered by training mean $\mu_j$ and scaled by training standard deviation $s_j$, inference must use those same values:
+\begin{equation}
+z_j=(x_j-\mu_j)/s_j.
+\end{equation}
+Recomputing $\mu_j$ or $s_j$ on the new ticker's history changes the model and can silently alter the effective prior/decision boundary.
+
+Missingness deserves equal care. Replacing missing values with zero is only valid if zero has a defined semantic meaning after standardization or if an imputation rule was trained and validated. For many financial variables, missing means unavailable, not neutral. The safest baseline behavior is to reject a feature vector when required inputs cannot be reconstructed under the model contract, rather than inventing a value that creates a false sense of completeness.
+
+\section{Bayesian Logistic MAP Optimization}
+The posterior-mode objective can be written as a penalized negative log likelihood. With diagonal prior precision matrix $\Lambda$,
+\begin{equation}
+\mathcal L(\beta)=-\sum_i\left[y_i\log p_i+(1-y_i)\log(1-p_i)\right]+\frac12\beta^\top\Lambda\beta.
+\end{equation}
+The gradient is
+\begin{equation}
+\nabla\mathcal L=X^\top(p-y)+\Lambda\beta,
+\end{equation}
+and the Hessian is
+\begin{equation}
+H=X^\top W X+\Lambda,
+\end{equation}
+where $W$ is diagonal with entries $p_i(1-p_i)$. The prior precision improves numerical conditioning and guards against very large coefficients when predictors are collinear or separation is nearly complete.
+
+A robust implementation checks optimization convergence, finite coefficients, finite Hessian/covariance, and finite probabilities on all partitions. These are hard-validity conditions, not evidence of predictive skill.
+
+\section{Probability Calibration Methods and Trade-offs}
+Isotonic regression is flexible because it only enforces monotonicity. That flexibility is useful when raw probabilities are systematically distorted in a nonlinear way, but the mapping can become step-like and unstable with small validation samples. Logistic recalibration (Platt-style) uses a lower-dimensional transformation and may generalize better when calibration data are limited.
+
+The calibration method should be chosen before opening the locked test. If multiple calibrators are compared, that comparison belongs to the validation stage and becomes part of the research degrees of freedom. The chosen calibration mapping, its fitted parameters or knots, validation sample size, and calibration event rate should be stored in the artifact.
+
+\section{Bootstrap Design for Financial Panels}
+The moving-date-block bootstrap approximates the sampling variability of metrics while preserving local temporal dependence and same-date cross-sectional clustering. A bootstrap draw selects contiguous blocks of observation dates; when a date is selected, the cross-section of instruments for that date remains together. This is closer to the dependence structure of the problem than independently resampling individual rows.
+
+There is no universally correct block length. A useful sensitivity analysis recomputes metric intervals across several plausible block sizes. If a model only appears significant for one unusually short block choice, the evidence is fragile. The bootstrap interval should be treated as one diagnostic, not a substitute for walk-forward stability or a fully specified time-series asymptotic theory.
+
+\section{Walk-Forward Evaluation and Model Aging}
+Walk-forward evaluation approximates repeated historical deployment. In each fold, the model is fit/calibrated using only information available before the fold's evaluation period. A stable model should not rely entirely on one favorable market episode.
+
+Model aging can be investigated by plotting loss or skill as a function of evaluation date. Deterioration does not automatically imply a retrain will help; it can reflect structural change, a temporary regime, data changes, or noise. Retraining should therefore create a candidate and compare it with the current model rather than automatically replacing the current artifact.
+
+\section{Model Selection Under Statistical Tolerance}
+Suppose model A has Brier skill 0.035 and model B has 0.038. Treating B as definitively superior may be unjustified if the difference lies well inside sampling uncertainty. A simplicity-aware selection policy can define a tolerance or use paired block-bootstrap differences. If the more complex model is not materially better, retain the simpler model.
+
+This is particularly important for regime models and nonlinear ensembles, where capacity can exploit small historical idiosyncrasies. The purpose of a model ladder is not to maximize complexity; it is to provide increasingly flexible candidates that must earn promotion.
+
+\section{Applicability and Domain Shift}
+Domain shift occurs when the distribution or economic meaning of inference cases differs from the training domain. A pooled US common-stock model may not transfer to Canadian equities because benchmark structure, currency exposure, sector composition, listing rules, and macro sensitivity differ. An ETF may have mechanically different diversification and rebalance behavior than a common stock. Cryptoassets have different trading calendars, market microstructure, and fundamental data.
+
+An applicability check is therefore a scientific gate. The interface should explain unsupported cases plainly, but Research Details should record the exact failed domain fields. That distinction allows simple UX without sacrificing expert auditability.
+
+\section{Data Freshness Versus Label Freshness}
+A 12-month model trained through June 2022 can encounter a ticker with prices through August 2026. That four-year price gap is not itself four years of new labels for the family model. To know whether retraining evidence exists, the system must ask which family instruments have new observations, whether those observations satisfy the feature contract, and whether their 12-month outcomes have matured.
+
+A rigorous retrainability service could report counts by observation date, symbol, and matured endpoint, with minimum breadth and span requirements. It could also distinguish newly available raw observations from newly usable supervised rows. This would make the ``Update model'' recommendation scientifically meaningful rather than simply age-based.
+
+\section{Retraining Reproducibility and Candidate Identity}
+A retraining run should be reproducible from a recipe, local-corpus snapshot or manifest, settings, and code version. Candidate identity should bind at least: dataset hash, trainer family, feature contract, horizon, benchmark, settings hash, parent model, and artifact hash. If any of these change, the candidate should receive a different identity.
+
+The current architecture already avoids implicit activation. That property should remain non-negotiable. Retraining is an experiment that creates evidence; activation is a separate governance decision.
+
+\section{Live Prequential Evaluation}
+Prequential evaluation treats prediction as a sequence. At each matured observation, the system evaluates the probability that existed before the outcome was known. Only after recording that loss may the model update. This is a natural framework for online learning because it mirrors actual deployment.
+
+For a frozen anchor probability $p_{0,t}$ and candidate adaptive probability $p_{1,t}$, define per-observation Brier difference
+\begin{equation}
+d_t=(p_{1,t}-y_t)^2-(p_{0,t}-y_t)^2.
+\end{equation}
+Negative $d_t$ favors the adaptive candidate. A drift/gate process can track aggregated differences over time while also monitoring calibration and unique-date breadth. The exact gate thresholds must be versioned settings, not silently changed after observing performance.
+
+\section{Effective Sample Size in Live}
+If the application refreshes a ticker every minute, it can create thousands of event observations in one day. Those are not thousands of independent outcomes, especially when the forward horizon is months. Pending-label identity and activation gates therefore need date-level or otherwise economically meaningful uniqueness rules.
+
+The current design's emphasis on unique observation dates and elapsed span is important. A future refinement could also enforce symbol breadth or cluster-aware weighting so a large watchlist on one day does not dominate online evidence.
+
+\section{Evidence Engine Versus Forecast Engine}
+The evidence engine can summarize Quality, Financial Durability, Safety, Valuation, and Cycle using current public information. Its posterior uncertainty pertains to the evidence score. The forecast engine estimates a forward binary event. Combining the two outputs after the fact would create a new model that has not been historically validated.
+
+A future research program could explicitly test evidence-score components as point-in-time forecast features. That would require reconstructing historical evidence inputs, registering a feature contract, retraining, and revalidating. Until then, separation is scientifically cleaner.
+
+\section{Financial Statement Normalization as a Data-Model Boundary}
+Provider aliases are confined to the normalization layer so analytical formulas operate on canonical concepts. This is more than code cleanliness. It makes formulas portable across providers and makes missingness explicit. A canonical field should carry provenance: direct mapping, derived value, unavailable, or not applicable.
+
+Derived fields require special caution. If free cash flow is calculated as operating cash flow minus capital expenditure, the sign convention for capex must be standardized. If total debt is derived from short- and long-term debt, leases and other obligations may or may not be included depending on provider definitions. These decisions belong in the analytics formula registry and documentation.
+
+\section{DCF: FCFE/Reported-FCF Interpretation}
+The current guided DCF uses reported free cash flow as a practical equity-oriented cash-flow base and bridges through net debt/share count according to the implementation contract. Because ``free cash flow'' is not a single universally standardized accounting line, the model should describe exactly which provider/canonical fields are used.
+
+A multi-year average can reduce the effect of a one-off working-capital swing, but averaging only positive years can introduce upward selection bias if negative FCF years are economically meaningful. The implementation should therefore document the condition under which positive-only averaging is used and expose raw history in Research Details. For cyclical or reinvestment-heavy firms, normalized FCF may require a different approach.
+
+\section{Three-Stage Growth Path Mathematics}
+Let high growth be $g_H$, stable growth $g_S$, high-growth duration $n_H$, and transition duration $n_T$. A simple three-stage path keeps $g_t=g_H$ for the first stage and linearly declines to $g_S$ over the transition. This structure is more realistic than assuming one constant rate for ten years, but it remains a scenario.
+
+The stable growth cap is economically motivated: perpetual nominal growth above the long-run economy/risk-free framework cannot continue indefinitely without the company eventually exceeding the economy. The exact cap should be visible and adjustable only under an explicitly versioned valuation settings contract.
+
+\section{Reverse DCF Numerical Solving}
+Reverse DCF solves a nonlinear equation for growth. Numerical root finding should define a bounded search interval and return unavailable if no root exists within economically admissible bounds. Multiple roots are possible in exotic structures, though the monotonic relationship between early growth and value usually produces a single root under standard assumptions.
+
+The solver tolerance and bounds should be tested with known synthetic cases. A reverse DCF result should be presented as ``growth implied under these assumptions,'' not ``the market's true expected growth.'' Market prices also reflect discount-rate views, optionality, strategic assets, and expectations not represented in the simplified model.
+
+\section{Option Pricing Assumptions}
+Black--Scholes--Merton assumes lognormal diffusion, continuous trading, frictionless markets, constant volatility and rates over the horizon, and European exercise under the basic form. Real listed equity options can be American, pay discrete dividends, and exhibit volatility smiles. Therefore BSM Greeks are local model sensitivities, not exact future P/L sensitivities.
+
+When the tool loads a real contract, the most important provenance fields are quote timestamp, bid, ask, last trade, implied volatility, expiry, strike, and option type. A stale last trade can be less informative than the current bid/ask. The UI should not silently choose one without identifying it.
+
+\section{Treasury Curve as Reference, Not Universal Discount Rate}
+A Treasury curve provides a current maturity structure for US government borrowing. It is a useful risk-free reference for option pricing and fixed-income context. Corporate securities require credit spread and may require liquidity, tax, call, and structural adjustments. International assets introduce currency and sovereign considerations.
+
+The calculator should therefore state whether a user-entered yield, Treasury reference, or Treasury-plus-spread assumption is being used. This keeps a simple workflow from becoming a hidden modeling assumption.
+
+\section{Portfolio Risk Decomposition}
+For portfolio variance $V=w^T\Sigma w$, the marginal contribution of asset $i$ to variance is proportional to $(\Sigma w)_i$. A common volatility contribution is
+\begin{equation}
+RC_i=\frac{w_i(\Sigma w)_i}{\sigma_p}.
+\end{equation}
+The contributions sum to portfolio volatility under consistent conventions. Presenting each contribution as a share of total volatility is intuitive, but negative contributions can occur for hedging assets. The UI should be prepared to explain that a negative contribution can reduce total risk rather than treating it as an error.
+
+\section{Risk Metric Method Identity}
+Two implementations can both label a result ``VaR'' while using different distributions, return frequencies, confidence levels, windows, and sign conventions. Every analytics result should therefore include a formula or method identity, period, as-of date, input references, quality flags, and method version. This universal result contract is one of the stronger architectural choices in the analytics layer.
+
+\section{Glossary as a Single Source of Truth}
+Terminology drift is a real software defect when the UI, guide, and manuscript define the same term differently. A structured glossary registry can prevent this. The short tooltip and extended explanation should be generated from the same source. Formula identifiers can link directly to the analytics registry, while model-governance terms can link to manifest fields.
+
+This registry should be human-editable, reviewed for scientific accuracy, and tested so every displayed technical label has either a tooltip or glossary entry. Such a test turns accessibility into a maintainable product property.
+
+\section{Packaged Application Acceptance Testing}
+A package-level test should be treated separately from unit/integration tests because packaging can break imports, data paths, permissions, browser assets, and persistence. For each supported desktop platform, the release workflow should launch the built application in an isolated data directory and exercise representative endpoints/workflows.
+
+A minimal acceptance set includes: startup, deterministic analytics, a supported new-ticker Forecast, Start Live, restart persistence, safe unsupported ticker behavior, option/Treasury graceful degradation, document endpoint availability, and release-manifest integrity. Where network data are required, the test should distinguish provider unavailability from application failure.
+
+
+\setcounter{section}{0}
+\renewcommand{\thesection}{\arabic{section}}
+
+\clearpage
+\part{Extended Statistical and Engineering Notes}
+
+\section{Probability Forecasts as Decision Inputs, Not Decisions}
+A probability forecast is an intermediate object. It estimates uncertainty about a defined event. A decision requires at least one additional layer: a utility or loss function describing the relative consequences of acting, waiting, buying, selling, concentrating, or missing an opportunity. Two users can rationally choose different actions from the same probability because their costs, horizons, portfolios, taxes, and risk capacities differ.
+
+This distinction is particularly important when the application provides an interpretation policy. The policy may be useful as a conservative educational bridge, but it should be versioned separately from the forecasting model. Model validation answers whether the probability behaves as intended. Policy validation asks whether a threshold mapping improves a declared utility objective under specified assumptions. Those are not the same study.
+
+A rigorous future policy study would define a payoff function, transaction costs, position limits, rebalance frequency, and benchmark. It would test policies on a protected chronological sample and report sensitivity to threshold choices. Without that work, threshold actions should remain clearly labeled as general interpretation guidance rather than model-implied optimal actions.
+
+\section{Sharpness, Resolution, and Calibration}
+Calibration is necessary but not sufficient. A model that always predicts the historical event rate can be perfectly calibrated in a stationary sample while providing no case-specific information. Forecast quality is therefore often discussed in terms of calibration and sharpness/resolution. Sharpness describes how much the model moves probabilities away from the unconditional rate; resolution describes whether those movements separate situations with meaningfully different outcome frequencies.
+
+The safest way to interpret a model is therefore multi-dimensional. Proper scoring rules combine several aspects into one loss, while calibration plots, probability histograms, AUC/average precision, and reliability by time period reveal different failure modes. Research mode should avoid a single ``model score'' that hides these distinctions.
+
+\section{Class Imbalance and Event Definition}
+If the target event occurs much more or less than half the time, metrics such as accuracy become misleading. A model that always predicts the majority class can have high accuracy while providing no useful probability differentiation. Proper scoring rules remain meaningful, but the chosen reference probability must reflect the event prevalence estimated from development data.
+
+Event prevalence can also change over time. A benchmark-relative event may be easier or harder in different market regimes. This is another reason to report locked-test event rate, calibration, and temporal stability rather than assuming one stationary base rate forever.
+
+\section{Threshold-Free Versus Thresholded Metrics}
+AUC is threshold-free in the sense that it assesses ranking across all possible classification thresholds. Precision/recall metrics become more informative when the positive event is rare. But FinCompass is primarily a probability system, so thresholded accuracy, sensitivity, or specificity should not become the principal validation objective unless a specific decision policy is being studied.
+
+Once the application introduces action thresholds, those thresholds create a separate evaluation problem. The correct metrics may include turnover, drawdown, opportunity cost, transaction cost, and utility. Those policy outcomes should not be back-propagated into the model's evidence tier unless the model-validation protocol explicitly includes them.
+
+\section{Temporal Nonstationarity and Regime Change}
+Financial data-generating processes are nonstationary. Factor premia, market microstructure, policy regimes, interest rates, and participant behavior change. A model trained on several decades of data therefore mixes environments. Longer history increases sample size but can reduce relevance; shorter history increases relevance but raises variance.
+
+The architecture addresses this tension through a simple baseline, walk-forward analysis, optional regime modeling, model freshness metadata, and a separate adaptive residual. None is a complete solution. The correct scientific posture is to treat stability as an empirical question and to preserve the ability to fall back to a frozen anchor when online evidence deteriorates.
+
+\section{Cross-Sectional Leakage and Universe Construction}
+A panel of equities can leak information in subtle ways even when time ordering is correct. If the list of training securities is selected using knowledge of which firms survived to the end of the sample, the historical universe is biased. If sector labels or index membership are taken from today's classification and applied backward, the model may use information not known at the historical date.
+
+For market-validated claims, universe membership should be reconstructed historically, including delisted firms and corporate events where possible. The current public baseline records survivorship limitations explicitly and therefore does not claim the strongest market tier. That limitation is scientifically appropriate and should remain visible in both model manifests and the manuscript.
+
+\section{Benchmark Choice as a Modeling Assumption}
+Benchmark selection is not merely a UI preference. It defines the target label and changes the interpretation of features such as relative momentum and tracking error. The S\&P 500 may be a sensible family benchmark for large US common stocks, but sector-specific, small-cap, international, or factor exposures may require different references.
+
+A future benchmark resolver could use a hierarchy: market region, security type, broad style/size, then sector only when the model family was validated for that benchmark. Automatic benchmark selection should always be explainable in a ``Why this result?'' disclosure.
+
+\section{Horizon-Specific Data Requirements}
+Longer horizons require longer history for both feature lookbacks and matured labels. They also reduce the number of effectively independent evaluation windows. A 36-month model may therefore need many calendar years before a locked test has meaningful temporal breadth. The system should not compensate by lowering minimum sample requirements solely to make the horizon available.
+
+The right response to limited long-horizon evidence is an honest evidence tier and wider uncertainty, or no stronger model at that horizon. This is another reason the baseline tier is useful: it allows a coherent probability reference without pretending that the long-horizon sample supports strong skill claims.
+
+\section{Artifact Serialization and Dependency Pinning}
+Serialized scikit-learn objects can be sensitive to library versions. A model that unpickles under one minor version may fail under another if internal module paths or estimator state change. The repository's decision to pin the scientific stack for packaged artifacts is therefore a reproducibility measure, not merely dependency conservatism.
+
+Longer-term robustness could improve by exporting simpler artifacts in implementation-independent formats where practical: coefficient arrays, scalers, calibration knots, and explicit model metadata for the Bayesian reference are straightforward to serialize without pickling. Complex ensembles are harder, but a migration strategy should be considered before future dependency upgrades.
+
+\section{Model Integrity Versus Model Validity}
+A cryptographic hash answers ``Are these the exact bytes expected?'' It does not answer ``Is this a good model?'' Conversely, a statistically strong model whose bytes are corrupted is unusable. Release verification should therefore treat integrity and validity as independent gates.
+
+The model registry should reject missing or mismatched artifacts before inference. Validation tier should come from the signed/hashed manifest rather than being recomputed from mutable UI state. This keeps the evidence claim bound to the artifact that actually generated the probability.
+
+\section{Data Cache Versus Research Store}
+Current-data caching and historical research storage serve different purposes. A fast cache can hold recent API responses for interactive analysis. The durable research store must preserve provenance, revisions, price basis, and stable historical rows suitable for model building. Mixing the two can cause silent changes in training data when provider responses are refreshed.
+
+The Model Lab rule that training never downloads data implicitly is therefore important. A training experiment should consume a known local corpus. Acquisition is a separate observable operation.
+
+\section{Provider Failure and Graceful Degradation}
+External data providers are outside the application's control. Network failures, rate limits, schema changes, stale quotes, and temporary empty responses are normal operational risks. The correct product behavior is to preserve the distinction between ``data unavailable'' and ``analysis failed.''
+
+A degraded result should identify which component is unavailable and keep unaffected components working. For example, failure to load an option chain should not break deterministic equity risk analytics. Failure to fetch a Treasury curve should still allow a bond calculation with a user-entered yield. This modular degradation is both a UX feature and an engineering reliability property.
+
+\section{As-Of Semantics}
+Every time-sensitive output should have a clear as-of meaning. Historical return metrics depend on the selected end date and window. Fundamentals depend on the latest public statement. Option chains depend on quote time. Treasury rates depend on observation time. A Forecast depends on the feature vector at its as-of date and the model artifact selected at that moment.
+
+A research export should include the as-of timestamp and source timestamps where relevant. Without those fields, later attempts to explain a result become difficult even if the model itself is reproducible.
+
+\section{Sensitivity Analysis as an Antidote to False Precision}
+Valuation and risk calculations often depend strongly on assumptions. A professional interface should expose sensitivity rather than bury it. DCF naturally supports discount-rate/growth surfaces. Bond price can be shown across yield shocks. Option value can be explored across underlying price and implied volatility. Portfolio risk can be recalculated under correlation stress.
+
+Sensitivity analysis is not a prediction of which scenario will occur. It is a map of how assumptions propagate into outputs. For users who do not want formulas, visual sensitivity is often the clearest way to communicate model risk.
+
+\section{Why Tooltips Must Be Short and Glossary Entries Must Be Longer}
+A tooltip that contains a full textbook paragraph interrupts the workflow. A one-line glossary entry, however, is too shallow for someone trying to learn the concept. The product therefore benefits from three synchronized lengths: a one-sentence tooltip, a multi-paragraph glossary entry, and a technical-methodology section.
+
+Maintaining those definitions from one structured registry can prevent wording drift. The registry can also drive documentation tests: every visible advanced metric must have a tooltip, glossary entry, and optional formula reference.
+
+\section{Accessibility and Cognitive Load}
+Accessibility is broader than font size. The application should avoid relying on color alone, use clear labels on charts, provide keyboard navigation, preserve sufficient contrast, and ensure that the same information is available in text for screen readers. Charts should state the conclusion in a sentence because not every user reads axes fluently.
+
+Progressive disclosure reduces cognitive load: show the answer first, then context, then evidence. The Research view can be dense because the user has explicitly asked for depth, but even there terminology should be defined rather than assumed.
+
+\section{Why Visuals Need Scientific Guardrails}
+Visuals can mislead as easily as numbers. A truncated axis can exaggerate small changes. A green/red gauge can imply buy/sell judgment. A DCF range centered cosmetically around the current price can suggest agreement that the model does not actually have. A probability gauge should therefore use a neutral reference line, not a ``good/bad'' color map.
+
+Every chart should have a clear axis, units, as-of period, and statement of whether values are observed, modeled, or illustrative. The figures in this manuscript labeled illustrative are intentionally not market evidence.
+
+\section{Current DCF Implementation: Strengths and Questions for Follow-Up}
+The recent DCF revision is directionally strong: it uses reported FCF, a multi-year base, company-specific historical growth, a three-stage fade, a stable-growth cap, and reverse DCF. Those choices address the earlier problem of implausibly low values from an EBIT-based reconstruction.
+
+Two items deserve follow-up. First, averaging only positive recent FCF observations can bias the base upward for firms with genuinely negative or cyclical cash flow. The rule should be documented and perhaps conditioned on business type or stability. Second, any range-clamping or post-processing used to keep the displayed range within a ``sensible multiple'' should never hide the raw valuation surface in Research. Prefer constraining economically admissible assumptions to trimming valid outputs after calculation.
+
+\section{Current Action Policy: Strengths and Questions for Follow-Up}
+The action policy has good structural separation: it is outside the trainer, versioned, and prevents Limited-evidence models from issuing money actions. That is much safer than allowing every probability to trigger a trade label.
+
+The remaining question is evidentiary: the 0.58/0.42 probability thresholds and 20\% position threshold are policy assumptions, not validated consequences of the forecasting model. Documentation and UI should say so plainly. If the policy becomes a core feature, a separate utility/backtest protocol should be added rather than using the model-validation evidence as a proxy.
+
+\section{Current Packaging and Distribution Architecture}
+The repository now includes CI builds for Windows, macOS, and Linux plus release-asset publishing and a Pages landing page. This is a significant improvement in product completeness. The final quality gate should verify that each native package includes the scientific dependencies, model artifacts, market-seed assets, documentation, and runtime configuration expected by the source release.
+
+The landing page should link to stable release assets and to the canonical user guide. Release binaries should display their source commit/build identity somewhere accessible so bug reports can be tied to an exact package.
+
+\section{Recommended Expert-Facing Forecast Report}
+A one-click research report would materially improve transparency. It could contain a cover summary, target/event definition, current probability and uncertainty, evidence tier, applicability result, selected model family and ID, training/validation/test windows, locked metrics, calibration diagnostics, data-quality flags, training contract, artifact hash, freshness context, Live eligibility, and limitations.
+
+For private intermediates, the report should state what is not included and which results are independently reproducible from public artifacts. This would turn Research mode from an on-screen inspection tool into an auditable record.
+
 \end{document}

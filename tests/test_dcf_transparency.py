@@ -25,12 +25,19 @@ def test_dcf_exposes_full_scenario_surface():
     dcf = out["dcf"]
     assert dcf["valid"] is True
 
-    # Base normalization is disclosed, including the excluded negative year.
+    # Base starts from the latest reported FCF (LTM, standard practice), and the
+    # three-year average is still reported for context.
     norm = dcf["base_fcf_normalization"]
-    assert norm["method"] == "mean_of_recent_positive_reported_fcf"
-    assert norm["negative_years_excluded"] == 1  # the -10 sits inside the 3-year window
+    assert norm["method"] == "latest_reported_fcf_ltm"
     assert norm["reported_fcf_history"] == [100.0, 90.0, -10.0, 70.0]
-    assert norm["years_used"] == 2
+    assert dcf["base_free_cash_flow"] == 100.0
+    assert dcf["base_fcf_three_year_average"] == 95.0  # mean of [100, 90]
+
+    # Two switchable lenses; growth assumes more than the conservative anchor.
+    L = dcf["lenses"]
+    assert set(L) == {"conservative", "growth"}
+    assert L["growth"]["high_growth"] > L["conservative"]["high_growth"]
+    assert L["growth"]["value_per_share"] >= L["conservative"]["value_per_share"]
 
     # Growth anchor names its source series.
     assert dcf["growth_anchor"]["source"] in {"fcf_cagr", "revenue_cagr"}
@@ -82,15 +89,17 @@ def test_growth_quality_supported_for_modest_growth():
     assert dcf["growth_quality"]["supported"] is True
 
 
-def test_dcf_excludes_negative_year_in_window_and_flags_caution():
+def test_dcf_falls_back_to_averaging_when_latest_fcf_is_negative():
     def fetch_cyclical(_t):
         d = _fetch(_t)
-        # Put the negative year inside the recent 3-year averaging window.
-        d["fcf_history"] = [100.0, -30.0, 90.0, 70.0]
+        # Latest FCF is negative, so the base falls back to the positive-year mean
+        # and flags the cyclical caution.
+        d["fcf_history"] = [-30.0, 100.0, 90.0, 70.0]
         return d
 
     dcf = build_fundamentals("CYC", instrument={"instrument_type": "equity"},
                              market_price=100.0, fetch=fetch_cyclical)["dcf"]
     norm = dcf["base_fcf_normalization"]
+    assert norm["method"] == "mean_of_recent_positive_reported_fcf"
     assert norm["negative_years_excluded"] == 1
     assert norm["cyclical_caution"] is True

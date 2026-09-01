@@ -66,14 +66,35 @@
   </header>
 
   <nav class="tabs" id="tabs">
-    <button data-tab="dcf" class="active">DCF valuation</button>
+    <button data-tab="forecast" class="active">Forecast</button>
+    <button data-tab="dcf">DCF valuation</button>
     <button data-tab="options">Options</button>
     <button data-tab="bonds">Bonds</button>
     <button data-tab="portfolio">Portfolio</button>
     <button data-tab="reference">Reference</button>
   </nav>
 
-  <section id="tab-dcf" class="panel active">
+  <section id="tab-forecast" class="panel active">
+    <div class="card">
+      <h3>Forecast — probability of beating the S&amp;P 500</h3>
+      <p class="meta">A calibrated probability that a US stock outperforms the S&amp;P 500 over the horizon, from the same Bayesian reference model as the desktop app — it runs entirely in your browser. Not a target price, expected return, or advice.</p>
+      <div id="proxy-setup" class="card" style="display:none">
+        <p class="meta">One-time setup: the Forecast needs daily prices, which browsers can't fetch from Yahoo directly. Paste your free Cloudflare Worker URL (see <a href="https://github.com/rajeevyadav/fincompass/blob/main/cloudflare/SETUP.md">the 5-minute guide</a>). Stored in your browser only.</p>
+        <div class="glossary-controls">
+          <input id="proxy-url" type="text" placeholder="https://fincompass-data.your-name.workers.dev">
+          <button type="button" class="btn" id="save-proxy">Save</button>
+        </div>
+      </div>
+      <form class="grid" id="f-fc">
+        <label>Ticker <input name="ticker" type="text" value="AAPL" autocomplete="off"></label>
+        <label>Horizon <select name="horizon"><option value="12">12 months</option><option value="6">6 months</option><option value="24">24 months</option><option value="36">36 months</option></select></label>
+        <button class="btn" type="submit">Forecast</button>
+      </form>
+      <div class="out" id="o-fc"></div>
+    </div>
+  </section>
+
+  <section id="tab-dcf" class="panel">
     <div class="card">
       <h3>Three-stage DCF (with reverse DCF)</h3>
       <p class="meta">Values a company from its free cash flow: five high-growth years, a five-year glide to a stable rate, then a perpetual terminal. Enter the figures you have; every number is yours and stays in your browser.</p>
@@ -159,6 +180,8 @@
   </footer>
 </div>
 <script src="engine.js"></script>
+<script src="forecast.js"></script>
+<script src="data.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

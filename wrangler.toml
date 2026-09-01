@@ -1,0 +1,16 @@
+# Cloudflare Workers configuration for the FinCompass data proxy.
+#
+# This lets a Git-connected Cloudflare Worker build and deploy the proxy straight
+# from this repository: Cloudflare detects this file at the repo root and runs
+# `wrangler deploy`, which bundles the entry point below. The proxy only relays
+# public daily price JSON with a CORS header (see cloudflare/worker.js and
+# cloudflare/SETUP.md); it has no dependencies, secrets, or storage.
+#
+# The Cloudflare Workers free plan (100,000 requests/day, no credit card) covers
+# this. If you would rather not connect Git, create a plain "Hello World" Worker
+# and paste cloudflare/worker.js into its online editor instead.
+
+name = "fincompass-data"
+main = "cloudflare/worker.js"
+compatibility_date = "2025-01-01"
+workers_dev = true

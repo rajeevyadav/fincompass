@@ -60,7 +60,7 @@ d2030cef07a5af539115e7e94a0d31dc8767aa9443d119f219a909c6196ffd3e  ./assets/banne
 b4cfabc0415a16045f62946f6a0bb333e566c23d0d7beac26c322d74ef58feec  ./build-model.bat
 398e8b19c818a1067deb1b4ae249fe65083a492c3af54b91d3eb52a09be242f9  ./build_exe.bat
 49675cadcf348dca8ca2b98bc1d63ad4f47f6d67f7283d3a37aeccfa737736d1  ./build_installer.bat
-10d8056f036693ec501347c463bdb414693689d3e6091a291c9534ca1c786a6a  ./cloudflare/SETUP.md
+fc9f082ed461f2cff5938f7ccf69301dd8f3f8cbc06dcc4c572e47fec5a8c4da  ./cloudflare/SETUP.md
 ff11a76073740e585b41de0e237b3edb1351b048eff637df255d9bcded38933b  ./cloudflare/worker.js
 174ca92ec89017ffd741ef4bae5efacd5dc8c2d5c85de1f0542a8738f17485cb  ./cloudrun/SETUP.md
 a8ddfae34ba7b2dc8092e4729d8bfc054cadaa7a8e26683d59a416a9d694f330  ./cloudrun/deploy.sh
@@ -105,7 +105,7 @@ ceed5d1192c4ef637230e24d01aba8bdad4bf547174051485da87994145cda55  ./docs/ANALYTI
 f6e39f5e983cc2eac5b60bf24c8279e59cc1f595ef3aafac39bf0a21f710873c  ./docs/FEATURE_REGISTRY.md
 61ae99b2bfd0e69ef8c7a559a94a69be47bdd2e9daf18df99104d94ba3f6cd72  ./docs/FinCompass-User-Guide.pdf
 61ae99b2bfd0e69ef8c7a559a94a69be47bdd2e9daf18df99104d94ba3f6cd72  ./docs/FinCompass-User-Manual.pdf
-531f3d327a750f18596d5387a9715cc041b65053341cb97d65bf828a46bf846b  ./docs/HELP.md
+952c311875efc81ea7214563c151b741e7c3e24d547ccaab069840dbe0036214  ./docs/HELP.md
 fa25d0dfd85d30d4bfbb27de3063104a2355ba7f05e7e058da4e11a569dc50d2  ./docs/USER_MANUAL.md
 1adfe1323a2c31c781d1f909af0ff169060f1074fca7402b638fbb747f804cdd  ./docs/user-guide/figures/action_policy.png
 dd7ff1fb360ecf52d748ded572d46c9fefe9318fb0b78a74502584a068fa6c35  ./docs/user-guide/figures/brier_skill.png
@@ -374,3 +374,4 @@ a4bda7fdc162af0750c4c88446d3ff6f8b16f44c8339e27278065ab552687887  ./web/models/f
 8fc598a59ac2583261ab794ffa98da9621f027cec1ec1486cbc1c4aab2003682  ./web/models/forecast-36m.json
 7c9adf7068baba74b09a227eb88cfc2f2fcd67812e37042e791a12fcef2fed7e  ./web/models/forecast-6m.json
 cbc69838889cc4152d90f8abb63355c98340b51f6febb45b3fed6a65477b2119  ./web/models/index.json
+7e29e8587cdff82a67880a419a651c0e44ee5136265c6419d7bc004cc55fd8b3  ./wrangler.toml

@@ -39,6 +39,45 @@ const FCData = (() => {
     return bars;
   }
 
-  return {getProxy, setProxy, hasProxy, dailyBars};
+  // Annual fundamentals for the DCF. Returns newest-first arrays where relevant.
+  async function fundamentals(ticker) {
+    if (!proxy) throw new Error("no_proxy");
+    const url = `${proxy}?ticker=${encodeURIComponent(ticker)}&kind=fundamentals`;
+    let r;
+    try { r = await fetch(url); } catch (e) { throw new Error("Could not reach the data proxy."); }
+    if (!r.ok) throw new Error(`Fundamentals request failed (${r.status}).`);
+    const j = await r.json();
+    const series = {};
+    for (const res of (j && j.timeseries && j.timeseries.result) || []) {
+      const type = res && res.meta && res.meta.type && res.meta.type[0];
+      if (!type || !res[type]) continue;
+      const vals = res[type].map((x) => (x && x.reportedValue ? Number(x.reportedValue.raw) : null))
+        .filter((v) => v != null && Number.isFinite(v));
+      if (vals.length) series[type] = vals; // ascending by year
+    }
+    const newestFirst = (a) => (series[a] ? series[a].slice().reverse() : []);
+    const latest = (a) => (series[a] && series[a].length ? series[a][series[a].length - 1] : null);
+    const debt = latest("annualTotalDebt");
+    const cash = latest("annualCashCashEquivalentsAndShortTermInvestments") ?? latest("annualCashAndCashEquivalents");
+    return {
+      fcf_history: newestFirst("annualFreeCashFlow"),
+      revenue_history: newestFirst("annualTotalRevenue"),
+      shares: latest("annualDilutedAverageShares"),
+      net_debt: (debt != null ? debt : 0) - (cash != null ? cash : 0),
+    };
+  }
+
+  // Annualized volatility from ~1 year of daily closes (for the option desk).
+  function historicalVol(bars) {
+    const c = bars.map((x) => x.close), r = [];
+    for (let i = 1; i < c.length; i++) if (c[i] > 0 && c[i - 1] > 0) r.push(Math.log(c[i] / c[i - 1]));
+    const recent = r.slice(-252);
+    if (recent.length < 20) return null;
+    const m = recent.reduce((s, x) => s + x, 0) / recent.length;
+    const v = recent.reduce((s, x) => s + (x - m) ** 2, 0) / (recent.length - 1);
+    return Math.sqrt(v) * Math.sqrt(252);
+  }
+
+  return {getProxy, setProxy, hasProxy, dailyBars, fundamentals, historicalVol};
 })();
 if (typeof module !== "undefined" && module.exports) module.exports = FCData;

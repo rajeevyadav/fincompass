@@ -203,6 +203,55 @@
   if ($("save-proxy")) $("save-proxy").addEventListener("click", () => { FCData.setProxy($("proxy-url").value); refreshProxyUI(); });
   refreshProxyUI();
 
+  // ---- Shared ticker: fill the DCF and Options desks from a real company ----
+  const _cagr = (newestFirst) => {
+    const v = (newestFirst || []).filter((x) => Number.isFinite(x) && x > 0);
+    if (v.length < 2) return null;
+    const n = v.length - 1;
+    return (v[0] / v[v.length - 1]) ** (1 / n) - 1;
+  };
+  function dcfInputsFromFundamentals(f) {
+    const hist = (f.fcf_history || []).filter(Number.isFinite);
+    const positive = hist.slice(0, 3).filter((x) => x > 0);
+    const baseFcf = positive.length >= 2 ? positive.reduce((s, x) => s + x, 0) / positive.length : (hist[0] || null);
+    if (!Number.isFinite(baseFcf) || !(f.shares > 0)) return null;
+    let g = _cagr(f.fcf_history); if (g == null) g = _cagr(f.revenue_history);
+    g = Math.max(0.05, Math.min(0.20, g == null ? 0.08 : g));       // same band as desktop
+    const stable = Math.min(0.03, Math.max(0.02, g * 0.5));
+    return {fcf: baseFcf, ghigh: g, gstable: stable, wacc: 0.09, tg: 0.025, netdebt: f.net_debt || 0, shares: f.shares};
+  }
+  function setForm(id, values) {
+    const form = $(id);
+    Object.entries(values).forEach(([k, v]) => { const el = form.querySelector(`[name="${k}"]`); if (el && v != null && isFinite(v)) el.value = Number(v).toPrecision(6).replace(/\.?0+$/, ""); });
+  }
+  async function loadTicker() {
+    const ticker = ($("load-ticker").value || "").trim().toUpperCase();
+    const note = $("load-note");
+    if (!ticker) { note.textContent = "Enter a ticker."; return; }
+    if (!FCData.hasProxy()) {
+      note.innerHTML = `Set the data source first — open the <strong>Forecast</strong> tab and paste your free data-proxy URL (one-time).`;
+      document.querySelector('#tabs button[data-tab="forecast"]').click();
+      return;
+    }
+    note.textContent = `Loading ${ticker}…`;
+    try {
+      const [bars, fund] = await Promise.all([FCData.dailyBars(ticker), FCData.fundamentals(ticker).catch(() => null)]);
+      const spot = bars[bars.length - 1].close, vol = FCData.historicalVol(bars);
+      setForm("f-opt", {spot, strike: spot, vol: vol || 0.3});
+      $("f-opt").dispatchEvent(new Event("submit"));
+      $("f-fc").querySelector('[name="ticker"]').value = ticker;
+      let dcfMsg = "";
+      const dcf = fund ? dcfInputsFromFundamentals(fund) : null;
+      if (dcf) { setForm("f-dcf", dcf); $("f-dcf").dispatchEvent(new Event("submit")); dcfMsg = "DCF"; }
+      else dcfMsg = "DCF (fundamentals unavailable — enter manually)";
+      note.innerHTML = `<strong>${esc(ticker)}</strong> loaded — Options (spot ${money(spot)}, vol ${pct(vol)}) and ${dcfMsg} updated. Forecast ticker set.`;
+    } catch (err) {
+      note.textContent = err.message === "no_proxy" ? "Set the data source first (Forecast tab)." : err.message;
+    }
+  }
+  $("load-ticker-btn").addEventListener("click", loadTicker);
+  $("load-ticker").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); loadTicker(); } });
+
   // ---- Glossary ----
   let GLOSSARY = null;
   const gnorm = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim();

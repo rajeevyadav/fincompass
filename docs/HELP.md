@@ -5,6 +5,22 @@ FinCompass has two screen modes:
 - **Guided** - the default. Use this if you simply want to research, train a governed model, forecast, and check Live conditions.
 - **Research** - exposes recipes, configuration JSON, model comparison, experiment lineage, and adaptive maintenance controls.
 
+## Navigation
+
+The tabs across the top, in order:
+
+- **Analyze** - evidence score, statements, ratios, DCF, options, bonds, portfolio and risk for a ticker.
+- **Screener** - score and filter a universe, or browse the full market on demand.
+- **Compare** - put several tickers side by side.
+- **Watchlist** - your saved names.
+- **Forecast** - the calibrated probability of beating the benchmark, with "Why this result?" and an exportable evidence report.
+- **Live** - governed adaptive tracking around a frozen forecast.
+- **Settings** - engine and data options.
+- **Methodology** - how the numbers are produced.
+- **Reference** - a searchable glossary of every term and metric the app shows.
+
+Every metric has a hover tooltip, and labels link through to their glossary entry on the Reference tab.
+
 ## The three things FinCompass keeps separate
 
 1. **Analyze** - a 0 to 10 evidence score. It is not a return probability.

@@ -10,15 +10,29 @@ app's behalf and adds the CORS header.
 secrets, no user data, no storage — and caches responses for an hour, so it
 stays far inside the free tier no matter how many people use the app.
 
-## Deploy (about 5 minutes, all in the browser)
+## Deploy — Option A: paste the code (simplest, ~5 minutes)
 
 1. Create a free account at <https://dash.cloudflare.com/sign-up> (no card).
-2. In the dashboard: **Workers & Pages → Create → Create Worker**.
-3. Name it e.g. `fincompass-data` → **Deploy** (it creates a placeholder).
+2. In the dashboard: **Compute (Workers) → Create → Create Worker**, and choose
+   **Start with Hello World** (do NOT pick "Import a repository").
+3. Name it e.g. `fincompass-data` → **Deploy**.
 4. Click **Edit code**, replace the entire contents with `cloudflare/worker.js`
    from this repo, then **Deploy**.
 5. Copy the Worker URL shown at the top, e.g.
    `https://fincompass-data.<your-subdomain>.workers.dev`.
+
+## Deploy — Option B: connect this Git repo (auto-deploy on push)
+
+This repo includes a root `wrangler.toml` pointing at `cloudflare/worker.js`, so
+Cloudflare can build the Worker straight from GitHub:
+
+1. **Compute (Workers) → Create → Import a repository**, and select your
+   FinCompass fork/clone.
+2. Cloudflare detects `wrangler.toml`; keep the defaults (build command
+   `npx wrangler deploy`, root directory the repo root) → **Deploy**.
+3. It builds and gives you the same `*.workers.dev` URL. Every push to the
+   tracked branch redeploys it. With this option there is no inline editor —
+   the code comes from the repo.
 
 ## Connect the app
 

@@ -48,6 +48,40 @@ def test_dcf_exposes_full_scenario_surface():
     assert dcf["net_debt"] is not None and dcf["shares_diluted"] == 15.0
 
 
+def _rich_fetch(fcf_history):
+    """Statements complete enough to compute ROIC + reinvestment (growth check).
+    The DCF anchors growth on FCF CAGR, so the FCF history sets the assumed growth."""
+    def fetch(_t):
+        return {
+            "income": {"Total Revenue": 400.0, "Diluted Average Shares": 15.0,
+                       "EBIT": 100.0, "Pretax Income": 100.0, "Tax Provision": 20.0,
+                       "Reconciled Depreciation": 10.0},
+            "balance": {"Total Debt": 50.0, "Cash And Cash Equivalents": 50.0, "Stockholders Equity": 200.0},
+            "cashflow": {"Free Cash Flow": fcf_history[0], "Operating Cash Flow": fcf_history[0] + 30.0,
+                         "Capital Expenditure": -30.0},
+            "currency": "USD", "revenue_history": [400.0, 380.0, 360.0], "fcf_history": fcf_history,
+        }
+    return fetch
+
+
+def test_growth_quality_flags_unsupported_growth():
+    # ROIC 40%, reinvestment rate 25% -> sustainable growth 10%. FCF growing ~20%
+    # pushes the assumed anchor above that, so it must be flagged.
+    dcf = build_fundamentals("FAST", instrument={"instrument_type": "equity"},
+                             market_price=100.0, fetch=_rich_fetch([72.0, 60.0, 50.0]))["dcf"]
+    gq = dcf["growth_quality"]
+    assert gq is not None
+    assert abs(gq["roic"] - 0.40) < 1e-9 and abs(gq["sustainable_growth"] - 0.10) < 1e-9
+    assert gq["assumed_growth"] > 0.12 and gq["supported"] is False
+
+
+def test_growth_quality_supported_for_modest_growth():
+    # Flat FCF -> anchor clamps to the 5% floor, within the 10% sustainable + 2%.
+    dcf = build_fundamentals("SLOW", instrument={"instrument_type": "equity"},
+                             market_price=100.0, fetch=_rich_fetch([50.0, 50.0, 50.0]))["dcf"]
+    assert dcf["growth_quality"]["supported"] is True
+
+
 def test_dcf_excludes_negative_year_in_window_and_flags_caution():
     def fetch_cyclical(_t):
         d = _fetch(_t)

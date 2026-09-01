@@ -644,6 +644,7 @@ function dcfGaugeHtml(dcf, lastPrice, cur) {
     </div>
     <p class="meta">Built from the company's reported free cash flow and its own recent growth using a <strong>three-stage model</strong> — five high-growth years, a five-year glide down to a stable rate, then a perpetual terminal capped near the risk-free rate — discounted at ${_fmtPct(dcf.assumptions?.wacc)}. This is a <strong>conservative</strong> estimate: models that assume higher growth or use an exit multiple produce higher numbers. A DCF is <strong>one input, not a verdict</strong> — change the growth a few points or the discount rate 1% and it swings a lot.</p>
     <p class="meta">${esc(dcf.disclaimer || "")}</p>
+    ${dcf.growth_quality && dcf.growth_quality.supported === false ? `<p class="meta"><strong>Growth check:</strong> ${esc(dcf.growth_quality.note)} Its own reinvestment and returns support about <strong>${_fmtPct(dcf.growth_quality.sustainable_growth)}</strong>, versus the <strong>${_fmtPct(dcf.growth_quality.assumed_growth)}</strong> assumed here.</p>` : ""}
     ${dcfResearchDetailsHtml(dcf, cur, mid, ig)}`;
 }
 
@@ -669,6 +670,8 @@ function dcfResearchDetailsHtml(dcf, cur, mid, ig) {
         ${kpi("Stable growth", _fmtPct(a.stable_growth))}
         ${kpi("Stages (high+transition+∞)", `${a.high_growth_years||5}+${a.transition_years||5}+∞`)}
         ${kpi("Growth anchor", `${_fmtPct(anchor.annual_rate)} — ${srcLabel}`)}
+        ${dcf.growth_quality ? kpi("Return on invested capital", _fmtPct(dcf.growth_quality.roic), "After-tax operating profit over invested capital.") : ""}
+        ${dcf.growth_quality ? kpi("Reinvestment-funded growth", _fmtPct(dcf.growth_quality.sustainable_growth), "Reinvestment rate × ROIC — the growth the company can fund itself (Damodaran).") : ""}
         ${Number.isFinite(ig) ? kpi("Market-implied growth", _fmtPct(ig)) : ""}
         ${kpi("Net debt", `${cur} ${_money(dcf.net_debt)}`)}
         ${kpi("Diluted shares", _money(dcf.shares_diluted))}

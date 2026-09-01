@@ -317,6 +317,40 @@ def _growth_paths(revenue_history: Optional[List[float]],
     }
 
 
+def _growth_quality(income: St.Statement, balance: St.Statement, cashflow: St.Statement,
+                    assumed_growth: Optional[float]) -> Optional[Dict[str, Any]]:
+    """Damodaran's consistency check: growth must be paid for by reinvestment.
+
+    Sustainable growth = reinvestment rate x return on invested capital, where the
+    reinvestment rate is net reinvestment (capex less depreciation) over after-tax
+    operating income (NOPAT). When the DCF's assumed growth exceeds what the
+    company's own reinvestment and returns can fund, the growth is optimistic and
+    the intrinsic value is likely overstated - a flag a careful reader should see.
+    """
+    v = St.merged_values(income, balance, cashflow)
+    roic = Ra.return_on_invested_capital(v)
+    ebit, pretax, tax = v.get("ebit"), v.get("pretax_income"), v.get("tax_expense")
+    capex, da = v.get("capital_expenditure"), v.get("depreciation_amortization")
+    if not (_finite(ebit) and _finite(pretax) and pretax and _finite(tax) and _finite(roic)):
+        return None
+    nopat = float(ebit) * (1.0 - float(tax) / float(pretax))
+    if not (_finite(nopat) and nopat > 0):
+        return None
+    net_reinvestment = (abs(float(capex)) if _finite(capex) else 0.0) - (float(da) if _finite(da) else 0.0)
+    reinvestment_rate = net_reinvestment / nopat
+    sustainable = reinvestment_rate * float(roic)
+    supported = not (_finite(assumed_growth) and assumed_growth > sustainable + 0.02)
+    return {
+        "roic": _clean(roic), "reinvestment_rate": _clean(reinvestment_rate),
+        "sustainable_growth": _clean(sustainable), "assumed_growth": _clean(assumed_growth),
+        "supported": bool(supported),
+        "note": ("Assumed growth is within what reinvestment and returns can fund."
+                 if supported else
+                 "Assumed growth is higher than reinvestment x ROIC can fund, so this DCF's growth "
+                 "may be optimistic and the value overstated."),
+    }
+
+
 def _build_dcf(income: St.Statement, balance: St.Statement, cashflow: St.Statement,
                revenue_history: Optional[List[float]] = None,
                fcf_history: Optional[List[float]] = None,
@@ -399,6 +433,7 @@ def _build_dcf(income: St.Statement, balance: St.Statement, cashflow: St.Stateme
             "cyclical_caution": base_detail["cyclical_caution"],
         },
         "growth_anchor": {"annual_rate": _clean(hist_growth), "source": growth_source},
+        "growth_quality": _growth_quality(income, balance, cashflow, paths.get("base", [None])[0]),
         "net_debt": _clean(net_debt),
         "shares_diluted": _clean(shares),
         "terminal_value": _clean(terminal_value),

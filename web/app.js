@@ -15,6 +15,7 @@
     document.querySelectorAll("#tabs button").forEach((x) => x.classList.toggle("active", x === b));
     document.querySelectorAll(".panel").forEach((p) => p.classList.toggle("active", p.id === "tab-" + b.dataset.tab));
     if (b.dataset.tab === "reference") loadGlossary();
+    if (b.dataset.tab === "forecast") refreshProxyUI();
   });
   const onSubmit = (id, fn) => $(id).addEventListener("submit", (e) => { e.preventDefault(); fn(new FormData(e.target)); });
   const val = (fd, n) => Number(fd.get(n));
@@ -139,6 +140,68 @@
       <table class="mini"><thead><tr><th>Holding</th><th>Weight</th><th>Marginal</th><th>Component</th><th>% of risk</th></tr></thead><tbody>${rows}</tbody></table>
       <p class="meta">The covariance is built from the volatilities and correlation you entered (a single annualized period), not a return history. Under stress, correlations move toward 1, so the diversification benefit shrinks when it's needed most.</p>`;
   });
+
+  // ---- Forecast ----
+  const MODEL_CACHE = {};
+  const TIER_LABEL = {bayesian_baseline: "Limited evidence", validated_research: "Research validated", validated_market: "Market validated"};
+  async function loadModel(h) {
+    if (!MODEL_CACHE[h]) MODEL_CACHE[h] = await (await fetch(`models/forecast-${h}m.json`)).json();
+    return MODEL_CACHE[h];
+  }
+  function refreshProxyUI() {
+    const setup = $("proxy-setup"); if (!setup) return;
+    setup.style.display = FCData.hasProxy() ? "none" : "block";
+    if (FCData.hasProxy() && $("proxy-url")) $("proxy-url").value = FCData.getProxy();
+  }
+  function probGauge(p, lo, hi) {
+    const W = 440, H = 52, mL = 10, mR = 10, y = 26, bw = W - mL - mR, X = (v) => mL + Math.max(0, Math.min(1, v)) * bw;
+    return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Probability with uncertainty range">
+      <text x="${mL}" y="14" fill="#9fb0c5" font-size="10">0%</text>
+      <text x="${X(0.5).toFixed(1)}" y="14" fill="#9fb0c5" font-size="10" text-anchor="middle">50% · coin flip</text>
+      <text x="${W - mR}" y="14" fill="#9fb0c5" font-size="10" text-anchor="end">100%</text>
+      <rect x="${mL}" y="${y}" width="${bw}" height="10" rx="5" fill="#0b1220"/>
+      <rect x="${X(lo).toFixed(1)}" y="${y}" width="${(X(hi) - X(lo)).toFixed(1)}" height="10" rx="5" fill="rgba(63,124,192,.55)"/>
+      <line x1="${X(0.5).toFixed(1)}" y1="${y - 5}" x2="${X(0.5).toFixed(1)}" y2="${y + 15}" stroke="#5a6a80" stroke-dasharray="3 3"/>
+      <circle cx="${X(p).toFixed(1)}" cy="${y + 5}" r="6" fill="#7db1f0"/>
+    </svg>`;
+  }
+  function forecastHtml(ticker, fc, asOf, model) {
+    const p = fc.probability_outperform, lo = fc.uncertainty_interval[0], hi = fc.uncertainty_interval[1];
+    const watchOnly = fc.evidence_tier === "bayesian_baseline";
+    const tl = TIER_LABEL[fc.evidence_tier] || fc.evidence_tier;
+    return `
+      <p class="plain">Estimated probability that <strong>${esc(ticker)}</strong> beats the S&amp;P 500 over <strong>${fc.horizon_months} months</strong>: <strong>${(p * 100).toFixed(0)}%</strong>.</p>
+      ${probGauge(p, lo, hi)}
+      <div class="kpis">
+        ${kpi("Probability", (p * 100).toFixed(1) + "%")}
+        ${kpi("Uncertainty range", `${(lo * 100).toFixed(0)}–${(hi * 100).toFixed(0)}%`, "90% credible interval from posterior coefficient uncertainty.")}
+        ${kpi("Evidence", tl)}
+        ${kpi("As of", asOf || "—")}
+      </div>
+      <div class="verdict ${p > 0.5 ? "good" : "neutral"}">${watchOnly ? "Limited evidence — a valid, calibrated probability, but stronger out-of-sample skill is not established. Treat as watch-only, not a buy/sell signal." : "Validated model."}</div>
+      ${fc.abstain ? `<p class="meta"><strong>Too close to call:</strong> the range straddles 50%, so there is no clear directional signal.</p>` : ""}
+      <p class="meta">Defined event: outperform ${esc(model.benchmark || "^GSPC")} over ${fc.horizon_months} months by more than ${((model.excess_return_threshold || 0) * 100).toFixed(0)}%. This is the same Bayesian reference model as the desktop app, run in your browser. ${esc(fc.disclaimer || "")}</p>
+      <p class="meta">It does <strong>not</strong> mean the stock rises ${(p * 100).toFixed(0)}%, that the model is ${(p * 100).toFixed(0)}% accurate, or that you should buy or sell.</p>`;
+  }
+  $("f-fc").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const ticker = String(fd.get("ticker") || "").trim().toUpperCase(), h = fd.get("horizon"), out = $("o-fc");
+    if (!ticker) { out.innerHTML = `<p class="verdict warn">Enter a ticker.</p>`; return; }
+    if (!FCData.hasProxy()) { refreshProxyUI(); out.innerHTML = `<p class="verdict warn">Set the data source above first — it is a one-time step.</p>`; return; }
+    out.innerHTML = `<p class="meta">Fetching prices and computing…</p>`;
+    try {
+      const model = await loadModel(h);
+      const [sb, bb] = await Promise.all([FCData.dailyBars(ticker), FCData.dailyBars(model.benchmark || "^GSPC")]);
+      const built = FCForecast.buildFeatures(sb, bb);
+      if (!built) { out.innerHTML = `<p class="verdict warn">Not enough monthly price history for ${esc(ticker)} to compute the model features.</p>`; return; }
+      out.innerHTML = forecastHtml(ticker, FCForecast.forecast(model, built.features), built.asOf, model);
+    } catch (err) {
+      out.innerHTML = `<p class="verdict warn">${esc(err.message === "no_proxy" ? "Set the data source above first." : err.message)}</p>`;
+    }
+  });
+  if ($("save-proxy")) $("save-proxy").addEventListener("click", () => { FCData.setProxy($("proxy-url").value); refreshProxyUI(); });
+  refreshProxyUI();
 
   // ---- Glossary ----
   let GLOSSARY = null;

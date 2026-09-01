@@ -239,29 +239,42 @@ def _base_free_cash_flow_detail(inp: Val.DCFInputs, cashflow: St.Statement,
     bias the base upward for genuinely cyclical or cash-burning companies, so it
     must be visible rather than silent.
     """
-    hist = [float(x) for x in (fcf_history or []) if _finite(x)]
+    hist = [float(x) for x in (fcf_history or []) if _finite(x)]  # newest first
     window = hist[:3]
     positive = [x for x in window if x > 0]
     excluded_negative = len(window) - len(positive)
+    three_year_avg = (sum(positive) / len(positive)) if positive else None
+    # Start from the latest reported free cash flow (LTM), the standard base for a
+    # DCF. A trailing average understates a company coming out of an investment
+    # trough (its recent FCF is depressed by capex), so we no longer average by
+    # default; the three-year average is still reported for context.
+    latest = hist[0] if (hist and hist[0] > 0) else None
+    if latest is not None:
+        return {"base_free_cash_flow": latest, "base_method": "latest_reported_fcf_ltm",
+                "years_available": len(hist), "years_used": 1, "negative_years_excluded": 0,
+                "cyclical_caution": False, "three_year_average": three_year_avg}
+    # Latest FCF is negative or missing: fall back to a smoothed positive average,
+    # then reported FCF, then operating cash flow minus capex.
     if len(positive) >= 2:
-        return {"base_free_cash_flow": sum(positive) / len(positive),
+        return {"base_free_cash_flow": three_year_avg,
                 "base_method": "mean_of_recent_positive_reported_fcf",
                 "years_available": len(hist), "years_used": len(positive),
                 "negative_years_excluded": excluded_negative,
-                "cyclical_caution": excluded_negative > 0}
+                "cyclical_caution": excluded_negative > 0, "three_year_average": three_year_avg}
     fcf = cashflow.get("free_cash_flow")
     if _finite(fcf):
         return {"base_free_cash_flow": float(fcf), "base_method": "latest_reported_fcf",
-                "years_available": len(hist), "years_used": 1,
-                "negative_years_excluded": 0, "cyclical_caution": False}
+                "years_available": len(hist), "years_used": 1, "negative_years_excluded": 0,
+                "cyclical_caution": False, "three_year_average": three_year_avg}
     ocf = cashflow.get("operating_cash_flow")
     if _finite(ocf) and _finite(inp.capex):
         return {"base_free_cash_flow": float(ocf) - float(inp.capex),
                 "base_method": "operating_cash_flow_minus_capex",
-                "years_available": len(hist), "years_used": 1,
-                "negative_years_excluded": 0, "cyclical_caution": False}
+                "years_available": len(hist), "years_used": 1, "negative_years_excluded": 0,
+                "cyclical_caution": False, "three_year_average": three_year_avg}
     return {"base_free_cash_flow": None, "base_method": None, "years_available": len(hist),
-            "years_used": 0, "negative_years_excluded": 0, "cyclical_caution": False}
+            "years_used": 0, "negative_years_excluded": 0, "cyclical_caution": False,
+            "three_year_average": three_year_avg}
 
 
 def _base_free_cash_flow(inp: Val.DCFInputs, cashflow: St.Statement,
@@ -394,6 +407,34 @@ def _build_dcf(income: St.Statement, balance: St.Statement, cashflow: St.Stateme
         low = max(raw_low, base_ps * clamp_low_factor)
         high = min(raw_high, base_ps * clamp_high_factor)
         clamp_applied = (low != raw_low) or (high != raw_high)
+    # Two "lenses" the user can toggle. The conservative lens (above) grows FCF at
+    # the company's own recent, fundamentally-grounded rate. The growth lens adds a
+    # bounded premium for a stronger forward trajectory (an analyst/market-story
+    # view), clearly not implied by current cash flows. Same base, WACC band and
+    # terminal; only the high-growth stage differs.
+    cons_high = paths["base"][0] if paths.get("base") else 0.08
+    growth_high = min(0.30, max(cons_high + 0.05, 0.10))
+    growth_stable = min(0.04, max(0.025, growth_high * 0.35))
+    growth_path = Val.three_stage_growth_path(growth_high, growth_stable, _HIGH_YEARS, _TRANSITION_YEARS)
+    g_base = Val.dcf_from_free_cash_flow(fcf, growth_path, _DEFAULT_WACC, _DEFAULT_TERMINAL_GROWTH, net_debt, shares)
+    g_vals = [float(gg["value_per_share"]) for w in _WACC_GRID
+              for gg in [Val.dcf_from_free_cash_flow(fcf, growth_path, w, _DEFAULT_TERMINAL_GROWTH, net_debt, shares)]
+              if gg.get("valid") and _finite(gg.get("value_per_share"))]
+    g_ps = g_base.get("value_per_share")
+    g_low = min(g_vals) if g_vals else None
+    g_high = max(g_vals) if g_vals else None
+    if _finite(g_ps) and g_ps > 0 and g_low is not None and g_high is not None:
+        g_low = max(g_low, g_ps * clamp_low_factor)
+        g_high = min(g_high, g_ps * clamp_high_factor)
+    lenses = {
+        "conservative": {"value_per_share": _clean(base_ps), "range_low": _clean(low), "range_high": _clean(high),
+                         "high_growth": _clean(cons_high), "label": "Cash-flow (conservative)",
+                         "note": "Grows free cash flow at the company's own recent, fundamentally-grounded rate."},
+        "growth": {"value_per_share": _clean(g_ps), "range_low": _clean(g_low), "range_high": _clean(g_high),
+                   "high_growth": _clean(growth_high), "label": "Growth (forward)",
+                   "note": "Adds a bounded growth premium for a stronger forward trajectory — an "
+                           "analyst/market-story view not implied by current cash flows."},
+    }
     # Reverse DCF: the stage-1 growth today's price implies, so a reader can judge
     # the market's expectation directly instead of debating our assumptions.
     stable = min(_STABLE_GROWTH_CAP, max(0.02, (hist_growth or 0.06) * 0.5))
@@ -434,6 +475,9 @@ def _build_dcf(income: St.Statement, balance: St.Statement, cashflow: St.Stateme
         },
         "growth_anchor": {"annual_rate": _clean(hist_growth), "source": growth_source},
         "growth_quality": _growth_quality(income, balance, cashflow, paths.get("base", [None])[0]),
+        "lenses": lenses,
+        "default_lens": "conservative",
+        "base_fcf_three_year_average": _clean(base_detail.get("three_year_average")),
         "net_debt": _clean(net_debt),
         "shares_diluted": _clean(shares),
         "terminal_value": _clean(terminal_value),

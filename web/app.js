@@ -213,7 +213,10 @@
   function dcfInputsFromFundamentals(f) {
     const hist = (f.fcf_history || []).filter(Number.isFinite);
     const positive = hist.slice(0, 3).filter((x) => x > 0);
-    const baseFcf = positive.length >= 2 ? positive.reduce((s, x) => s + x, 0) / positive.length : (hist[0] || null);
+    // Latest reported FCF (LTM) is the standard base; fall back to the positive
+    // mean only when the latest year is negative.
+    const baseFcf = (hist[0] > 0) ? hist[0]
+      : (positive.length >= 2 ? positive.reduce((s, x) => s + x, 0) / positive.length : (hist[0] || null));
     if (!Number.isFinite(baseFcf) || !(f.shares > 0)) return null;
     let g = _cagr(f.fcf_history); if (g == null) g = _cagr(f.revenue_history);
     g = Math.max(0.05, Math.min(0.20, g == null ? 0.08 : g));       // same band as desktop

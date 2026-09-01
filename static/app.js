@@ -584,8 +584,26 @@ function _money(v) { return v == null ? "—" : num(v).toLocaleString(undefined,
 
 // Plain-language DCF: a fair-value gauge comparing the estimate range to the
 // price a person can see, with the technical assumptions moved to Details.
-function dcfGaugeHtml(dcf, lastPrice, cur) {
-  const lo = Number(dcf.range_low), hi = Number(dcf.range_high), mid = Number(dcf.value_per_share);
+// Remember the last DCF so the lens toggle can re-render without a refetch.
+let _lastDcf = null, _lastDcfPrice = null, _lastDcfCur = "";
+function switchDcfLens(lens) {
+  const el = document.getElementById("dcf-block");
+  if (el && _lastDcf) el.innerHTML = dcfGaugeHtml(_lastDcf, _lastDcfPrice, _lastDcfCur, lens);
+}
+if (typeof document !== "undefined" && document.addEventListener) {
+  document.addEventListener("click", (e) => {
+    const b = e.target && e.target.closest && e.target.closest(".lens-btn[data-lens]");
+    if (b) switchDcfLens(b.dataset.lens);
+  });
+}
+
+function dcfGaugeHtml(dcf, lastPrice, cur, lens) {
+  _lastDcf = dcf; _lastDcfPrice = lastPrice; _lastDcfCur = cur;
+  const lenses = dcf.lenses || null;
+  lens = lens || (dcf.default_lens || "conservative");
+  const L = (lenses && lenses[lens]) || null;
+  const lo = Number(L ? L.range_low : dcf.range_low), hi = Number(L ? L.range_high : dcf.range_high),
+        mid = Number(L ? L.value_per_share : dcf.value_per_share);
   const price = Number(lastPrice);
   const havePrice = Number.isFinite(price) && price > 0;
   const haveRange = Number.isFinite(lo) && Number.isFinite(hi) && hi > lo;
@@ -629,7 +647,11 @@ function dcfGaugeHtml(dcf, lastPrice, cur) {
   const impliedHtml = Number.isFinite(ig)
     ? `<p class="plain-read">Turned around: at today's price the market is pricing in about <strong>${_fmtPct(ig)}</strong> free-cash-flow growth every year for the next five years. Ask yourself whether that's realistic for this business — that single number is what you're really betting on.</p>`
     : "";
+  const lensToggle = lenses ? `<div class="lens-toggle">${Object.entries(lenses).map(([k, v]) =>
+      `<button type="button" class="lens-btn${k === lens ? " active" : ""}" data-lens="${k}">${esc(v.label)} · ${cur} ${_money(v.value_per_share)}</button>`).join("")}</div>
+    <p class="meta">${esc((L || {}).note || "")} High-growth assumption: <strong>${_fmtPct((L || {}).high_growth)}</strong>. Switch lenses above.</p>` : "";
   return `
+    ${lensToggle}
     <p class="plain-read">${sentence}</p>
     ${impliedHtml}
     <div class="value-gauge" role="img" aria-label="Estimated fair-value range versus current price">
@@ -697,7 +719,7 @@ function analyticsPanelHtml(o) {
   const ratioRows = (f.ratios || []).map((r) =>
     `<tr><td>${esc(r.label)}</td><td class="num">${r.available ? (r.metric_id.includes("margin") || r.metric_id.includes("yield") || r.metric_id.includes("return_on") ? _fmtPct(r.value) : _fmtNum(r.value)) : "—"}</td></tr>`).join("");
   const dcfBlock = (f.available && dcf.valid)
-    ? dcfGaugeHtml(dcf, o.last_price, cur)
+    ? `<div id="dcf-block">${dcfGaugeHtml(dcf, o.last_price, cur)}</div>`
     : `<div class="meta">${esc((f.reason) || "A DCF is available only for companies with reported statements.")}</div>`;
   const perfKpi = (label, val, pct) => `<div class="kpi"><div class="k-label">${label}</div><div class="k-value">${pct ? _fmtPct(val) : _fmtNum(val)}</div></div>`;
   return `

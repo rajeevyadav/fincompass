@@ -361,3 +361,8 @@ table.mini th:first-child, table.mini td:first-child { text-align: left; }
 .glossary-fields dd { margin: .1rem 0 0; font-size: .92em; }
 .k-label.glossary-link { cursor: help; }
 .k-label.glossary-link:hover { text-decoration: underline dotted; }
+
+/* DCF valuation-lens toggle (Cash-flow / Growth). */
+.lens-toggle { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.lens-btn { background: var(--panel, #182338); color: var(--muted, #9fb0c5); border: 1px solid var(--line, #26324a); border-radius: 999px; padding: 5px 12px; font-size: .88em; cursor: pointer; }
+.lens-btn.active { color: var(--ink, #e6edf6); border-color: var(--blue, #3f7cc0); font-weight: 600; }

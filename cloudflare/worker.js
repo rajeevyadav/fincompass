@@ -21,6 +21,7 @@ export default {
     const url = new URL(request.url);
     const ticker = url.searchParams.get("ticker") || "";
     const range = url.searchParams.get("range") || "3y";
+    const kind = url.searchParams.get("kind") || "chart";
     // Allow only plausible Yahoo symbols (letters, digits, . - ^ =).
     if (!/^[A-Za-z0-9.^=-]{1,15}$/.test(ticker)) {
       return json({error: "invalid ticker"}, 400, cors);
@@ -29,8 +30,23 @@ export default {
       return json({error: "invalid range"}, 400, cors);
     }
 
-    const yahoo = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}` +
-      `?range=${range}&interval=1d`;
+    let yahoo;
+    if (kind === "fundamentals") {
+      // Annual fundamentals for the DCF (free cash flow, revenue, shares, debt,
+      // cash). This timeseries endpoint is public and needs no crumb, unlike
+      // quoteSummary. A wide fixed window covers all reported annual periods.
+      const types = [
+        "annualFreeCashFlow", "annualTotalRevenue", "annualDilutedAverageShares",
+        "annualTotalDebt", "annualCashAndCashEquivalents",
+        "annualCashCashEquivalentsAndShortTermInvestments",
+      ].join(",");
+      yahoo = `https://query2.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/` +
+        `${encodeURIComponent(ticker)}?symbol=${encodeURIComponent(ticker)}&type=${types}` +
+        `&period1=1420070400&period2=2000000000`;
+    } else {
+      yahoo = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}` +
+        `?range=${range}&interval=1d`;
+    }
     try {
       const upstream = await fetch(yahoo, {
         headers: {"User-Agent": "Mozilla/5.0 (FinCompass data proxy)"},

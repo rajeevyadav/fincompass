@@ -15,5 +15,5 @@ if errorlevel 1 (
 )
 iscc "installer\FinCompass.iss" || ( echo installer build failed & pause & exit /b 1 )
 echo.
-echo Done. Installer: dist\FinCompass-1.0.0-Setup.exe
+echo Done. Installer: dist\FinCompass-2.1.0-Setup.exe
 pause

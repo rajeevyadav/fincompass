@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.0.0-2f6fed" alt="version 2.0.0">
-  <img src="https://img.shields.io/badge/tests-347%20passing-2e9e5b" alt="347 tests passing">
+  <img src="https://img.shields.io/badge/version-2.1.0-2f6fed" alt="version 2.1.0">
+  <img src="https://img.shields.io/badge/tests-427%20passing-2e9e5b" alt="427 tests passing">
   <img src="https://img.shields.io/badge/license-MIT-58dbc9" alt="MIT license">
   <img src="https://img.shields.io/badge/python-3.11%2B-2a86d6" alt="python 3.11+">
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-9fb0c5" alt="cross platform">

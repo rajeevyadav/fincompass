@@ -42,6 +42,7 @@ from services.guardrails import GuardrailMiddleware, effective_rate_limit_backen
 from services.cloud_auth import CloudAuthMiddleware, cloud_config_payload
 from services.scoring import generate_thesis, get_label_color
 from services.posture import build_posture
+from services.valuation_transparency import build_valuation_transparency
 from services.model_builder import start_model_build, get_model_build_status
 from services.training_readiness import evaluate_training_readiness
 from forecasting.registry import clear_active_model, get_active_pointer, set_active_model
@@ -109,6 +110,7 @@ class AnalysisOut(BaseModel):
     thesis: str
     pillars: Dict[str, PillarOut]
     posture: Dict[str, Any] = Field(default_factory=dict)
+    valuation_transparency: Dict[str, Any] = Field(default_factory=dict)
     uncertainty: Dict[str, Any] = Field(default_factory=dict)
     data_quality: Dict[str, Any] = Field(default_factory=dict)
     source: Optional[str] = None
@@ -190,6 +192,7 @@ def _to_analysis(result: Dict[str, Any], cached: bool = False, request_id: str =
         thesis=generate_thesis(result),
         pillars=pillars,
         posture=build_posture(result),
+        valuation_transparency=build_valuation_transparency(result),
         uncertainty=result.get("uncertainty", {}),
         data_quality=result.get("data_quality", {}),
         source=result.get("source"),

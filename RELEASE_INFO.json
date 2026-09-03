@@ -53,9 +53,10 @@
     "validation_tier": "validated_research"
   },
   "product": "FinCompass",
-  "release": "2.0.0",
-  "release_date": "2026-08-30",
+  "release": "2.1.0",
+  "release_date": "2026-09-03",
   "release_notes": [
+    "Valuation Lenses on the evidence card: per-approach implied prices (P/E, P/B, EV/EBITDA, P/S) shown independently, with two-tier key-risk flags and a live methodology footer. No price target or blended average; the composite Valuation score is unchanged.",
     "Hard-valid Bayesian baseline tier prevents weak-but-coherent probability models from disappearing while preserving stronger research-validation thresholds.",
     "Bundled 6m/12m/24m/36m Bayesian reference models for the declared US common-equity domain.",
     "Experimental 3-state regime-aware Bayesian reference artifacts at 6m/12m/24m/36m, packaged as Research alternatives rather than forced Guided defaults.",

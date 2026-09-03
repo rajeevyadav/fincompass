@@ -518,6 +518,56 @@ function postureHtml(d) {
     </section>`;
 }
 
+// Valuation transparency: per-approach implied-price table + key-risk flags +
+// methodology footer. The implied-price table is built CLIENT-SIDE from
+// the sector-relative multiples already in the payload times the latest close
+// (the scoring path runs without a live price by design). No price target, no
+// average — each lens stands alone (§2.1/§3).
+function valuationLensHtml(d, history) {
+  const vt = d.valuation_transparency || {};
+  const det = d.pillars?.valuation?.details || {};
+  const pts = history && Array.isArray(history.points) ? history.points : [];
+  const price = pts.length ? num(pts[pts.length - 1].close) : null;
+  const labels = { pe: "P/E vs. Sector", pb: "P/B vs. Sector", ev_ebitda: "EV/EBITDA vs. Sector", ps: "P/S vs. Sector" };
+
+  let tableHtml = "";
+  if (price && price > 0) {
+    const rows = ["pe", "pb", "ev_ebitda", "ps"].map((k) => {
+      const m = det[k];
+      // A row is meaningful only when a live sector-relative multiple exists.
+      // Non-positive multiples (e.g. negative earnings) carry no `relative`
+      // and are therefore omitted, not shown as a distorted number (§2.1 DoD).
+      if (!m || !Number.isFinite(Number(m.relative)) || Number(m.relative) <= 0) return "";
+      const baseline = num(m.sector_baseline != null ? m.sector_baseline : m.peer?.median);
+      const implied = price / Number(m.relative);
+      return `<tr><td>${esc(labels[k] || k)}</td><td class="num">${num(m.value).toFixed(1)}x${baseline ? ` <span class="meta">(sector: ${baseline.toFixed(1)}x)</span>` : ""}</td><td class="num">${_money(implied)}</td></tr>`;
+    }).filter(Boolean).join("");
+    if (rows) {
+      tableHtml = `
+        <div class="table-wrap"><table><thead><tr><th>Approach</th><th class="num">Multiple Used</th><th class="num">Implied Price</th></tr></thead><tbody>${rows}</tbody></table></div>
+        <p class="meta">${esc(vt.implied_price_note || "")}</p>`;
+    }
+  }
+
+  const rf = vt.risk_flags || {};
+  const flagList = (arr, cls) => (Array.isArray(arr) && arr.length)
+    ? `<ul class="risk-flags ${cls}">${arr.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>` : "";
+  const mech = flagList(rf.mechanical, "risk-mech");
+  const sect = flagList(rf.sector, "risk-sector");
+  const flagsHtml = (mech || sect)
+    ? `<div class="risk-flag-block"><h3>Key-Risk Flags</h3>${mech}${sect}<p class="meta">${esc(rf.caption || "")}</p></div>` : "";
+
+  if (!tableHtml && !flagsHtml && !vt.methodology) return "";
+  return `
+    <section class="val-lens">
+      <div class="val-lens-head"><h2>Valuation Lenses</h2></div>
+      ${tableHtml}
+      ${flagsHtml}
+      ${vt.methodology ? `<p class="meta val-method">${esc(vt.methodology)}</p>` : ""}
+      ${vt.non_affiliation ? `<p class="meta val-nonaffil">${esc(vt.non_affiliation)}</p>` : ""}
+    </section>`;
+}
+
 function renderAnalysis(d, history) {
   const u = d.uncertainty || {};
   const source = d.source || d.data_quality?.source || "unknown";
@@ -545,6 +595,7 @@ function renderAnalysis(d, history) {
       ${metricKpis(d)}
       ${pillarHtml(d)}
       ${postureHtml(d)}
+      ${valuationLensHtml(d, history)}
       <div class="thesis">${esc(String(d.thesis || "").replaceAll("**", ""))}</div>
       <p class="meta">Source: ${esc(source)} · Updated: ${esc(updated)} · Engine: ${esc(d.engine_version)}${d.cached ? " · cached score" : ""}</p>
       <details><summary>Inspect model evidence</summary><pre class="detail">${esc(JSON.stringify({uncertainty: d.uncertainty, data_quality: d.data_quality, pillars: d.pillars}, null, 2))}</pre></details>

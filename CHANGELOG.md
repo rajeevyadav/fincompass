@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.0
+
+- Added **Valuation Lenses** to the evidence card (D-002): a per-approach implied-price table (P/E, P/B, EV/EBITDA, P/S) computed from the live sector-relative multiples — each lens shown independently, with no price target, no upside percentage, and no blended "average of approaches" number. Rows for non-meaningful multiples (e.g. negative earnings) are omitted rather than shown distorted.
+- Added two-tier **Key-Risk Flags**: mechanical flags that restate weak pillars in plain language (reusing the D-001 weak-pillar detection) and generic, sector-keyed structural risk tags (`SECTOR_RISK_TAGS`). Sector tags are never company-specific — a test asserts no per-ticker string can appear.
+- Added a per-analysis **methodology footer** stating the live sector P/E median and peer count actually used, plus a non-affiliation notice on the card and in `legal/DISCLAIMER.md`.
+- Reduced whitespace in the Print / PDF report output (tighter card chrome, page-break-safe blocks, capped chart height, suppressed async/empty placeholders).
+- All additions are presentation-layer only: the blended Valuation score and its composite weight are unchanged.
+
 ## 2.0.0
 
 - Added a first-class Bayesian reference forecast tier (`bayesian_baseline`). Hard model-validity checks are separated from the stronger `validated_research` / `validated_market` evidence gates; those stronger gates are unchanged.

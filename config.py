@@ -9,7 +9,7 @@ load_dotenv()
 # Application / scoring engine versions. The score cache is explicitly tied to
 # SCORING_ENGINE_VERSION so a methodology change can never silently reuse a
 # score produced by an older engine.
-APP_VERSION = "2.0.0"
+APP_VERSION = "2.1.0"
 SCORING_ENGINE_VERSION = "1.0.0-evidence1"
 DATA_SCHEMA_VERSION = "1.0.0-normalized1"
 
@@ -160,3 +160,28 @@ COMMODITY_SERIES_BY_SECTOR = {
     "Consumer Cyclical": {"series": "DCOILWTICO", "name": "WTI crude oil (fuel cost)", "direction": -1},
     "Consumer Defensive": {"series": "PWHEAMTUSDM", "name": "Wheat", "direction": -1},
 }
+
+# Generic, sector-level structural risk tags surfaced as "Key-Risk Flags" on the
+# evidence card. These are DELIBERATELY generic and sector-keyed — never
+# company-specific ("BTC price dependency", "DOJ probe"). Company-specific
+# narrative is out of scope; a test asserts no per-ticker string ever appears
+# here. Keys match the sector strings yfinance returns.
+SECTOR_RISK_TAGS = {
+    "Energy": ["Commodity-price dependency", "Capital-intensity and reserve-replacement risk", "Regulatory and transition exposure"],
+    "Basic Materials": ["Commodity-price dependency", "Cyclical demand sensitivity", "Input-cost and energy exposure"],
+    "Industrials": ["Cyclical demand sensitivity", "Supply-chain and input-cost exposure", "Capital-cycle timing risk"],
+    "Utilities": ["Interest-rate sensitivity", "Regulatory rate-setting risk", "Capital-intensity and leverage"],
+    "Technology": ["Rapid product-cycle risk", "Valuation-multiple sensitivity", "Competitive and obsolescence pressure"],
+    "Communication Services": ["Content and subscriber churn risk", "Capital-intensity of networks", "Regulatory and platform risk"],
+    "Financial Services": ["Credit-cycle sensitivity", "Interest-rate and spread risk", "Regulatory-capital exposure"],
+    "Healthcare": ["Regulatory and reimbursement risk", "Pipeline and patent-cliff exposure", "Litigation and pricing pressure"],
+    "Consumer Cyclical": ["Discretionary-demand sensitivity", "Input-cost and margin pressure", "Cyclical inventory risk"],
+    "Consumer Defensive": ["Input-cost and commodity exposure", "Pricing-power and private-label pressure", "Volume-growth maturity"],
+    "Real Estate": ["Interest-rate sensitivity", "Occupancy and lease-rollover risk", "Leverage and refinancing exposure"],
+}
+
+# Non-affiliation line. Shown in the card footer and legal disclaimer.
+NON_AFFILIATION_NOTICE = (
+    "FinCompass scores are computed independently from public data. Coverage of a "
+    "company does not imply any affiliation, partnership, or endorsement by that company."
+)

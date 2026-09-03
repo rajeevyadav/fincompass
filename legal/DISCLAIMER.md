@@ -2,6 +2,8 @@
 
 FinCompass is an educational research tool. It is **not financial, investment, tax, legal, accounting, or brokerage advice**, and nothing it displays is a recommendation or solicitation to buy, sell, hold, or trade a security.
 
+FinCompass scores are computed independently from public data. Coverage of a company does not imply any affiliation, partnership, or endorsement by that company.
+
 FinCompass has two different model outputs:
 
 1. **Evidence-score probabilities/intervals** describe uncertainty in the internal FinCompass evidence score. They are not future-return probabilities.

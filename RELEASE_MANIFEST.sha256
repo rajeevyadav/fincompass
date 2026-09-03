@@ -4,6 +4,7 @@ a5753492ee87cf052624d5607d24eb5111075e9fdfe2ec960a9a7d3500d6d7f3  ./.gitattribut
 9fc9e47719f12680d387a6750e5b6234dea53ecdf747c8533978f794166a399b  ./.githooks/commit-msg
 414a93b83b9321ed94cdedac7807f09a0ac94e9d57e75052a2793b98a62af2c6  ./.github/hooks/check-no-ai-trailer.sh
 c56e268212eb00222231b39286fc046f1f0f2a58ad9f58a6d8732bf316237735  ./.github/hooks/check-restricted-files.sh
+d7f500716f915ce51a36003abdb04643b4c5bf42f133393ecb5429e10a0704df  ./.github/workflows/auto-tag.yml
 f53e4e0c3e127dde483d48f99c9ec6989a85563735e6a901f988db3a0e79047d  ./.github/workflows/build-packages.yml
 cb1492c470d434582f48a97a9656dd11b62caeeac33a7f874fb63c57f945fc14  ./.github/workflows/ci.yml
 3d45fcd988ffc063c99ac207270cd04ac1775eca7d2a163aa286cc8b64b7448e  ./.github/workflows/pages.yml

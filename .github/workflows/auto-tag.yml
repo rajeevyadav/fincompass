@@ -1,0 +1,68 @@
+name: Auto-tag release on version bump
+
+# When VERSION changes on main, create the matching vX.Y.Z tag and kick the
+# desktop-package build against it. This closes the manual gap: a merge that
+# bumps the version now tags and releases itself instead of waiting for someone
+# to push the tag by hand.
+#
+# A tag pushed with GITHUB_TOKEN does not itself re-trigger tag-based workflows
+# (GitHub's recursion guard), so the package build is dispatched explicitly with
+# the new tag as its ref — workflow_dispatch is exempt from that guard.
+
+on:
+  push:
+    branches: [main]
+    paths: ["VERSION"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: auto-tag
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Tag and dispatch build when VERSION is new
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="$(tr -d ' \t\r\n' < VERSION)"
+          if [ -z "${version}" ]; then
+            echo "VERSION is empty — refusing to tag." >&2
+            exit 1
+          fi
+          tag="v${version}"
+
+          if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            echo "Tag ${tag} already exists — nothing to do."
+            exit 0
+          fi
+
+          # Keep the tag honest: it must agree with config.APP_VERSION and
+          # RELEASE_INFO.release, the same invariant tools/verify_release.py enforces.
+          config_version="$(python -c 'import config; print(config.APP_VERSION)')"
+          release_version="$(python -c 'import json; print(json.load(open("RELEASE_INFO.json"))["release"])')"
+          if [ "${config_version}" != "${version}" ] || [ "${release_version}" != "${version}" ]; then
+            echo "Version mismatch: VERSION=${version}, config=${config_version}, RELEASE_INFO=${release_version}" >&2
+            exit 1
+          fi
+
+          echo "Creating ${tag} at main @ $(git rev-parse --short HEAD)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${tag}" -m "FinCompass ${tag}"
+          git push origin "${tag}"
+
+          gh workflow run build-packages.yml --ref "${tag}"
+          echo "Dispatched build-packages.yml for ${tag}"
